@@ -1,0 +1,58 @@
+#include <iostream>
+// #include "ThirdParty/imgui/imgui_impl_glfw.h"
+// #include "ThirdParty/imgui/imgui_impl_vulkan.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include "GLFWUtils.h"
+
+#include "DrawTraiangleVkApplication.h"
+#include "Mesh.h"
+
+
+int main(int argc, char* argv[])
+{
+    std::unique_ptr<DrawTriangleVkApplication> drawTriangleVkApp =
+        std::make_unique<DrawTriangleVkApplication>();
+
+    glfwSetErrorCallback(GLFW::GlfwErrorCallback);
+    if (!glfwInit()) return -1;
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Vulkan with imGUI", nullptr, nullptr);
+    if(!glfwVulkanSupported())
+    {
+        std::cerr << "GLFW: Vulkan Not Supported\n";
+        return -1;
+    }
+
+    glfwSetWindowUserPointer(window, drawTriangleVkApp.get());
+    glfwSetFramebufferSizeCallback(window, GLFW::FrameBufferResizeCallback);
+
+    // get glfw extensions
+    std::vector<const char*> extensions;
+    uint32_t extensionsCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionsCount);
+    for (uint32_t i = 0; i < extensionsCount; i++)
+        extensions.push_back(glfwExtensions[i]);
+
+#if _DEBUG
+    std::copy(VkUtils::DefaultDebugExtensions.begin(),
+        VkUtils::DefaultDebugExtensions.end(), std::back_inserter(extensions));
+#endif
+
+    drawTriangleVkApp->InitVulkan(extensions, window);
+
+    while(!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+        drawTriangleVkApp->Run();
+    }
+
+    drawTriangleVkApp->CleanUp();
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
+    return 0;
+}

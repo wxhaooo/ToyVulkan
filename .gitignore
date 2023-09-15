@@ -1,0 +1,9 @@
+.vs/*
+.idea/*
+x64/*
+x86/*
+Debug/*
+Release/*
+Vulkan_DrawTriangle/x64/*
+Vulkan_DrawTriangle/Debug/*
+Vulkan_DrawTriangle/Release/*
