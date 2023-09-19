@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <set>
 
+#include "Image.h"
 #include "Mesh.h"
 #include "VkUtils.h"
 #include "VkHelper.h"
@@ -25,24 +26,50 @@ public:
 		CreateSurface(window);
 		PickPhysicalDevice();
 		CreateLogicDevice();
+
+		CreateCommandPool();
+		CreateCommandBuffer();
+
 		CreateSwapChain();
 		CreateImageViews();
 		CreateRenderPass();
 		CreateUniformBuffer();
+		LoadSimpleGeometry();
+		LoadImage();
+
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
-		CreateCommandPool();
-		CreateCommandBuffer();
+		
 		CreateSyncObjects();
-
-		LoadSimpleGeometry();
 	}
+
+	// void InitVulkan(std::vector<const char*> extensions, GLFWwindow* window)
+	// {
+	// 	InitVkInstance(extensions);
+	// 	InitDebugMessenger();
+	// 	CreateSurface(window);
+	// 	PickPhysicalDevice();
+	// 	CreateLogicDevice();
+	// 	CreateSwapChain();
+	// 	CreateImageViews();
+	// 	CreateRenderPass();
+	// 	CreateUniformBuffer();
+	// 	LoadSimpleGeometry();
+	//
+	// 	CreateGraphicsPipeline();
+	// 	CreateFrameBuffers();
+	// 	CreateCommandPool();
+	// 	CreateCommandBuffer();
+	// 	CreateSyncObjects();
+	//
+	// }
 
 	void CleanUp()
 	{
 		CheckVulkanResult(vkDeviceWaitIdle(vkDevice));
 
 		mesh.reset();
+		image.reset();
 		MVPUniformBuffer.reset();
 
 		CleanUpSwapChain();
@@ -108,7 +135,6 @@ public:
 		MVPMat.projectiveMat = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 		MVPMat.projectiveMat[1][1] *= -1;
 		MVPUniformBuffer->UpdateUniformBuffer(currentFrame, MVPMat);
-
 
 		// Only reset the fence if we are submitting work
 		CheckVulkanResult(vkResetFences(vkDevice, 1, &vkInFlightFence[currentFrame]));
@@ -219,6 +245,14 @@ public:
 		mesh = std::make_unique<Geometry::Mesh>(vkPhysicalDevice, vkDevice,
 			vkCommandPool, vkGraphicsQueue);
 		mesh->LoadSimpleRectangle();
+		// mesh->LoadSimpleRectangleWithoutUV();
+	}
+
+	void LoadImage()
+	{
+		image = std::make_unique<Image>(vkPhysicalDevice, vkDevice,
+			vkCommandPool, vkGraphicsQueue);
+		image->LoadDefaultImage();
 	}
 
 private:
@@ -237,6 +271,7 @@ private:
 	std::vector<VkFence> vkInFlightFence;
 
 	std::unique_ptr<Geometry::Mesh> mesh;
+	std::unique_ptr<Image> image;
 
 #pragma endregion Common
 
@@ -335,7 +370,11 @@ private:
 			&& !swapChainSupportDetails.presentModes.empty();
 		}
 
-		return indices.isComplete() && extensionsSupported && swapChainAdequate;
+		VkPhysicalDeviceFeatures supportedFeatures;
+		vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+		return indices.isComplete() && extensionsSupported && swapChainAdequate
+		&& supportedFeatures.samplerAnisotropy;
 	}
 
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
@@ -412,6 +451,7 @@ public:
 		}
 
 		VkPhysicalDeviceFeatures deviceFeatures{};
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
 
 		VkDeviceCreateInfo deviceCreateInfo{};
 		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -610,23 +650,7 @@ public:
 	{
 		vkSwapChainImageViews.resize(swapChainImages.size());
 		for (int i = 0; i < swapChainImages.size(); i++)
-		{
-			VkImageViewCreateInfo createInfo{};
-			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			createInfo.image = swapChainImages[i];
-			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			createInfo.format = swapChainImageFormat;
-			createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-			createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-			createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-			createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-			createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			createInfo.subresourceRange.baseMipLevel = 0;
-			createInfo.subresourceRange.levelCount = 1;
-			createInfo.subresourceRange.baseArrayLayer = 0;
-			createInfo.subresourceRange.layerCount = 1;
-			CheckVulkanResult(vkCreateImageView(vkDevice, &createInfo, nullptr, &vkSwapChainImageViews[i]));
-		}
+			vkSwapChainImageViews[i] = VkUtils::CreateImageView(vkDevice, swapChainImages[i], swapChainImageFormat);
 	}
 
 private:
@@ -679,7 +703,9 @@ private:
 private:
 	void CreateUniformBuffer()
 	{
-		MVPUniformBuffer = std::make_unique<VkUtils::UniformBuffer<VkUtils::MVP>>(vkPhysicalDevice, vkDevice, VkUtils::MaxFrameInFlight);
+		MVPUniformBuffer = 
+			std::make_unique<VkUtils::UniformBuffer<VkUtils::MVP>>(vkPhysicalDevice, vkDevice, 
+				VkUtils::MaxFrameInFlight);
 	}
 
 private:
@@ -720,15 +746,15 @@ public:
 		VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
 		// vertex input (bind and attribute)
-		auto bindingDescription = Geometry::Vertex::getBindingDescription();
-		auto attributeDescriptions = Geometry::Vertex::getAttributeDescriptions();
+		auto bindingDescription = Geometry::Vertex::GetBindingDescription();
+		auto attributeDescriptions = Geometry::Vertex::GetAttributeDescriptions();
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 		vertexInputInfo.vertexAttributeDescriptionCount = 
 			static_cast<uint32_t>(attributeDescriptions.size());
-		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 		// primitive topology
@@ -787,10 +813,13 @@ public:
 		dynamicState.pDynamicStates = dynamicStates.data();
 
 		// pipeline layout (uniform value/global value in shader,like MVP matrix .etc)
+		// std::vector<VkDescriptorSetLayout> descriptorSets{ MVPUniformBuffer->GetDescriptorSetLayout()};
+		std::vector<VkDescriptorSetLayout> descriptorSets { MVPUniformBuffer->GetDescriptorSetLayout(),
+			image->GetTextureSampler()->GetDescriptorSetLayout()};
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = 1;
-		pipelineLayoutInfo.pSetLayouts = MVPUniformBuffer->GetAddressOfDescriptorSetLayout();
+		pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSets.size());
+		pipelineLayoutInfo.pSetLayouts = descriptorSets.data();
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 
 		CheckVulkanResult(vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &vkPipelineLayout));
@@ -936,6 +965,10 @@ public:
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
 			0, 1, MVPUniformBuffer->GetAddressOfDescriptorSet(currentFrame),
 			0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
+			1, 1, image->GetTextureSampler()->GetAddressOfDescriptorSet(currentFrame),
+			0, nullptr);
+
 		vkCmdDrawIndexed(commandBuffer, mesh->IndexNumber(), 1, 0, 0, 0);
 		vkCmdEndRenderPass(commandBuffer);
 

@@ -16,6 +16,9 @@
     <Filter Include="Shader">
       <UniqueIdentifier>{a221902b-eb07-453c-9d3a-f88ba7395547}</UniqueIdentifier>
     </Filter>
+    <Filter Include="3rd">
+      <UniqueIdentifier>{89c41031-d566-4af7-8c7f-8a42b17a6aa5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Vulkan_DrawTriangle.cpp">
@@ -36,6 +39,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\image\stb_image.h">
+      <Filter>3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="Image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -171,7 +171,9 @@
   <ItemGroup>
     <ClInclude Include="DrawTraiangleVkApplication.h" />
     <ClInclude Include="GLFWUtils.h" />
+    <ClInclude Include="Image.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="ThirdParty\image\stb_image.h" />
     <ClInclude Include="VkUtils.h" />
     <ClInclude Include="VkHelper.h" />
   </ItemGroup>
