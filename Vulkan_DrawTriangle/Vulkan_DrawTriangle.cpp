@@ -1,6 +1,4 @@
 #include <iostream>
-// #include "ThirdParty/imgui/imgui_impl_glfw.h"
-// #include "ThirdParty/imgui/imgui_impl_vulkan.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

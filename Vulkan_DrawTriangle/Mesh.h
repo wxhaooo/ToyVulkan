@@ -249,7 +249,7 @@ namespace Geometry
 			CreateIndexBuffer();
 		}
 
-		void LoadSimpleRectangleWithoutUV()
+		void LoadSimpleRectangle()
 		{
 			vertexNumber = 4;
 			faceNumber = 2;
@@ -277,7 +277,7 @@ namespace Geometry
 			CreateIndexBuffer();
 		}
 
-		void LoadSimpleRectangle()
+		void LoadTexturedRectangle()
 		{
 			vertexNumber = 4;
 			faceNumber = 2;
@@ -293,6 +293,33 @@ namespace Geometry
 			};
 
 			indices = { 0, 1, 2, 2, 3, 0 };
+
+			CreateVertexBuffer();
+			CreateIndexBuffer();
+		}
+
+		void LoadOverlappingTexturedRectangle()
+		{
+			vertexNumber = 8;
+			faceNumber = 4;
+
+			vertices.resize(vertexNumber);
+			indices.resize(faceNumber * 3);
+
+			vertices = {
+	{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+	{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+	{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+			};
+
+			indices = { 0, 1, 2, 2, 3, 0,
+				4, 5, 6, 6, 7, 4 };
 
 			CreateVertexBuffer();
 			CreateIndexBuffer();

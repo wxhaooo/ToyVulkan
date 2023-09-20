@@ -70,7 +70,7 @@ public:
 		vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
 
 		// create image view
-		textureImageView = VkUtils::CreateImageView(logicalDevice, textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+		textureImageView = VkUtils::CreateImageView(logicalDevice, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 		// create sampler
 		CreateSampler();
 		// create sampler proxy

@@ -8,8 +8,6 @@
 #include "VkUtils.h"
 #include "VkHelper.h"
 
-
-
 class DrawTriangleVkApplication
 {
 
@@ -31,38 +29,20 @@ public:
 		CreateCommandBuffer();
 
 		CreateSwapChain();
-		CreateImageViews();
 		CreateRenderPass();
+
+		CreateImageViews();
+		CreateDepthResources();
+		CreateFrameBuffers();
+
 		CreateUniformBuffer();
 		LoadSimpleGeometry();
 		LoadImage();
 
 		CreateGraphicsPipeline();
-		CreateFrameBuffers();
-		
+
 		CreateSyncObjects();
 	}
-
-	// void InitVulkan(std::vector<const char*> extensions, GLFWwindow* window)
-	// {
-	// 	InitVkInstance(extensions);
-	// 	InitDebugMessenger();
-	// 	CreateSurface(window);
-	// 	PickPhysicalDevice();
-	// 	CreateLogicDevice();
-	// 	CreateSwapChain();
-	// 	CreateImageViews();
-	// 	CreateRenderPass();
-	// 	CreateUniformBuffer();
-	// 	LoadSimpleGeometry();
-	//
-	// 	CreateGraphicsPipeline();
-	// 	CreateFrameBuffers();
-	// 	CreateCommandPool();
-	// 	CreateCommandBuffer();
-	// 	CreateSyncObjects();
-	//
-	// }
 
 	void CleanUp()
 	{
@@ -244,7 +224,8 @@ public:
 	{
 		mesh = std::make_unique<Geometry::Mesh>(vkPhysicalDevice, vkDevice,
 			vkCommandPool, vkGraphicsQueue);
-		mesh->LoadSimpleRectangle();
+		// mesh->LoadTexturedRectangle();
+		mesh->LoadOverlappingTexturedRectangle();
 		// mesh->LoadSimpleRectangleWithoutUV();
 	}
 
@@ -549,6 +530,7 @@ public:
 
 		CreateSwapChain();
 		CreateImageViews();
+		CreateDepthResources();
 		CreateFrameBuffers();
 	}
 
@@ -556,6 +538,10 @@ private:
 
 	void CleanUpSwapChain()
 	{
+		vkDestroyImageView(vkDevice, vkDepthImageView, nullptr);
+		vkDestroyImage(vkDevice, vkDepthImage, nullptr);
+		vkFreeMemory(vkDevice, vkDepthImageMemory, nullptr);
+
 		for (size_t i = 0; i < vkSwapChainFramebuffers.size(); i++) {
 			vkDestroyFramebuffer(vkDevice, vkSwapChainFramebuffers[i], nullptr);
 		}
@@ -650,7 +636,7 @@ public:
 	{
 		vkSwapChainImageViews.resize(swapChainImages.size());
 		for (int i = 0; i < swapChainImages.size(); i++)
-			vkSwapChainImageViews[i] = VkUtils::CreateImageView(vkDevice, swapChainImages[i], swapChainImageFormat);
+			vkSwapChainImageViews[i] = VkUtils::CreateImageView(vkDevice, swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
 private:
@@ -658,12 +644,50 @@ private:
 
 #pragma endregion CreateImageView
 
+#pragma region DepthImage
+
+private:
+	void CreateDepthResources()
+	{
+		VkFormat depthFormat = FindDepthFormat();
+
+		VkUtils::CreateImage(vkPhysicalDevice,vkDevice, swapChainExtent.width, swapChainExtent.height, 
+			depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vkDepthImage, vkDepthImageMemory);
+		vkDepthImageView = VkUtils::CreateImageView(vkDevice, vkDepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+		VkUtils::TransitionImageLayout(vkDevice, vkCommandPool, vkGraphicsQueue, vkDepthImage, depthFormat,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	}
+
+	VkFormat FindDepthFormat()
+	{
+		return VkUtils::FindSupportedFormat(vkPhysicalDevice,
+			{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+		);
+	}
+
+private:
+	VkImage vkDepthImage;
+	VkDeviceMemory vkDepthImageMemory;
+	VkImageView vkDepthImageView;
+
+#pragma endregion DepthImage
+
 #pragma region RenderPass
 
 public:
+	// During normal rendering, it is not possible for a fragment shader to access the attachments to which it is currently rendering: GPUs have optimized hardware for writing to the attachments, and accessing the attachment interferes with this.
+	// However, some common rendering techniques such as deferred shading rely on being able to access the result of previous rendering during shading. For a tile-based renderer, the results of previous rendering can efficiently stay on-chip if subsequent rendering operations are at the same resolution,
+	// and if only the data in the pixel currently being rendered is needed (accessing different pixels may require access to values outside the current tile, which breaks this optimization).
+	// In order to help optimize deferred shading on tile-based renderers, Vulkan splits the rendering operations of a render pass into subpasses.
+	// All subpasses in a render pass share the same resolution and tile arrangement, and as a result, they can access the results of previous subpass.
 	void CreateRenderPass()
 	{
 		// attachment is as input and output of render pass
+		// the below is just attachment description!!
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = swapChainImageFormat;
 		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -678,17 +702,44 @@ public:
 		colorAttachmentRef.attachment = 0;
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+		// depth attachment
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.format = FindDepthFormat();
+		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDependency dependency{};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
 		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
 		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
+		std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
 		VkRenderPassCreateInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = 1;
-		renderPassInfo.pAttachments = &colorAttachment;
+		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		renderPassInfo.pAttachments = attachments.data();
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
+		renderPassInfo.dependencyCount = 1;
+		renderPassInfo.pDependencies = &dependency;
 
 		CheckVulkanResult(vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &vkRenderPass));
 	}
@@ -802,6 +853,19 @@ public:
 		colorBlending.blendConstants[2] = 0.0f;
 		colorBlending.blendConstants[3] = 0.0f;
 
+		// depth & stencil state
+		VkPipelineDepthStencilStateCreateInfo depthStencil{};
+		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencil.depthTestEnable = VK_TRUE;
+		depthStencil.depthWriteEnable = VK_TRUE;
+		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencil.depthBoundsTestEnable = VK_FALSE;
+		depthStencil.minDepthBounds = 0.0f; // Optional
+		depthStencil.maxDepthBounds = 1.0f; // Optional
+		depthStencil.stencilTestEnable = VK_FALSE;
+		depthStencil.front = {}; // Optional
+		depthStencil.back = {}; // Optional
+
 		// config pipeline state
 		std::vector<VkDynamicState> dynamicStates = {
 			VK_DYNAMIC_STATE_VIEWPORT,
@@ -839,6 +903,7 @@ public:
 		pipelineInfo.renderPass = vkRenderPass;
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+		pipelineInfo.pDepthStencilState = &depthStencil;
 
 		CheckVulkanResult(vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkGraphicsPipeline));
 
@@ -868,17 +933,20 @@ private:
 #pragma region FrameBuffer
 
 public:
+	// Framebuffers represent a collection of memory attachments that are used by a render pass instance.
+	// A framebuffer provides the attachments that a render pass needs while rendering.
+	// The framebuffer essentially associates the actual attachments to the renderpass.
 	void CreateFrameBuffers()
 	{
 		vkSwapChainFramebuffers.resize(vkSwapChainImageViews.size());
 		for (size_t i = 0; i < vkSwapChainImageViews.size(); i++) {
-			VkImageView attachments[] = { vkSwapChainImageViews[i] };
+			std::array<VkImageView, 2> attachments = { vkSwapChainImageViews[i],vkDepthImageView };
 
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			framebufferInfo.renderPass = vkRenderPass;
-			framebufferInfo.attachmentCount = 1;
-			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = swapChainExtent.width;
 			framebufferInfo.height = swapChainExtent.height;
 			framebufferInfo.layers = 1;
@@ -936,9 +1004,12 @@ public:
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = swapChainExtent;
 
-		VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-		renderPassInfo.clearValueCount = 1;
-		renderPassInfo.pClearValues = &clearColor;
+		std::array<VkClearValue, 2> clearValues{};
+		clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
+		clearValues[1].depthStencil = { 1.0f, 0 };
+
+		renderPassInfo.clearValueCount = clearValues.size();
+		renderPassInfo.pClearValues = clearValues.data();
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
