@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
     if (!glfwInit()) return -1;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Vulkan with imGUI", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Vulkan with GLFW", nullptr, nullptr);
     if(!glfwVulkanSupported())
     {
         std::cerr << "GLFW: Vulkan Not Supported\n";

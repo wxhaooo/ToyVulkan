@@ -144,6 +144,5 @@ public:
 	void LoadDefaultImage()
 	{
 		LoadSRGBImage("./Texture/texture.jpg");
-
 	}
 };

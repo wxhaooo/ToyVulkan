@@ -2,11 +2,15 @@
 
 #include <filesystem>
 #include <set>
+#include <backends/imgui_impl_glfw.h>
 
 #include "Image.h"
 #include "Mesh.h"
 #include "VkUtils.h"
 #include "VkHelper.h"
+#include "VkImGUI.h"
+#include "../Common/imgui/imgui.h"
+#include "../Common/imgui/backends/imgui_impl_vulkan.h"
 
 class DrawTriangleVkApplication
 {
@@ -24,11 +28,12 @@ public:
 		CreateSurface(window);
 		PickPhysicalDevice();
 		CreateLogicDevice();
+		CreateSwapChain();
+		CreateImGUI();
 
 		CreateCommandPool();
 		CreateCommandBuffer();
 
-		CreateSwapChain();
 		CreateRenderPass();
 
 		CreateImageViews();
@@ -51,6 +56,7 @@ public:
 		mesh.reset();
 		image.reset();
 		MVPUniformBuffer.reset();
+		imGUI.reset();
 
 		CleanUpSwapChain();
 
@@ -513,6 +519,10 @@ public:
 		CheckVulkanResult(vkGetSwapchainImagesKHR(vkDevice, vkSwapChain, &imageCount, nullptr));
 		swapChainImages.resize(imageCount);
 		CheckVulkanResult(vkGetSwapchainImagesKHR(vkDevice, vkSwapChain, &imageCount, swapChainImages.data()));
+
+		// cache for other module in program
+		swapChainPresentMode = presentMode;
+		swapChainMinImageCount = imageCount;
 	}
 
 	void ReCreateSwapChain()
@@ -622,9 +632,11 @@ private:
 	}
 private:
 	// swap chain
+	uint32_t swapChainMinImageCount;
 	VkSwapchainKHR vkSwapChain;
 	std::vector<VkImage> swapChainImages;
 	VkFormat swapChainImageFormat;
+	VkPresentModeKHR swapChainPresentMode;
 	VkExtent2D swapChainExtent;
 
 #pragma endregion SwapChain
@@ -1068,16 +1080,24 @@ private:
 
 #pragma endregion GLFW
 
-#pragma region IMGUI
-
+#pragma region ImGUI
 private:
-
-
-public:
-	void InitImGUI()
+	void CreateImGUI()
 	{
+		ImGUICreateInfo createInfo;
+		createInfo.physicalDevice = vkPhysicalDevice;
+		createInfo.logicalDevice = vkDevice;
+		createInfo.graphicsQueue = vkGraphicsQueue;
+		createInfo.surface = vkSurface;
+		createInfo.swapChain = vkSwapChain;
+		createInfo.swapChainImageFormat = swapChainImageFormat;
+		createInfo.swapChainPresentMode = swapChainPresentMode;
+		createInfo.swapChainImageWidth = swapChainExtent.width;
+		createInfo.swapChainImageHeight = swapChainExtent.height;
+
+		imGUI = std::make_unique<VkImGUI>(createInfo);
 	}
-
-#pragma endregion IMGUI
-
+private:
+	std::unique_ptr<VkImGUI> imGUI;
+#pragma endregion ImGUI
 };
