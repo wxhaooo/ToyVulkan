@@ -128,7 +128,40 @@ public:
 
 		// ÷ÿ÷√≤¢º«¬ºCommand
 		CheckVulkanResult(vkResetCommandBuffer(vkCommandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0));
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = 0; // Optional
+		beginInfo.pInheritanceInfo = nullptr; // Optional
+
+		CheckVulkanResult(vkBeginCommandBuffer(vkCommandBuffers[currentFrame], &beginInfo));
+
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = vkRenderPass;
+		renderPassInfo.framebuffer = vkSwapChainFramebuffers[imageIndex];
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent = swapChainExtent;
+
+		std::array<VkClearValue, 2> clearValues{};
+		clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
+		clearValues[1].depthStencil = { 1.0f, 0 };
+
+		renderPassInfo.clearValueCount = clearValues.size();
+		renderPassInfo.pClearValues = clearValues.data();
+
+		vkCmdBeginRenderPass(vkCommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		imGUI->NewFrame();
+		imGUI->UpdateBuffer();
+
 		RecordCommandBuffer(vkCommandBuffers[currentFrame], imageIndex);
+
+		imGUI->DrawFrame(vkCommandBuffers[currentFrame]);
+
+		vkCmdEndRenderPass(vkCommandBuffers[currentFrame]);
+
+		CheckVulkanResult(vkEndCommandBuffer(vkCommandBuffers[currentFrame]));
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -776,8 +809,8 @@ public:
 		auto fragShaderCode = VkUtils::ReadBinaryFile(fragShader);
 
 		// create shader module
-		VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-		VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+		VkShaderModule vertShaderModule = VkUtils::CreateShaderModule(vkDevice, vertShaderCode);
+		VkShaderModule fragShaderModule = VkUtils::CreateShaderModule(vkDevice, fragShaderCode);
 
 		// create shader stage
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -910,19 +943,6 @@ public:
 	}
 
 private:
-
-	VkShaderModule CreateShaderModule(const std::vector<char>& code)
-	{
-		VkShaderModuleCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = code.size();
-		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-		VkShaderModule shaderModule;
-		CheckVulkanResult(vkCreateShaderModule(vkDevice, &createInfo, nullptr, &shaderModule));
-		return shaderModule;
-	}
-
-private:
 	VkPipeline vkGraphicsPipeline;
 	VkPipelineLayout vkPipelineLayout;
 
@@ -988,29 +1008,6 @@ public:
 
 	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 	{
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = 0; // Optional
-		beginInfo.pInheritanceInfo = nullptr; // Optional
-
-		CheckVulkanResult(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = vkRenderPass;
-		renderPassInfo.framebuffer = vkSwapChainFramebuffers[imageIndex];
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChainExtent;
-
-		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		renderPassInfo.clearValueCount = clearValues.size();
-		renderPassInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkGraphicsPipeline);
 
 		VkViewport viewport{};
@@ -1021,7 +1018,7 @@ public:
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-		
+
 		VkRect2D scissor{};
 		scissor.offset = { 0, 0 };
 		scissor.extent = swapChainExtent;
@@ -1039,10 +1036,65 @@ public:
 			0, nullptr);
 
 		vkCmdDrawIndexed(commandBuffer, mesh->IndexNumber(), 1, 0, 0, 0);
-		vkCmdEndRenderPass(commandBuffer);
-
-		CheckVulkanResult(vkEndCommandBuffer(commandBuffer));
 	}
+
+	// void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+	// {
+	// 	VkCommandBufferBeginInfo beginInfo{};
+	// 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	// 	beginInfo.flags = 0; // Optional
+	// 	beginInfo.pInheritanceInfo = nullptr; // Optional
+	//
+	// 	CheckVulkanResult(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+	//
+	// 	VkRenderPassBeginInfo renderPassInfo{};
+	// 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	// 	renderPassInfo.renderPass = vkRenderPass;
+	// 	renderPassInfo.framebuffer = vkSwapChainFramebuffers[imageIndex];
+	// 	renderPassInfo.renderArea.offset = { 0, 0 };
+	// 	renderPassInfo.renderArea.extent = swapChainExtent;
+	//
+	// 	std::array<VkClearValue, 2> clearValues{};
+	// 	clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
+	// 	clearValues[1].depthStencil = { 1.0f, 0 };
+	//
+	// 	renderPassInfo.clearValueCount = clearValues.size();
+	// 	renderPassInfo.pClearValues = clearValues.data();
+	//
+	// 	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	//
+	// 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkGraphicsPipeline);
+	//
+	// 	VkViewport viewport{};
+	// 	viewport.x = 0.0f;
+	// 	viewport.y = 0.0f;
+	// 	viewport.width = (float)swapChainExtent.width;
+	// 	viewport.height = (float)swapChainExtent.height;
+	// 	viewport.minDepth = 0.0f;
+	// 	viewport.maxDepth = 1.0f;
+	// 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	// 	
+	// 	VkRect2D scissor{};
+	// 	scissor.offset = { 0, 0 };
+	// 	scissor.extent = swapChainExtent;
+	// 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	//
+	// 	VkBuffer vertexBuffers[] = { mesh->GetVertexBuffer() };
+	// 	VkDeviceSize offsets[] = { 0 };
+	// 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	// 	vkCmdBindIndexBuffer(commandBuffer, mesh->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
+	// 		0, 1, MVPUniformBuffer->GetAddressOfDescriptorSet(currentFrame),
+	// 		0, nullptr);
+	// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
+	// 		1, 1, image->GetTextureSampler()->GetAddressOfDescriptorSet(currentFrame),
+	// 		0, nullptr);
+	//
+	// 	vkCmdDrawIndexed(commandBuffer, mesh->IndexNumber(), 1, 0, 0, 0);
+	// 	vkCmdEndRenderPass(commandBuffer);
+	//
+	// 	CheckVulkanResult(vkEndCommandBuffer(commandBuffer));
+	// }
 
 private:
 	// commandPool equal to commandAllocator in dx12
