@@ -516,7 +516,7 @@ namespace VkUtils
 	}
 
 	inline void TransitionImageLayout(VkDevice logicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue,
-		VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+		VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStageMask,VkPipelineStageFlags dstStageMask)
 	{
 		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(logicalDevice, commandPool);
 
@@ -623,7 +623,6 @@ namespace VkUtils
 		viewInfo.image = image;
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		viewInfo.format = format;
-		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = 1;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -650,5 +649,24 @@ namespace VkUtils
 		}
 
 		throw std::runtime_error("failed to find supported format!");
+	}
+}
+
+// device
+namespace VkUtils
+{
+	inline bool CheckDeviceExtensionSupport(VkPhysicalDevice device, std::set<std::string>& requiredExtensions)
+	{
+		uint32_t extensionCount;
+		CheckVulkanResult(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr));
+
+		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+		CheckVulkanResult(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data()));
+
+		for (const auto& extension : availableExtensions) {
+			requiredExtensions.erase(extension.extensionName);
+		}
+
+		return requiredExtensions.empty();
 	}
 }

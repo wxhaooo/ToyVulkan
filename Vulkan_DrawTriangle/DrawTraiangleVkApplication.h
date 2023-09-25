@@ -29,12 +29,13 @@ public:
 		PickPhysicalDevice();
 		CreateLogicDevice();
 		CreateSwapChain();
-		CreateImGUI();
 
 		CreateCommandPool();
 		CreateCommandBuffer();
 
 		CreateRenderPass();
+
+		CreateImGUI();
 
 		CreateImageViews();
 		CreateDepthResources();
@@ -348,7 +349,8 @@ private:
 	bool IsDeviceSuitable(VkPhysicalDevice device)
 	{
 		VkUtils::QueueFamilyIndices indices = FindQueueFamilies(device);
-		bool extensionsSupported = CheckDeviceExtensionSupport(device);
+		std::set<std::string> requiredExtensions(VkUtils::DefaultDeviceExtensions.begin(), VkUtils::DefaultDeviceExtensions.end());
+		bool extensionsSupported = VkUtils::CheckDeviceExtensionSupport(device, requiredExtensions);
 		bool swapChainAdequate = false;
 		if(extensionsSupported)
 		{
@@ -362,23 +364,6 @@ private:
 
 		return indices.isComplete() && extensionsSupported && swapChainAdequate
 		&& supportedFeatures.samplerAnisotropy;
-	}
-
-	bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
-	{
-		uint32_t extensionCount;
-		CheckVulkanResult(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr));
-
-		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-		CheckVulkanResult(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data()));
-
-		std::set<std::string> requiredExtensions(VkUtils::DefaultDeviceExtensions.begin(), VkUtils::DefaultDeviceExtensions.end());
-
-		for (const auto& extension : availableExtensions) {
-			requiredExtensions.erase(extension.extensionName);
-		}
-
-		return requiredExtensions.empty();
 	}
 
 	VkUtils::QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device)
@@ -669,7 +654,8 @@ private:
 		vkDepthImageView = VkUtils::CreateImageView(vkDevice, vkDepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		VkUtils::TransitionImageLayout(vkDevice, vkCommandPool, vkGraphicsQueue, vkDepthImage, depthFormat,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
 	}
 
 	VkFormat FindDepthFormat()
@@ -1081,23 +1067,31 @@ private:
 #pragma endregion GLFW
 
 #pragma region ImGUI
+
 private:
 	void CreateImGUI()
 	{
 		ImGUICreateInfo createInfo;
+
+		createInfo.commandPool = vkCommandPool;
+
 		createInfo.physicalDevice = vkPhysicalDevice;
 		createInfo.logicalDevice = vkDevice;
-		createInfo.graphicsQueue = vkGraphicsQueue;
 		createInfo.surface = vkSurface;
+
 		createInfo.swapChain = vkSwapChain;
 		createInfo.swapChainImageFormat = swapChainImageFormat;
 		createInfo.swapChainPresentMode = swapChainPresentMode;
 		createInfo.swapChainImageWidth = swapChainExtent.width;
 		createInfo.swapChainImageHeight = swapChainExtent.height;
 
+		createInfo.renderPass = vkRenderPass;
+		createInfo.graphicsQueue = vkGraphicsQueue;
+
 		imGUI = std::make_unique<VkImGUI>(createInfo);
 	}
 private:
 	std::unique_ptr<VkImGUI> imGUI;
+
 #pragma endregion ImGUI
 };
