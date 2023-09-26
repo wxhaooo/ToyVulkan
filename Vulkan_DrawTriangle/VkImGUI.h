@@ -1,14 +1,18 @@
 #pragma once
 #include <memory>
+#include <backends/imgui_impl_vulkan.h>
 #include <GLFW/glfw3native.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 
 #include "VkUtils.h"
+
 // #include <windows.h>
 
 struct ImGUICreateInfo
 {
+	VkInstance instance;
+
 	// command pool
 	VkCommandPool commandPool;
 
@@ -20,9 +24,12 @@ struct ImGUICreateInfo
 	// swap chain
 	uint32_t swapChainImageWidth;
 	uint32_t swapChainImageHeight;
+	uint32_t swapChainImageCount;
 	VkSwapchainKHR swapChain;
 	VkFormat swapChainImageFormat;
 	VkPresentModeKHR swapChainPresentMode;
+
+	GLFWwindow* glfwWindow;
 
 	// render pass and queue
 	VkRenderPass renderPass;
@@ -39,17 +46,19 @@ public:
 		glm::vec2 translate;
 	} pushConstBlock;
 
-
 public:
 	VkImGUI() = delete;
 	VkImGUI(ImGUICreateInfo& imGUICreateInfo)
-		: commandPool(imGUICreateInfo.commandPool), swapChain(imGUICreateInfo.swapChain),
+		: instance(imGUICreateInfo.instance),
+		swapChain(imGUICreateInfo.swapChain),
 		swapChainImageWidth(imGUICreateInfo.swapChainImageWidth),
 		swapChainImageHeight(imGUICreateInfo.swapChainImageHeight),
+		swapChainImageMinCount(imGUICreateInfo.swapChainImageCount),
 		swapChainImageFormat(imGUICreateInfo.swapChainImageFormat),
 		swapChainPresentMode(imGUICreateInfo.swapChainPresentMode),
 		physicalDevice(imGUICreateInfo.physicalDevice), logicalDevice(imGUICreateInfo.logicalDevice),
-	    surface(imGUICreateInfo.surface),
+	    surface(imGUICreateInfo.surface), glfwWindow(imGUICreateInfo.glfwWindow),
+		commandPool(imGUICreateInfo.commandPool),
 		renderPass(imGUICreateInfo.renderPass),graphicsQueue(imGUICreateInfo.graphicsQueue)
 	{
 		InitImGUIResource();
@@ -58,6 +67,8 @@ public:
 
 	~VkImGUI()
 	{
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 
 		CleanUpVulkanResource();
@@ -67,30 +78,119 @@ public:
 
 	void NewFrame()
 	{
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		ImGui::Begin("Draw Triangle");
-		bool checkBoxTest = true;
 		ImGui::Checkbox("Checkbox Test", &checkBoxTest);
 
 		ImGui::End();
+
 		ImGui::Render();
 	}
+
+	bool checkBoxTest = true;
+
+	// void UpdateBuffer()
+	// {
+	// 	ImDrawData* imDrawData = ImGui::GetDrawData();
+	//
+	// 	// Note: Alignment is done inside buffer creation
+	// 	VkDeviceSize vertexBufferSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
+	// 	VkDeviceSize indexBufferSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
+	//
+	// 	if ((vertexBufferSize == 0) || (indexBufferSize == 0)) {
+	// 		return;
+	// 	}
+	//
+	// 	// Update buffers only if vertex or index count has been changed compared to current buffer size
+	//
+	// 	// Vertex buffer
+	//
+	// 	if ((vertexBufferArray[currentUsedIndex] == VK_NULL_HANDLE) || (vertexCountArray[currentUsedIndex] != imDrawData->TotalVtxCount)) {
+	// 		if (vertexBufferMappedArray[currentUsedIndex])
+	// 		{
+	// 			vkUnmapMemory(logicalDevice, vertexBufferMemoryArray[currentUsedIndex]);
+	// 			vertexBufferMappedArray[currentUsedIndex] = nullptr;
+	// 		}
+	//
+	// 		if (vertexBufferArray[currentUsedIndex])
+	// 			vkDestroyBuffer(logicalDevice, vertexBufferArray[currentUsedIndex], nullptr);
+	//
+	// 		if (vertexBufferMemoryArray[currentUsedIndex])
+	// 			vkFreeMemory(logicalDevice, vertexBufferMemoryArray[currentUsedIndex], nullptr);
+	//
+	// 		VkUtils::CreateBuffer(physicalDevice, logicalDevice, vertexBufferSize,
+	// 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBuffer, vertexBufferMemory);
+	// 		vertexCount = imDrawData->TotalVtxCount;
+	// 		CheckVulkanResult(vkMapMemory(logicalDevice, vertexBufferMemory, 0, VK_WHOLE_SIZE, 0, &vertexBufferMapped));
+	// 	}
+	//
+	// 	// Index buffer
+	// 	if ((indexBuffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
+	// 		if (indexBufferMapped)
+	// 		{
+	// 			vkUnmapMemory(logicalDevice, indexBufferMemory);
+	// 			indexBufferMapped = nullptr;
+	// 		}
+	//
+	// 		if (indexBuffer)
+	// 			vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
+	//
+	// 		if (indexBufferMemory)
+	// 			vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
+	//
+	//
+	// 		VkUtils::CreateBuffer(physicalDevice, logicalDevice, indexBufferSize,
+	// 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+	// 			indexBuffer, indexBufferMemory);
+	// 		indexCount = imDrawData->TotalIdxCount;
+	// 		CheckVulkanResult(vkMapMemory(logicalDevice, indexBufferMemory, 0, VK_WHOLE_SIZE, 0, &indexBufferMapped));
+	// 	}
+	//
+	// 	// Upload data
+	// 	ImDrawVert* vtxDst = (ImDrawVert*)vertexBufferMapped;
+	// 	ImDrawIdx* idxDst = (ImDrawIdx*)indexBufferMapped;
+	//
+	// 	for (int n = 0; n < imDrawData->CmdListsCount; n++) {
+	// 		const ImDrawList* cmd_list = imDrawData->CmdLists[n];
+	// 		memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
+	// 		memcpy(idxDst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+	// 		vtxDst += cmd_list->VtxBuffer.Size;
+	// 		idxDst += cmd_list->IdxBuffer.Size;
+	// 	}
+	//
+	// 	// Flush to make writes visible to GPU
+	// 	VkMappedMemoryRange vertexMappedRange = {};
+	// 	vertexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	// 	vertexMappedRange.memory = vertexBufferMemory;
+	// 	vertexMappedRange.offset = 0;
+	// 	vertexMappedRange.size = VK_WHOLE_SIZE;
+	// 	CheckVulkanResult(vkFlushMappedMemoryRanges(logicalDevice, 1, &vertexMappedRange));
+	//
+	// 	VkMappedMemoryRange indexMappedRange = {};
+	// 	indexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	// 	indexMappedRange.memory = indexBufferMemory;
+	// 	indexMappedRange.offset = 0;
+	// 	indexMappedRange.size = VK_WHOLE_SIZE;
+	// 	CheckVulkanResult(vkFlushMappedMemoryRanges(logicalDevice, 1, &indexMappedRange));
+	// }
 
 	void UpdateBuffer()
 	{
 		ImDrawData* imDrawData = ImGui::GetDrawData();
-
+	
 		// Note: Alignment is done inside buffer creation
 		VkDeviceSize vertexBufferSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
 		VkDeviceSize indexBufferSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
-
+	
 		if ((vertexBufferSize == 0) || (indexBufferSize == 0)) {
 			return;
 		}
-
+	
 		// Update buffers only if vertex or index count has been changed compared to current buffer size
-
+	
 		// Vertex buffer
 		if ((vertexBuffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
 			if (vertexBufferMapped)
@@ -98,19 +198,19 @@ public:
 				vkUnmapMemory(logicalDevice, vertexBufferMemory);
 				vertexBufferMapped = nullptr;
 			}
-
+	
 			if (vertexBuffer)
 				vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
-
+	
 			if (vertexBufferMemory)
 				vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
-
+	
 			VkUtils::CreateBuffer(physicalDevice, logicalDevice, vertexBufferSize,
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBuffer, vertexBufferMemory);
 			vertexCount = imDrawData->TotalVtxCount;
 			CheckVulkanResult(vkMapMemory(logicalDevice, vertexBufferMemory, 0, VK_WHOLE_SIZE, 0, &vertexBufferMapped));
 		}
-
+	
 		// Index buffer
 		if ((indexBuffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
 			if (indexBufferMapped)
@@ -118,25 +218,25 @@ public:
 				vkUnmapMemory(logicalDevice, indexBufferMemory);
 				indexBufferMapped = nullptr;
 			}
-
+	
 			if(indexBuffer)
 				vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
-
+	
 			if(indexBufferMemory)
 				vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
-
-
+	
+	
 			VkUtils::CreateBuffer(physicalDevice, logicalDevice, indexBufferSize,
 				VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
 				indexBuffer, indexBufferMemory);
 			indexCount = imDrawData->TotalIdxCount;
 			CheckVulkanResult(vkMapMemory(logicalDevice, indexBufferMemory, 0, VK_WHOLE_SIZE, 0, &indexBufferMapped));
 		}
-
+	
 		// Upload data
 		ImDrawVert* vtxDst = (ImDrawVert*)vertexBufferMapped;
 		ImDrawIdx* idxDst = (ImDrawIdx*)indexBufferMapped;
-
+	
 		for (int n = 0; n < imDrawData->CmdListsCount; n++) {
 			const ImDrawList* cmd_list = imDrawData->CmdLists[n];
 			memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
@@ -144,7 +244,7 @@ public:
 			vtxDst += cmd_list->VtxBuffer.Size;
 			idxDst += cmd_list->IdxBuffer.Size;
 		}
-
+	
 		// Flush to make writes visible to GPU
 		VkMappedMemoryRange vertexMappedRange = {};
 		vertexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -152,7 +252,7 @@ public:
 		vertexMappedRange.offset = 0;
 		vertexMappedRange.size = VK_WHOLE_SIZE;
 		CheckVulkanResult(vkFlushMappedMemoryRanges(logicalDevice, 1, &vertexMappedRange));
-
+	
 		VkMappedMemoryRange indexMappedRange = {};
 		indexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 		indexMappedRange.memory = indexBufferMemory;
@@ -210,10 +310,26 @@ public:
 
 #pragma region Vulkan Resource
 
+public:
+	void ReCreateVulkanResource(int imageWidth, int imageHeight)
+	{
+		
+	}
+
 private:
 
 	void InitVulkanResource()
 	{
+		// vertexBufferArray.resize(swapChainImageMinCount);
+		// vertexBufferMemoryArray.resize(swapChainImageMinCount);
+		// vertexBufferMappedArray.resize(swapChainImageMinCount);
+		// vertexCountArray.resize(swapChainImageMinCount);
+		//
+		// indexBufferArray.resize(swapChainImageMinCount);
+		// indexBufferMemoryArray.resize(swapChainImageMinCount);
+		// indexBufferMappedArray.resize(swapChainImageMinCount);
+		// indexCountArray.resize(swapChainImageMinCount);
+
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Create font texture
@@ -450,11 +566,23 @@ private:
 
 private:
 
+	uint32_t currentUsedIndex = 0;
+
+	// std::vector<int32_t> vertexCountArray;
+	// std::vector<VkBuffer> vertexBufferArray;
+	// std::vector<VkDeviceMemory> vertexBufferMemoryArray;
+	// std::vector<void*> vertexBufferMappedArray;
+	//
+	// std::vector<int32_t> indexCountArray;
+	// std::vector<VkBuffer> indexBufferArray;
+	// std::vector<VkDeviceMemory> indexBufferMemoryArray;
+	// std::vector<void*> indexBufferMappedArray;
+
 	int32_t vertexCount = 0;
 	VkBuffer vertexBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
 	void* vertexBufferMapped = nullptr;
-
+	
 	int32_t indexCount = 0;
 	VkBuffer indexBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
@@ -500,18 +628,28 @@ private:
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(swapChainImageWidth, swapChainImageHeight);
 		io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
-// #if defined(_WIN32)
-// 		// If we directly work with os specific key codes, we need to map special key types like tab
-// 		io.KeyMap[ImGuiKey_Tab] = VK_TAB;
-// 		io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
-// 		io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
-// 		io.KeyMap[ImGuiKey_UpArrow] = VK_UP;
-// 		io.KeyMap[ImGuiKey_DownArrow] = VK_DOWN;
-// 		io.KeyMap[ImGuiKey_Backspace] = VK_BACK;
-// 		io.KeyMap[ImGuiKey_Enter] = VK_RETURN;
-// 		io.KeyMap[ImGuiKey_Space] = VK_SPACE;
-// 		io.KeyMap[ImGuiKey_Delete] = VK_DELETE;
-// #endif
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplGlfw_InitForVulkan(glfwWindow, true);
+
+		VkUtils::QueueFamilyIndices queueFamilyIndices = VkUtils::FindQueueFamilies(physicalDevice, surface);
+
+		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.Instance = instance;
+		init_info.PhysicalDevice = physicalDevice;
+		init_info.Device = logicalDevice;
+		init_info.QueueFamily = queueFamilyIndices.graphicsFamily.value();
+		init_info.Queue = graphicsQueue;
+		init_info.PipelineCache = nullptr;
+		init_info.DescriptorPool = descriptorPool;
+		init_info.Subpass = 0;
+		init_info.MinImageCount = swapChainImageMinCount;
+		init_info.ImageCount = swapChainImageMinCount;
+		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		init_info.Allocator = nullptr;
+		ImGui_ImplVulkan_Init(&init_info, renderPass);
 	}
 
 private:
@@ -534,10 +672,14 @@ private:
 
 	// external resource
 private:
+	// instance
+	VkInstance instance;
+
 	// swap chain
 	VkSwapchainKHR swapChain;
 	uint32_t swapChainImageWidth;
 	uint32_t swapChainImageHeight;
+	uint32_t swapChainImageMinCount;
 	VkFormat swapChainImageFormat;
 	VkPresentModeKHR swapChainPresentMode;
 
@@ -545,6 +687,7 @@ private:
 	VkPhysicalDevice physicalDevice;
 	VkDevice logicalDevice;
 	VkSurfaceKHR surface;
+	GLFWwindow* glfwWindow;
 	VkSurfaceFormatKHR surfaceFormat;
 
 	// command

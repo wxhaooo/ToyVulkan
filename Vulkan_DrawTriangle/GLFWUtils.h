@@ -14,6 +14,6 @@ namespace GLFW
     static void FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
         auto app = reinterpret_cast<DrawTriangleVkApplication*>(glfwGetWindowUserPointer(window));
-        app->ReCreateSwapChain();
+        app->ReCreateVulkanResource();
     }
 };
