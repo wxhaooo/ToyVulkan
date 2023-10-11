@@ -150,10 +150,10 @@ public:
 		renderPassInfo.clearValueCount = clearValues.size();
 		renderPassInfo.pClearValues = clearValues.data();
 
-		vkCmdBeginRenderPass(vkCommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 		imGUI->NewFrame();
 		imGUI->UpdateBuffer();
+
+		vkCmdBeginRenderPass(vkCommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		RecordCommandBuffer(vkCommandBuffers[currentFrame], imageIndex);
 
@@ -202,6 +202,7 @@ public:
 		presentInfo.pImageIndices = &imageIndex;
 
 		CheckVulkanResult(vkQueuePresentKHR(vkPresentQueue, &presentInfo));
+		CheckVulkanResult(vkQueueWaitIdle(vkGraphicsQueue));
 
 		currentFrame = (currentFrame + 1) % VkUtils::MaxFrameInFlight;
 	}

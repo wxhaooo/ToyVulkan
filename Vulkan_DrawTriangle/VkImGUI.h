@@ -67,7 +67,7 @@ public:
 
 	~VkImGUI()
 	{
-		ImGui_ImplVulkan_Shutdown();
+		// ImGui_ImplVulkan_Shutdown();
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 
@@ -78,7 +78,6 @@ public:
 
 	void NewFrame()
 	{
-		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
@@ -91,91 +90,6 @@ public:
 	}
 
 	bool checkBoxTest = true;
-
-	// void UpdateBuffer()
-	// {
-	// 	ImDrawData* imDrawData = ImGui::GetDrawData();
-	//
-	// 	// Note: Alignment is done inside buffer creation
-	// 	VkDeviceSize vertexBufferSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
-	// 	VkDeviceSize indexBufferSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
-	//
-	// 	if ((vertexBufferSize == 0) || (indexBufferSize == 0)) {
-	// 		return;
-	// 	}
-	//
-	// 	// Update buffers only if vertex or index count has been changed compared to current buffer size
-	//
-	// 	// Vertex buffer
-	//
-	// 	if ((vertexBufferArray[currentUsedIndex] == VK_NULL_HANDLE) || (vertexCountArray[currentUsedIndex] != imDrawData->TotalVtxCount)) {
-	// 		if (vertexBufferMappedArray[currentUsedIndex])
-	// 		{
-	// 			vkUnmapMemory(logicalDevice, vertexBufferMemoryArray[currentUsedIndex]);
-	// 			vertexBufferMappedArray[currentUsedIndex] = nullptr;
-	// 		}
-	//
-	// 		if (vertexBufferArray[currentUsedIndex])
-	// 			vkDestroyBuffer(logicalDevice, vertexBufferArray[currentUsedIndex], nullptr);
-	//
-	// 		if (vertexBufferMemoryArray[currentUsedIndex])
-	// 			vkFreeMemory(logicalDevice, vertexBufferMemoryArray[currentUsedIndex], nullptr);
-	//
-	// 		VkUtils::CreateBuffer(physicalDevice, logicalDevice, vertexBufferSize,
-	// 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBuffer, vertexBufferMemory);
-	// 		vertexCount = imDrawData->TotalVtxCount;
-	// 		CheckVulkanResult(vkMapMemory(logicalDevice, vertexBufferMemory, 0, VK_WHOLE_SIZE, 0, &vertexBufferMapped));
-	// 	}
-	//
-	// 	// Index buffer
-	// 	if ((indexBuffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
-	// 		if (indexBufferMapped)
-	// 		{
-	// 			vkUnmapMemory(logicalDevice, indexBufferMemory);
-	// 			indexBufferMapped = nullptr;
-	// 		}
-	//
-	// 		if (indexBuffer)
-	// 			vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
-	//
-	// 		if (indexBufferMemory)
-	// 			vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
-	//
-	//
-	// 		VkUtils::CreateBuffer(physicalDevice, logicalDevice, indexBufferSize,
-	// 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-	// 			indexBuffer, indexBufferMemory);
-	// 		indexCount = imDrawData->TotalIdxCount;
-	// 		CheckVulkanResult(vkMapMemory(logicalDevice, indexBufferMemory, 0, VK_WHOLE_SIZE, 0, &indexBufferMapped));
-	// 	}
-	//
-	// 	// Upload data
-	// 	ImDrawVert* vtxDst = (ImDrawVert*)vertexBufferMapped;
-	// 	ImDrawIdx* idxDst = (ImDrawIdx*)indexBufferMapped;
-	//
-	// 	for (int n = 0; n < imDrawData->CmdListsCount; n++) {
-	// 		const ImDrawList* cmd_list = imDrawData->CmdLists[n];
-	// 		memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-	// 		memcpy(idxDst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-	// 		vtxDst += cmd_list->VtxBuffer.Size;
-	// 		idxDst += cmd_list->IdxBuffer.Size;
-	// 	}
-	//
-	// 	// Flush to make writes visible to GPU
-	// 	VkMappedMemoryRange vertexMappedRange = {};
-	// 	vertexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	// 	vertexMappedRange.memory = vertexBufferMemory;
-	// 	vertexMappedRange.offset = 0;
-	// 	vertexMappedRange.size = VK_WHOLE_SIZE;
-	// 	CheckVulkanResult(vkFlushMappedMemoryRanges(logicalDevice, 1, &vertexMappedRange));
-	//
-	// 	VkMappedMemoryRange indexMappedRange = {};
-	// 	indexMappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	// 	indexMappedRange.memory = indexBufferMemory;
-	// 	indexMappedRange.offset = 0;
-	// 	indexMappedRange.size = VK_WHOLE_SIZE;
-	// 	CheckVulkanResult(vkFlushMappedMemoryRanges(logicalDevice, 1, &indexMappedRange));
-	// }
 
 	void UpdateBuffer()
 	{
@@ -193,12 +107,14 @@ public:
 	
 		// Vertex buffer
 		if ((vertexBuffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
+			// unmap
 			if (vertexBufferMapped)
 			{
 				vkUnmapMemory(logicalDevice, vertexBufferMemory);
 				vertexBufferMapped = nullptr;
 			}
-	
+
+			// destory
 			if (vertexBuffer)
 				vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
 	
@@ -320,16 +236,6 @@ private:
 
 	void InitVulkanResource()
 	{
-		// vertexBufferArray.resize(swapChainImageMinCount);
-		// vertexBufferMemoryArray.resize(swapChainImageMinCount);
-		// vertexBufferMappedArray.resize(swapChainImageMinCount);
-		// vertexCountArray.resize(swapChainImageMinCount);
-		//
-		// indexBufferArray.resize(swapChainImageMinCount);
-		// indexBufferMemoryArray.resize(swapChainImageMinCount);
-		// indexBufferMappedArray.resize(swapChainImageMinCount);
-		// indexCountArray.resize(swapChainImageMinCount);
-
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Create font texture
@@ -634,22 +540,22 @@ private:
 		// Setup Platform/Renderer backends
 		ImGui_ImplGlfw_InitForVulkan(glfwWindow, true);
 
-		VkUtils::QueueFamilyIndices queueFamilyIndices = VkUtils::FindQueueFamilies(physicalDevice, surface);
-
-		ImGui_ImplVulkan_InitInfo init_info = {};
-		init_info.Instance = instance;
-		init_info.PhysicalDevice = physicalDevice;
-		init_info.Device = logicalDevice;
-		init_info.QueueFamily = queueFamilyIndices.graphicsFamily.value();
-		init_info.Queue = graphicsQueue;
-		init_info.PipelineCache = nullptr;
-		init_info.DescriptorPool = descriptorPool;
-		init_info.Subpass = 0;
-		init_info.MinImageCount = swapChainImageMinCount;
-		init_info.ImageCount = swapChainImageMinCount;
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-		init_info.Allocator = nullptr;
-		ImGui_ImplVulkan_Init(&init_info, renderPass);
+		// VkUtils::QueueFamilyIndices queueFamilyIndices = VkUtils::FindQueueFamilies(physicalDevice, surface);
+		//
+		// ImGui_ImplVulkan_InitInfo init_info = {};
+		// init_info.Instance = instance;
+		// init_info.PhysicalDevice = physicalDevice;
+		// init_info.Device = logicalDevice;
+		// init_info.QueueFamily = queueFamilyIndices.graphicsFamily.value();
+		// init_info.Queue = graphicsQueue;
+		// init_info.PipelineCache = nullptr;
+		// init_info.DescriptorPool = descriptorPool;
+		// init_info.Subpass = 0;
+		// init_info.MinImageCount = swapChainImageMinCount;
+		// init_info.ImageCount = swapChainImageMinCount;
+		// init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		// init_info.Allocator = nullptr;
+		// ImGui_ImplVulkan_Init(&init_info, renderPass);
 	}
 
 private:
