@@ -531,9 +531,6 @@ public:
 		CreateImageViews();
 		CreateDepthResources();
 		CreateFrameBuffers();
-
-		// recreate imgui vulkan resource
-		imGUI->ReCreateVulkanResource(width, height);
 	}
 
 private:

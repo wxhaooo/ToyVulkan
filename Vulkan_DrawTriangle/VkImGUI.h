@@ -67,7 +67,6 @@ public:
 
 	~VkImGUI()
 	{
-		// ImGui_ImplVulkan_Shutdown();
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 
@@ -85,6 +84,8 @@ public:
 		ImGui::Checkbox("Checkbox Test", &checkBoxTest);
 
 		ImGui::End();
+
+		ImGui::ShowDemoWindow();
 
 		ImGui::Render();
 	}
@@ -225,12 +226,6 @@ public:
 
 
 #pragma region Vulkan Resource
-
-public:
-	void ReCreateVulkanResource(int imageWidth, int imageHeight)
-	{
-		
-	}
 
 private:
 
@@ -474,16 +469,6 @@ private:
 
 	uint32_t currentUsedIndex = 0;
 
-	// std::vector<int32_t> vertexCountArray;
-	// std::vector<VkBuffer> vertexBufferArray;
-	// std::vector<VkDeviceMemory> vertexBufferMemoryArray;
-	// std::vector<void*> vertexBufferMappedArray;
-	//
-	// std::vector<int32_t> indexCountArray;
-	// std::vector<VkBuffer> indexBufferArray;
-	// std::vector<VkDeviceMemory> indexBufferMemoryArray;
-	// std::vector<void*> indexBufferMappedArray;
-
 	int32_t vertexCount = 0;
 	VkBuffer vertexBuffer = VK_NULL_HANDLE;
 	VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
@@ -530,32 +515,8 @@ private:
 		ImGuiStyle& style = ImGui::GetStyle();
 		style = vulkanStyle;
 
-		// Dimensions
-		ImGuiIO& io = ImGui::GetIO();
-		io.DisplaySize = ImVec2(swapChainImageWidth, swapChainImageHeight);
-		io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
 		// Setup Platform/Renderer backends
 		ImGui_ImplGlfw_InitForVulkan(glfwWindow, true);
-
-		// VkUtils::QueueFamilyIndices queueFamilyIndices = VkUtils::FindQueueFamilies(physicalDevice, surface);
-		//
-		// ImGui_ImplVulkan_InitInfo init_info = {};
-		// init_info.Instance = instance;
-		// init_info.PhysicalDevice = physicalDevice;
-		// init_info.Device = logicalDevice;
-		// init_info.QueueFamily = queueFamilyIndices.graphicsFamily.value();
-		// init_info.Queue = graphicsQueue;
-		// init_info.PipelineCache = nullptr;
-		// init_info.DescriptorPool = descriptorPool;
-		// init_info.Subpass = 0;
-		// init_info.MinImageCount = swapChainImageMinCount;
-		// init_info.ImageCount = swapChainImageMinCount;
-		// init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-		// init_info.Allocator = nullptr;
-		// ImGui_ImplVulkan_Init(&init_info, renderPass);
 	}
 
 private:
