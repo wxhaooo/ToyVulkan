@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 
+#include "Singleton.h"
 #include "VkUtils.h"
 
 // #include <windows.h>
@@ -75,9 +76,6 @@ public:
 
 public:
 
-	Eigen::Vector3f CameraPosition = Eigen::Vector3f(2.0f, 2.0f, 2.0f);
-	Eigen::Vector3f CameraRotation = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
-
 	void NewFrame()
 	{
 		ImGui_ImplGlfw_NewFrame();
@@ -85,8 +83,9 @@ public:
 
 		ImGui::Begin("Camera");
 
-		ImGui::InputFloat3("Camera Position", CameraPosition.data());
-		ImGui::InputFloat3("Camera Rotation", CameraRotation.data());
+		Camera* camera = Singleton<Camera>::Instance();
+		ImGui::InputFloat3("Camera Position", camera->position.data());
+		ImGui::InputFloat3("Camera Rotation", camera->rotation.data());
 		
 		ImGui::End();
 

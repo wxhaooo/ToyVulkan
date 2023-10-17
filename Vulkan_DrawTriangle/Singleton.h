@@ -5,21 +5,20 @@ template<typename T>
 class Singleton
 {
 private:
-	T instance = nullptr;
+	inline static std::unique_ptr<T> instance = nullptr;
+
 public:
-	template<typename ...Args>
-	static T Instance()
+	static T* Instance()
 	{
 		if(instance == nullptr)
-			CreateInstance<Args>();
+			CreateInstance();
 
-		return instance;
+		return instance.get();
 	}
 
 private:
-	template<typename ...Args>
 	static void CreateInstance()
 	{
-		instance = new Singleton();;
+		instance = std::make_unique<T>();
 	}
 };

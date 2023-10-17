@@ -10,6 +10,7 @@
 #include "VkUtils.h"
 #include "VkHelper.h"
 #include "VkImGUI.h"
+#include "Singleton.h"
 #include "../Common/imgui/imgui.h"
 #include "../Common/imgui/backends/imgui_impl_vulkan.h"
 
@@ -215,16 +216,7 @@ public:
 		auto tEnd = std::chrono::high_resolution_clock::now();
 		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
 		float frameTimer = (float)tDiff / 1000.0f;
-		glm::vec3 cameraPosition =
-			glm::vec3(imGUI->CameraPosition.x(),
-				imGUI->CameraPosition.y(),
-				imGUI->CameraPosition.z());
-		glm::vec3 cameraRotation = glm::vec3(imGUI->CameraRotation.x(),
-			imGUI->CameraRotation.y(),
-			imGUI->CameraRotation.z());
-		camera->setPosition(cameraPosition);
-		camera->setRotation(cameraRotation);
-		// camera->update(frameTimer);
+		camera->update(frameTimer);
 	}
 
 	void InitVkInstance(std::vector<const char*> instanceExtensions)
@@ -1143,30 +1135,18 @@ private:
 
 #pragma region Camera
 private:
-	std::unique_ptr<Camera> camera;
+	Camera* camera = nullptr;
 private:
 	void CreateCamera()
 	{
-		camera = std::make_unique<Camera>();
+		camera = Singleton<Camera>::Instance();
 		camera->flipY = true;
 		camera->type = Camera::CameraType::lookat;
-		glm::vec3 cameraPosition =
-			glm::vec3(imGUI->CameraPosition.x(),
-				imGUI->CameraPosition.y(),
-				imGUI->CameraPosition.z());
-		glm::vec3 cameraRotation = glm::vec3(imGUI->CameraRotation.x(),
-			imGUI->CameraRotation.y(),
-			imGUI->CameraRotation.z());
-		camera->setPosition(cameraPosition);
-		camera->setRotation(cameraRotation);
-
+		
+		camera->setPosition(glm::vec3(2.0f, 2.0f, 2.0f));
+		camera->setTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 		camera->setPerspective(45.0f, swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 	}
 
-public:
-	Camera* GetCamera()
-	{
-		return camera.get();
-	}
 #pragma endregion Camera
 };

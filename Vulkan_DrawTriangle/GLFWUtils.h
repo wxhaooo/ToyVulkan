@@ -27,7 +27,7 @@ namespace GLFW
         auto app = reinterpret_cast<DrawTriangleVkApplication*>(glfwGetWindowUserPointer(window));
         if (app == nullptr) return;
 
-        Camera* camera = app->GetCamera();
+        Camera* camera = Singleton<Camera>::Instance();
         if (key == GLFW_KEY_W)
             camera->keys.up = (action == GLFW_PRESS);
         else if (key == GLFW_KEY_S)
