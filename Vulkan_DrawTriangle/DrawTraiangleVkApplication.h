@@ -4,6 +4,7 @@
 #include <set>
 #include <backends/imgui_impl_glfw.h>
 
+#include "Camera.h"
 #include "Image.h"
 #include "Mesh.h"
 #include "VkUtils.h"
@@ -36,6 +37,7 @@ public:
 		CreateRenderPass();
 
 		CreateImGUI();
+		CreateCamera();
 
 		CreateImageViews();
 		CreateDepthResources();
@@ -103,7 +105,7 @@ public:
 		}
 	}
 
-	void Run()
+	void Render()
 	{
 		// 等待上一帧执行完
 		CheckVulkanResult(vkWaitForFences(vkDevice, 1, &vkInFlightFence[currentFrame], VK_TRUE, UINT64_MAX));
@@ -118,9 +120,8 @@ public:
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		MVPMat.modelMat = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		MVPMat.viewMat = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		MVPMat.projectiveMat = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-		MVPMat.projectiveMat[1][1] *= -1;
+		MVPMat.viewMat = camera->matrices.view;
+		MVPMat.projectiveMat = camera->matrices.perspective;
 		MVPUniformBuffer->UpdateUniformBuffer(currentFrame, MVPMat);
 
 		// Only reset the fence if we are submitting work
@@ -173,7 +174,7 @@ public:
 		//我们新提交 CommandBuffer 中的 command 并不会阻塞，而是会开始执行，
 		//但是执行到 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT 阶段就会被阻塞住，
 		//直到 semaphore 被 signaled
-		VkSemaphore waitSemaphores[] = { vkImageAvailableSemaphore[currentFrame]};
+		VkSemaphore waitSemaphores[] = { vkImageAvailableSemaphore[currentFrame] };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
@@ -182,7 +183,7 @@ public:
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &vkCommandBuffers[currentFrame];
 
-		VkSemaphore signalSemaphores[] = { vkRenderFinishedSemaphore[currentFrame]};
+		VkSemaphore signalSemaphores[] = { vkRenderFinishedSemaphore[currentFrame] };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -205,6 +206,25 @@ public:
 		CheckVulkanResult(vkQueueWaitIdle(vkGraphicsQueue));
 
 		currentFrame = (currentFrame + 1) % VkUtils::MaxFrameInFlight;
+	}
+
+	void Run()
+	{
+		auto tStart = std::chrono::high_resolution_clock::now();
+		Render();
+		auto tEnd = std::chrono::high_resolution_clock::now();
+		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
+		float frameTimer = (float)tDiff / 1000.0f;
+		glm::vec3 cameraPosition =
+			glm::vec3(imGUI->CameraPosition.x(),
+				imGUI->CameraPosition.y(),
+				imGUI->CameraPosition.z());
+		glm::vec3 cameraRotation = glm::vec3(imGUI->CameraRotation.x(),
+			imGUI->CameraRotation.y(),
+			imGUI->CameraRotation.z());
+		camera->setPosition(cameraPosition);
+		camera->setRotation(cameraRotation);
+		// camera->update(frameTimer);
 	}
 
 	void InitVkInstance(std::vector<const char*> instanceExtensions)
@@ -1120,4 +1140,33 @@ private:
 	std::unique_ptr<VkImGUI> imGUI;
 
 #pragma endregion ImGUI
+
+#pragma region Camera
+private:
+	std::unique_ptr<Camera> camera;
+private:
+	void CreateCamera()
+	{
+		camera = std::make_unique<Camera>();
+		camera->flipY = true;
+		camera->type = Camera::CameraType::lookat;
+		glm::vec3 cameraPosition =
+			glm::vec3(imGUI->CameraPosition.x(),
+				imGUI->CameraPosition.y(),
+				imGUI->CameraPosition.z());
+		glm::vec3 cameraRotation = glm::vec3(imGUI->CameraRotation.x(),
+			imGUI->CameraRotation.y(),
+			imGUI->CameraRotation.z());
+		camera->setPosition(cameraPosition);
+		camera->setRotation(cameraRotation);
+
+		camera->setPerspective(45.0f, swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	}
+
+public:
+	Camera* GetCamera()
+	{
+		return camera.get();
+	}
+#pragma endregion Camera
 };

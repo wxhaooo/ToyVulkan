@@ -75,17 +75,22 @@ public:
 
 public:
 
+	Eigen::Vector3f CameraPosition = Eigen::Vector3f(2.0f, 2.0f, 2.0f);
+	Eigen::Vector3f CameraRotation = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+
 	void NewFrame()
 	{
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Begin("Draw Triangle");
-		ImGui::Checkbox("Checkbox Test", &checkBoxTest);
+		ImGui::Begin("Camera");
 
+		ImGui::InputFloat3("Camera Position", CameraPosition.data());
+		ImGui::InputFloat3("Camera Rotation", CameraRotation.data());
+		
 		ImGui::End();
 
-		ImGui::ShowDemoWindow();
+		// ImGui::ShowDemoWindow();
 
 		ImGui::Render();
 	}
@@ -223,7 +228,6 @@ public:
 			}
 		}
 	}
-
 
 #pragma region Vulkan Resource
 

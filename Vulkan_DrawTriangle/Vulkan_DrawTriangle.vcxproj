@@ -176,10 +176,12 @@
     <ClCompile Include="Vulkan_DrawTriangle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="DrawTraiangleVkApplication.h" />
     <ClInclude Include="GLFWUtils.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Singleton.h" />
     <ClInclude Include="ThirdParty\image\stb_image.h" />
     <ClInclude Include="VkImGUI.h" />
     <ClInclude Include="VkUtils.h" />

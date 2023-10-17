@@ -26,6 +26,8 @@ int main(int argc, char* argv[])
 
     glfwSetWindowUserPointer(window, drawTriangleVkApp.get());
     glfwSetFramebufferSizeCallback(window, GLFW::FrameBufferResizeCallback);
+    glfwSetMouseButtonCallback(window, GLFW::MouseButtonCallback);
+    glfwSetKeyCallback(window, GLFW::KeyBoardCallback);
 
     // get glfw extensions
     std::vector<const char*> extensions;
