@@ -1142,9 +1142,12 @@ private:
 		camera = Singleton<Camera>::Instance();
 		camera->flipY = true;
 		camera->type = Camera::CameraType::lookat;
-		
-		camera->setPosition(glm::vec3(2.0f, 2.0f, 2.0f));
-		camera->setTarget(glm::vec3(0.0f, 0.0f, 0.0f));
+
+		camera->setLookAt(glm::vec3(2.0f, 2.0f, 2.0f), 
+			glm::vec3(0.0f, 0.0f, 0.0f));
+		// camera->setPosition(glm::vec3(2.0f, 2.0f, 2.0f));
+		// camera->setRotation(glm::vec3(35.0f, 45.0f, 150.0f));
+		// camera->setTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 		camera->setPerspective(45.0f, swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 	}
 

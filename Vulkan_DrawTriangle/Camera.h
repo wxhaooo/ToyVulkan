@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include<eigen3/Eigen/Dense>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -42,7 +42,8 @@ private:
 		viewPos = Eigen::Vector4f(-position.x(), position.y(), -position.z(), 1.0f);
 
 		updated = true;
-	};
+	}
+
 public:
 	enum CameraType { lookat, firstperson };
 	CameraType type = CameraType::lookat;
@@ -93,7 +94,7 @@ public:
 		if (flipY) {
 			matrices.perspective[1][1] *= -1.0f;
 		}
-	};
+	}
 
 	void updateAspectRatio(float aspect)
 	{
@@ -109,10 +110,13 @@ public:
 		updateViewMatrix();
 	}
 
-	void setTarget(glm::vec3 target)
+	void setLookAt(glm::vec3 pos, glm::vec3 target)
 	{
 		glm::vec3 defaultUp(0.0f, 0.0f, 1.0f);
-		matrices.view = glm::lookAt(glm::vec3(position.x(), position.y(), position.z()), target, defaultUp);
+		matrices.view = glm::lookAt(pos, target, defaultUp);
+
+		this->position = Eigen::Vector3f(matrices.view[3][0], matrices.view[3][1], matrices.view[3][2]);
+		// ref: Introduction to 3D Game PROGRAMMING With DirectX 12,section 5.6.2
 		this->rotation = MathUtils::GetEulerAngleFromRotationMatrix(matrices.view);
 		updateViewMatrix();
 	}
@@ -133,7 +137,7 @@ public:
 	{
 		this->position = Eigen::Vector3f(translation.x, translation.y, translation.z);
 		updateViewMatrix();
-	};
+	}
 
 	void translate(glm::vec3 delta)
 	{

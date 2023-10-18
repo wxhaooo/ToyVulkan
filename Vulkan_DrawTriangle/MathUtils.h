@@ -23,43 +23,44 @@ namespace MathUtils
 		return degree * (EIGEN_PI / 180.0f);
 	}
 
+	//ref:http://eecs.qmul.ac.uk/~gslabaugh/publications/euler.pdf
 	inline Eigen::Vector3f GetEulerAngleFromRotationMatrix(Eigen::Matrix3f mat)
 	{
 		Eigen::Vector3f ret;
 
+		float theta0 = 0.0f, theta1 = 0.0f;
+		float psi0 = 0.0f, psi1 = 0.0f;
+		float phi0 = 0.0f, phi1 = 0.0f;
+
 		if (!IsNearEqual(std::abs(mat(2, 0)), 1.0f))
 		{
-			float theta0 = -asin(mat(2, 0));
-			float theta1 = EIGEN_PI - theta0;
+			theta0 = -asin(mat(2, 0));
+			theta1 = EIGEN_PI - theta0;
 
-			float psi0 = atan2(mat(2, 1) / cos(theta0), mat(2, 2) / cos(theta0));
-			float psi1 = atan2(mat(2, 1) / cos(theta1), mat(2, 2) / cos(theta1));
+			psi0 = atan2(mat(2, 1) / cos(theta0), mat(2, 2) / cos(theta0));
+			psi1 = atan2(mat(2, 1) / cos(theta1), mat(2, 2) / cos(theta1));
 
-			float phi0 = atan2(mat(1, 0) / cos(theta0), mat(0, 0) / cos(theta0));
-			float phi1 = atan2(mat(1, 0) / cos(theta1), mat(0, 0) / cos(theta1));
-
-			ret.x() = theta0;
-			ret.y() = psi0;
-			ret.z() = phi0;
+			phi0 = atan2(mat(1, 0) / cos(theta0), mat(0, 0) / cos(theta0));
+			phi1 = atan2(mat(1, 0) / cos(theta1), mat(0, 0) / cos(theta1));
 		}
 		else
 		{
-			ret.z() = 0.0f;
+			phi0 = 0.0f;
 			if (IsNearEqual(mat(2, 0), -1.0f))
 			{
-				ret.x() = EIGEN_PI / 2.0f;
-				ret.y() = atan2(mat(0, 1), mat(0, 2));
+				theta0 = EIGEN_PI / 2.0f;
+				psi0 = atan2(mat(0, 1), mat(0, 2));
 			}
 			else
 			{
-				ret.x() = -EIGEN_PI / 2.0f;
-				ret.y() = atan2(-mat(0, 1), -mat(0, 2));
+				theta0 = -EIGEN_PI / 2.0f;
+				psi0 = atan2(-mat(0, 1), -mat(0, 2));
 			}
 		}
 
-		ret.x() = Radius2Degree(ret.x());
-		ret.y() = Radius2Degree(ret.y());
-		ret.z() = Radius2Degree(ret.z());
+		ret.x() = fmodf(Radius2Degree(psi0), 180.0f);
+		ret.y() = fmodf(Radius2Degree(theta0), 180.0f);
+		ret.z() = fmodf(Radius2Degree(phi0), 180.0f);
 
 		return ret;
 	}
@@ -70,11 +71,13 @@ namespace MathUtils
 
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 3; j++)
-				tmp(i, j) = mat[i][j];
+				tmp(i, j) = mat[j][i];
+
+		// view to world matrix
+		tmp.transposeInPlace();
 
 		return GetEulerAngleFromRotationMatrix(tmp);
 	}
-
 	
 }
 
