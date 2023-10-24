@@ -1,1 +1,0 @@
-D:\Code\Vulkan\ToyVulkan\ToyVulkan\Vulkan_DrawMultiGeometry\x64\Debug\Vulkan_DrawMultiGeometry.vcxproj.CopyComplete
