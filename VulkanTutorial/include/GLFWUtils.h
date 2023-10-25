@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 
-#include "DrawTraiangleVkApplication.h"
+#include "VulkanTutorial.h"
 
 
 namespace GLFW
@@ -13,7 +13,7 @@ namespace GLFW
 
     static void FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
-        auto app = reinterpret_cast<DrawTriangleVkApplication*>(glfwGetWindowUserPointer(window));
+        auto app = reinterpret_cast<VulkanTutorial*>(glfwGetWindowUserPointer(window));
         app->ReCreateVulkanResource();
     }
 
@@ -24,7 +24,7 @@ namespace GLFW
 
     static void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods)
     {
-        auto app = reinterpret_cast<DrawTriangleVkApplication*>(glfwGetWindowUserPointer(window));
+        auto app = reinterpret_cast<VulkanTutorial*>(glfwGetWindowUserPointer(window));
         if (app == nullptr) return;
 
         Camera* camera = Singleton<Camera>::Instance();

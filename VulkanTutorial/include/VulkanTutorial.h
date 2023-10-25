@@ -2,7 +2,6 @@
 
 #include <filesystem>
 #include <set>
-#include <backends/imgui_impl_glfw.h>
 
 #include "Camera.h"
 #include "Image.h"
@@ -14,7 +13,7 @@
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
 
-class DrawTriangleVkApplication
+class VulkanTutorial
 {
 
 #pragma region Common

@@ -4,8 +4,9 @@ add_compile_definitions(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
 add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 file(GLOB VulkanTutorialSource "./src/*.cpp")
+file(GLOB VulkanTutorialHeader ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-add_executable(VulkanTutorial ${VulkanTutorialSource})
+add_executable(VulkanTutorial ${VulkanTutorialSource} ${VulkanTutorialHeader})
 
 target_include_directories(VulkanTutorial PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(VulkanTutorial PUBLIC ${Vulkan_INCLUDE_DIRS})

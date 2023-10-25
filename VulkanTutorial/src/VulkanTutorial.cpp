@@ -3,14 +3,14 @@
 #include <GLFW/glfw3.h>
 #include "GLFWUtils.h"
 
-#include "DrawTraiangleVkApplication.h"
+#include "VulkanTutorial.h"
 #include "Mesh.h"
 
 
 int main(int argc, char* argv[])
 {
-    std::unique_ptr<DrawTriangleVkApplication> drawTriangleVkApp =
-        std::make_unique<DrawTriangleVkApplication>();
+    std::unique_ptr<VulkanTutorial> drawTriangleVkApp =
+        std::make_unique<VulkanTutorial>();
 
     glfwSetErrorCallback(GLFW::GlfwErrorCallback);
     if (!glfwInit()) return -1;

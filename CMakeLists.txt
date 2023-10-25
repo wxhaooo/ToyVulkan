@@ -13,4 +13,6 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 add_subdirectory(3rd/imgui)
+add_subdirectory(core)
 add_subdirectory(VulkanTutorial)
+add_subdirectory(LoadGLTF)
