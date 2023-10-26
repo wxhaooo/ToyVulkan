@@ -2,17 +2,9 @@
 
 namespace vks
 {
-    namespace Helper
+    namespace helper
     {
         bool errorModeSilent = false;
-        
-        bool IsExtensionAvailable(const std::vector<VkExtensionProperties>& properties, const char* extension)
-        {
-            for (const VkExtensionProperties& p : properties)
-                if (strcmp(p.extensionName, extension) == 0)
-                    return true;
-            return false;
-        }
 
         void exitFatal(const std::string& message, int32_t exitCode)
         {

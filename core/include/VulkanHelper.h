@@ -10,7 +10,7 @@
 
 namespace vks
 {
-	namespace Helper
+	namespace helper
 	{
 		inline const char* VkResultToCString(VkResult result)
 		{
@@ -103,7 +103,7 @@ namespace vks
 
 namespace vks
 {
-	namespace Helper
+	namespace helper
 	{
 		/** @brief Disable message boxes on fatal errors */
 		extern bool errorModeSilent;
@@ -114,4 +114,4 @@ namespace vks
 	}
 }
 
-#define CheckVulkanResult(result) vks::Helper::__CheckVulkanResult(result, __FILE__, __LINE__)
+#define CheckVulkanResult(result) vks::helper::__CheckVulkanResult(result, __FILE__, __LINE__)

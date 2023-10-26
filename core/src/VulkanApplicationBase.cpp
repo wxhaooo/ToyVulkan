@@ -6,10 +6,52 @@
 
 #include <VulkanHelper.h>
 #include <VulkanDebug.h>
+#include <VulkanDevice.h>
 
-void VulkanApplicationBase::InitVulkan()
+bool VulkanApplicationBase::InitVulkan()
 {
     CheckVulkanResult(CreateInstance(settings.validation));
+
+    // If requested, we enable the default validation layers for debugging
+    if (settings.validation)
+        vks::debug::setupDebugging(instance);
+
+    // Physical device
+    uint32_t gpuCount = 0;
+    // Get number of available physical devices
+    CheckVulkanResult(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
+    if (gpuCount == 0) {
+        vks::helper::exitFatal("No device with Vulkan support found", -1);
+        return false;
+    }
+    // Enumerate devices
+    std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
+    CheckVulkanResult(vkEnumeratePhysicalDevices(instance, &gpuCount, physicalDevices.data()));
+
+    // Select default GPU in most of time
+    uint32_t selectedDevice = 0;
+    physicalDevice = physicalDevices[selectedDevice];
+
+    // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
+    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
+
+    // derived class can override this to set actual features (based on above readings) to enable for logical device creation
+    getEnabledFeatures();
+
+    // Vulkan device creation
+    // This is handled by a separate class that gets a logical device representation
+    // and encapsulates functions related to a device
+    vulkanDevice = std::make_unique<vks::VulkanDevice>(physicalDevice);
+
+    // derived class can enable extensions based on the list of supported extensions read from the physical device
+    getEnabledExtensions();
+    
+    CheckVulkanResult(vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain));
+    device = vulkanDevice->logicalDevice;
+    
+    return true;
 }
 
 VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
@@ -31,7 +73,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
     uint32_t extensionsCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionsCount);
     for (uint32_t i = 0; i < extensionsCount; i++)
-        instanceExtensions.push_back(glfwExtensions[i]);
+        instanceExtensions.emplace_back(glfwExtensions[i]);
 
     // Get extensions supported by the instance and store for later use
     uint32_t extCount = 0;
@@ -43,7 +85,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
         {
             for (VkExtensionProperties extension : extensions)
             {
-                supportedInstanceExtensions.push_back(extension.extensionName);
+                supportedInstanceExtensions.emplace_back(extension.extensionName);
             }
         }
     }
@@ -58,7 +100,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
             {
                 std::cerr << "Enabled instance extension \"" << enabledExtension << "\" is not present at instance level\n";
             }
-            instanceExtensions.push_back(enabledExtension);
+            instanceExtensions.emplace_back(enabledExtension);
         }
     }
 
@@ -69,7 +111,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 
     // Enable the debug utils extension if available (e.g. when debugging tools are present)
     if (settings.validation || std::find(supportedInstanceExtensions.begin(), supportedInstanceExtensions.end(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != supportedInstanceExtensions.end()) {
-        instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
     if (instanceExtensions.size() > 0)
@@ -115,4 +157,15 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 
     return result;
 }
+
+void VulkanApplicationBase::getEnabledExtensions()
+{
+}
+
+void VulkanApplicationBase::getEnabledFeatures()
+{
+    
+}
+
+
 

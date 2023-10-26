@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include <VulkanDevice.h>
+
 
 class VulkanApplicationBase
 {
@@ -10,6 +12,9 @@ public:
     VulkanApplicationBase(std::string applicationName):title(applicationName),name(applicationName){}
 
     virtual ~VulkanApplicationBase() = default;
+
+    /** @brief Encapsulated physical and logical vulkan device */
+    std::unique_ptr<vks::VulkanDevice> vulkanDevice;
 
     struct Settings
     {
@@ -24,15 +29,36 @@ public:
 
     uint32_t apiVersion = VK_API_VERSION_1_0;
 
-    void InitVulkan();
+    bool InitVulkan();
     virtual VkResult CreateInstance(bool enableValidation);
+    /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
+    virtual void getEnabledFeatures();
+    /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
+    virtual void getEnabledExtensions();
 
 protected:
     // Vulkan instance, stores all per-application states
     VkInstance instance = nullptr;
     std::vector<std::string> supportedInstanceExtensions;
-    // for subclass use
+    // Physical device (GPU) that Vulkan will use
+    VkPhysicalDevice physicalDevice = nullptr;
+    // Stores physical device properties (for e.g. checking device limits)
+    VkPhysicalDeviceProperties deviceProperties;
+    // Stores the features available on the selected physical device (for e.g. checking if a feature is available)
+    VkPhysicalDeviceFeatures deviceFeatures;
+    // Stores all available memory (type) properties for the physical device
+    VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+    /** @brief Set of physical device features to be enabled for this example (must be set in the derived constructor) */
+    VkPhysicalDeviceFeatures enabledFeatures{};
+    /** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
+    std::vector<const char*> enabledDeviceExtensions;
     std::vector<const char*> enabledInstanceExtensions;
+    /** @brief Optional pNext structure for passing extension structures to device creation */
+    void* deviceCreatepNextChain = nullptr;
+    /** @brief Logical device, application's view of the physical device (GPU) */
+    VkDevice device;
+    // Handle to the device graphics queue that command buffers are submitted to
+    VkQueue queue;
 };
 
 

@@ -13,6 +13,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "../../VulkanTutorial/include/VkHelper.h"
+
 namespace vks
 {
     namespace debug
@@ -80,8 +82,7 @@ namespace vks
 			debugUtilsMessengerCI.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 			debugUtilsMessengerCI.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
 			debugUtilsMessengerCI.pfnUserCallback = debugUtilsMessengerCallback;
-			VkResult result = vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsMessengerCI, nullptr, &debugUtilsMessenger);
-			assert(result == VK_SUCCESS);
+			CheckVulkanResult(vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsMessengerCI, nullptr, &debugUtilsMessenger));
 		}
 
 		void freeDebugCallback(VkInstance instance)
