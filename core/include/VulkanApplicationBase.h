@@ -3,15 +3,16 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <VulkanDevice.h>
-
+#include <memory>
+#include <GLFW/glfw3.h>
 
 class VulkanApplicationBase
 {
 public:
     VulkanApplicationBase() = delete;
-    VulkanApplicationBase(std::string applicationName):title(applicationName),name(applicationName){}
+    VulkanApplicationBase(std::string applicationName,bool validation);
 
-    virtual ~VulkanApplicationBase() = default;
+    virtual ~VulkanApplicationBase();
 
     /** @brief Encapsulated physical and logical vulkan device */
     std::unique_ptr<vks::VulkanDevice> vulkanDevice;
@@ -30,18 +31,29 @@ public:
     uint32_t apiVersion = VK_API_VERSION_1_0;
 
     bool InitVulkan();
+
+#ifdef USE_FRONTEND_GLFW
+    GLFWwindow* window = nullptr;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+#endif
+
+protected:
+    // add different front end here,glfw,SDL.etc
+    bool InitWindows();
+    // create surface from surface
+    void CreateWindowsSurface();
+    void DestroyWindows();
     virtual VkResult CreateInstance(bool enableValidation);
     /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
     virtual void getEnabledFeatures();
     /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
     virtual void getEnabledExtensions();
 
-protected:
     // Vulkan instance, stores all per-application states
-    VkInstance instance = nullptr;
+    VkInstance instance;
     std::vector<std::string> supportedInstanceExtensions;
     // Physical device (GPU) that Vulkan will use
-    VkPhysicalDevice physicalDevice = nullptr;
+    VkPhysicalDevice physicalDevice;
     // Stores physical device properties (for e.g. checking device limits)
     VkPhysicalDeviceProperties deviceProperties;
     // Stores the features available on the selected physical device (for e.g. checking if a feature is available)
@@ -56,9 +68,9 @@ protected:
     /** @brief Optional pNext structure for passing extension structures to device creation */
     void* deviceCreatepNextChain = nullptr;
     /** @brief Logical device, application's view of the physical device (GPU) */
-    VkDevice device;
+    VkDevice device = VK_NULL_HANDLE;
     // Handle to the device graphics queue that command buffers are submitted to
-    VkQueue queue;
+    VkQueue queue = VK_NULL_HANDLE;
 };
 
 

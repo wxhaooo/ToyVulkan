@@ -1,8 +1,10 @@
 #pragma once
+#include <iostream>
 #include <VulkanApplicationBase.h>
 
 class LoadGLFT :public VulkanApplicationBase
 {
 public:
-    LoadGLFT():VulkanApplicationBase("Load GLTF"){}
+    LoadGLFT(bool validation):VulkanApplicationBase("Load GLTF",validation){}
+    ~LoadGLFT() =default;
 };

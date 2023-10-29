@@ -56,10 +56,12 @@ namespace vks
         if (commandPool)
         {
             vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+        	commandPool = VK_NULL_HANDLE;
         }
         if (logicalDevice)
         {
             vkDestroyDevice(logicalDevice, nullptr);
+        	logicalDevice = VK_NULL_HANDLE;
         }
     }
 
@@ -184,8 +186,7 @@ namespace vks
 		this->enabledFeatures = enabledFeatures;
 
 		VkResult result = CheckVulkanResult(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice));
-		
-
+    	
 		// Create a default command pool for graphics command buffers
 		commandPool = createCommandPool(queueFamilyIndices.graphics);
 

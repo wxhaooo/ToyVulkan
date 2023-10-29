@@ -1,4 +1,5 @@
 add_compile_definitions(GLFW_INCLUDE_VULKAN)
+add_compile_definitions(USE_FRONTEND_GLFW)
 
 file(GLOB CORE_SOURCE "./src/*.cpp")
 file(GLOB CORE_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)

@@ -8,13 +8,40 @@
 #include <VulkanDebug.h>
 #include <VulkanDevice.h>
 
+#include "VulkanFrontend.h"
+
+VulkanApplicationBase::VulkanApplicationBase(std::string applicationName, bool validation)
+{
+    title = applicationName;
+    name = applicationName;
+    settings.validation = validation;
+}
+
+VulkanApplicationBase::~VulkanApplicationBase()
+{
+    if(surface)
+        vkDestroySurfaceKHR(instance,surface,nullptr);
+    
+    vulkanDevice.reset();
+    if (settings.validation)
+        vks::debug::freeDebugCallback(instance);
+    vkDestroyInstance(instance,nullptr);
+    DestroyWindows();
+}
+
 bool VulkanApplicationBase::InitVulkan()
 {
+    // init front end (add different front end here,glfw,SDL.etc)
+    InitWindows();
+    
     CheckVulkanResult(CreateInstance(settings.validation));
 
     // If requested, we enable the default validation layers for debugging
     if (settings.validation)
         vks::debug::setupDebugging(instance);
+
+    // create surface from frontend
+    CreateWindowsSurface();
 
     // Physical device
     uint32_t gpuCount = 0;
@@ -28,9 +55,12 @@ bool VulkanApplicationBase::InitVulkan()
     std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
     CheckVulkanResult(vkEnumeratePhysicalDevices(instance, &gpuCount, physicalDevices.data()));
 
-    // Select default GPU in most of time
-    uint32_t selectedDevice = 0;
+    // select default GPU in most of time
+    int selectedDevice = 0;
     physicalDevice = physicalDevices[selectedDevice];
+
+    if(physicalDevice == VK_NULL_HANDLE)
+        vks::helper::exitFatal("failed to find a suitable GPU!",-1);
 
     // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
@@ -44,7 +74,7 @@ bool VulkanApplicationBase::InitVulkan()
     // This is handled by a separate class that gets a logical device representation
     // and encapsulates functions related to a device
     vulkanDevice = std::make_unique<vks::VulkanDevice>(physicalDevice);
-
+    
     // derived class can enable extensions based on the list of supported extensions read from the physical device
     getEnabledExtensions();
     
@@ -52,6 +82,45 @@ bool VulkanApplicationBase::InitVulkan()
     device = vulkanDevice->logicalDevice;
     
     return true;
+}
+
+bool VulkanApplicationBase::InitWindows()
+{
+    // glfw
+#ifdef USE_FRONTEND_GLFW
+    glfwSetErrorCallback(vks::frontend::GLFW::GlfwErrorCallback);
+    if (!glfwInit()) return false;
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    window = glfwCreateWindow(1280, 720, title.c_str(), nullptr, nullptr);
+    if(!glfwVulkanSupported())
+    {
+        vks::helper::exitFatal("GLFW: Vulkan Not Supported\n",-1);
+        return true;
+    }
+
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, vks::frontend::GLFW::FrameBufferResizeCallback);
+    glfwSetMouseButtonCallback(window, vks::frontend::GLFW::MouseButtonCallback);
+    glfwSetKeyCallback(window, vks::frontend::GLFW::KeyBoardCallback);
+#endif
+
+    return true;
+}
+
+void VulkanApplicationBase::CreateWindowsSurface()
+{
+#if USE_FRONTEND_GLFW
+    CheckVulkanResult(glfwCreateWindowSurface(instance,window,nullptr,&surface));
+#endif
+}
+
+void VulkanApplicationBase::DestroyWindows()
+{
+#if USE_FRONTEND_GLFW
+    glfwDestroyWindow(window);
+    glfwTerminate();
+#endif
 }
 
 VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)

@@ -47,7 +47,7 @@ namespace vks
 		operator VkDevice() const
 		{
 			return logicalDevice;
-		};
+		}
 		explicit VulkanDevice(VkPhysicalDevice physicalDevice);
 		~VulkanDevice();
 		uint32_t        getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32 *memTypeFound = nullptr) const;
