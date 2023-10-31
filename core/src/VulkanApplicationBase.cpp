@@ -8,19 +8,27 @@
 #include <VulkanDebug.h>
 #include <VulkanDevice.h>
 
-#include "VulkanFrontend.h"
+#include <VulkanFrontend.h>
+#include <VulkanInitializers.h>
+#include <VulkanUtils.h>
 
-VulkanApplicationBase::VulkanApplicationBase(std::string applicationName, bool validation)
+VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height, bool validation)
 {
-    title = applicationName;
-    name = applicationName;
-    settings.validation = validation;
+    this->title = applicationName;
+    this->name = applicationName;
+    this->width = width;
+    this->height = height;
+    this->settings.validation = validation;
 }
 
 VulkanApplicationBase::~VulkanApplicationBase()
 {
-    if(surface)
-        vkDestroySurfaceKHR(instance,surface,nullptr);
+   swapChain.reset();
+
+    vkDestroyCommandPool(device,cmdPool,nullptr);
+    
+    vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
+    vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
     
     vulkanDevice.reset();
     if (settings.validation)
@@ -31,8 +39,7 @@ VulkanApplicationBase::~VulkanApplicationBase()
 
 bool VulkanApplicationBase::InitVulkan()
 {
-    // init front end (add different front end here,glfw,SDL.etc)
-    InitWindows();
+    SetupWindows();
     
     CheckVulkanResult(CreateInstance(settings.validation));
 
@@ -48,7 +55,7 @@ bool VulkanApplicationBase::InitVulkan()
     // Get number of available physical devices
     CheckVulkanResult(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
     if (gpuCount == 0) {
-        vks::helper::exitFatal("No device with Vulkan support found", -1);
+        vks::helper::ExitFatal("No device with Vulkan support found", -1);
         return false;
     }
     // Enumerate devices
@@ -60,7 +67,7 @@ bool VulkanApplicationBase::InitVulkan()
     physicalDevice = physicalDevices[selectedDevice];
 
     if(physicalDevice == VK_NULL_HANDLE)
-        vks::helper::exitFatal("failed to find a suitable GPU!",-1);
+        vks::helper::ExitFatal("failed to find a suitable GPU!",-1);
 
     // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
@@ -68,7 +75,7 @@ bool VulkanApplicationBase::InitVulkan()
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
 
     // derived class can override this to set actual features (based on above readings) to enable for logical device creation
-    getEnabledFeatures();
+    GetEnabledFeatures();
 
     // Vulkan device creation
     // This is handled by a separate class that gets a logical device representation
@@ -76,15 +83,49 @@ bool VulkanApplicationBase::InitVulkan()
     vulkanDevice = std::make_unique<vks::VulkanDevice>(physicalDevice);
     
     // derived class can enable extensions based on the list of supported extensions read from the physical device
-    getEnabledExtensions();
+    GetEnabledExtensions();
     
-    CheckVulkanResult(vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain));
+    CheckVulkanResult(vulkanDevice->CreateLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain));
     device = vulkanDevice->logicalDevice;
+
+    // Get a graphics queue from the device
+    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
+
+    // Find a suitable depth and/or stencil format
+    VkBool32 validFormat{ false };
+    // Sample that make use of stencil will require a depth + stencil format, so we select from a different list
+    if (requiresStencil) {
+        validFormat = vks::utils::getSupportedDepthStencilFormat(physicalDevice, &depthFormat);
+    } else {
+        validFormat = vks::utils::getSupportedDepthFormat(physicalDevice, &depthFormat);
+    }
+    assert(validFormat);
+
+    swapChain = std::make_unique<VulkanSwapChain>(instance,physicalDevice,device);
+
+    // Create synchronization objects
+    VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
+    // Create a semaphore used to synchronize image presentation
+    // Ensures that the image is displayed before we start submitting new commands to the queue
+    CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
+    // Create a semaphore used to synchronize command submission
+    // Ensures that the image is not presented until all commands have been submitted and executed
+    CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
+
+    // Set up submit info structure
+    // Semaphores will stay the same during application lifetime
+    // Command buffer submission info is set by each example
+    submitInfo = vks::initializers::submitInfo();
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
     
     return true;
 }
 
-bool VulkanApplicationBase::InitWindows()
+bool VulkanApplicationBase::SetupWindows()
 {
     // glfw
 #ifdef USE_FRONTEND_GLFW
@@ -92,10 +133,10 @@ bool VulkanApplicationBase::InitWindows()
     if (!glfwInit()) return false;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(1280, 720, title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if(!glfwVulkanSupported())
     {
-        vks::helper::exitFatal("GLFW: Vulkan Not Supported\n",-1);
+        vks::helper::ExitFatal("GLFW: Vulkan Not Supported\n",-1);
         return true;
     }
 
@@ -137,12 +178,18 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
     appInfo.pEngineName = name.c_str();
     appInfo.apiVersion = apiVersion;
 
-    // get glfw extensions
+//     std::vector<const char*> instanceExtensions = { VK_KHR_SURFACE_EXTENSION_NAME };
+//     // Enable surface extensions depending on os
+// #if defined(_WIN32)
+//     instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+// #endif
+
+    // equal to the below
     std::vector<const char*> instanceExtensions;
     uint32_t extensionsCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionsCount);
     for (uint32_t i = 0; i < extensionsCount; i++)
-        instanceExtensions.emplace_back(glfwExtensions[i]);
+        instanceExtensions.push_back(glfwExtensions[i]);
 
     // Get extensions supported by the instance and store for later use
     uint32_t extCount = 0;
@@ -227,11 +274,37 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
     return result;
 }
 
-void VulkanApplicationBase::getEnabledExtensions()
+void VulkanApplicationBase::Prepare()
+{
+    InitSwapchain();
+    CreateCommandPool();
+    SetupSwapChain();
+}
+
+void VulkanApplicationBase::InitSwapchain()
+{
+    swapChain->InitSurface(surface); 
+}
+
+void VulkanApplicationBase::CreateCommandPool()
+{
+    VkCommandPoolCreateInfo cmdPoolInfo = {};
+    cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    cmdPoolInfo.queueFamilyIndex = swapChain->queueNodeIndex;
+    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    CheckVulkanResult(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));   
+}
+
+void VulkanApplicationBase::SetupSwapChain()
+{
+    swapChain->Create(&width,&height,settings.vsync,settings.fullscreen);
+}
+
+void VulkanApplicationBase::GetEnabledExtensions()
 {
 }
 
-void VulkanApplicationBase::getEnabledFeatures()
+void VulkanApplicationBase::GetEnabledFeatures()
 {
     
 }

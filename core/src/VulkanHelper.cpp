@@ -6,7 +6,7 @@ namespace vks
     {
         bool errorModeSilent = false;
 
-        void exitFatal(const std::string& message, int32_t exitCode)
+        void ExitFatal(const std::string& message, int32_t exitCode)
         {
 #if defined(_WIN32)
             if (!errorModeSilent) {
@@ -22,9 +22,9 @@ namespace vks
 #endif
         }
 
-        void exitFatal(const std::string& message, VkResult resultCode)
+        void ExitFatal(const std::string& message, VkResult resultCode)
         {
-            exitFatal(message, (int32_t)resultCode);
+            ExitFatal(message, (int32_t)resultCode);
         }
     }    
 }

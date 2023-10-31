@@ -6,11 +6,13 @@
 #include <memory>
 #include <GLFW/glfw3.h>
 
+#include <VulkanSwapChain.h>
+
 class VulkanApplicationBase
 {
 public:
     VulkanApplicationBase() = delete;
-    VulkanApplicationBase(std::string applicationName,bool validation);
+    VulkanApplicationBase(std::string applicationName, uint32_t width, uint32_t height, bool validation);
 
     virtual ~VulkanApplicationBase();
 
@@ -31,24 +33,17 @@ public:
     uint32_t apiVersion = VK_API_VERSION_1_0;
 
     bool InitVulkan();
+    /** @brief Prepares all Vulkan resources and functions required to run the sample */
+    virtual void Prepare();
 
+    uint32_t width;
+    uint32_t height;
 #ifdef USE_FRONTEND_GLFW
     GLFWwindow* window = nullptr;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 #endif
 
 protected:
-    // add different front end here,glfw,SDL.etc
-    bool InitWindows();
-    // create surface from surface
-    void CreateWindowsSurface();
-    void DestroyWindows();
-    virtual VkResult CreateInstance(bool enableValidation);
-    /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
-    virtual void getEnabledFeatures();
-    /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
-    virtual void getEnabledExtensions();
-
     // Vulkan instance, stores all per-application states
     VkInstance instance;
     std::vector<std::string> supportedInstanceExtensions;
@@ -71,6 +66,55 @@ protected:
     VkDevice device = VK_NULL_HANDLE;
     // Handle to the device graphics queue that command buffers are submitted to
     VkQueue queue = VK_NULL_HANDLE;
+    // Depth buffer format (selected during Vulkan initialization)
+    VkFormat depthFormat;
+    // Command buffer pool
+    VkCommandPool cmdPool;
+    /** @brief Pipeline stages used to wait at for graphics queue submissions */
+    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // Contains command buffers and semaphores to be presented to the queue
+    VkSubmitInfo submitInfo;
+    // Command buffers used for rendering
+    std::vector<VkCommandBuffer> drawCmdBuffers;
+    // Global render pass for frame buffer writes
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    // List of available frame buffers (same as number of swap chain images)
+    std::vector<VkFramebuffer>frameBuffers;
+    // Active frame buffer index
+    uint32_t currentBuffer = 0;
+    // Descriptor set pool
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    // List of shader modules created (stored for cleanup)
+    std::vector<VkShaderModule> shaderModules;
+    // Pipeline cache object
+    VkPipelineCache pipelineCache;
+    // Wraps the swap chain to present images (framebuffers) to the windowing system
+    std::unique_ptr<VulkanSwapChain> swapChain;
+    // Synchronization semaphores
+    struct {
+        // Swap chain image presentation
+        VkSemaphore presentComplete;
+        // Command buffer submission and execution
+        VkSemaphore renderComplete;
+    } semaphores;
+    std::vector<VkFence> waitFences;
+    bool requiresStencil{ false };
+
+    // add different front end here,glfw,SDL.etc
+    bool SetupWindows();
+    // create surface from surface
+    void CreateWindowsSurface();
+    void DestroyWindows();
+    virtual VkResult CreateInstance(bool enableValidation);
+    /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
+    virtual void GetEnabledFeatures();
+    /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
+    virtual void GetEnabledExtensions();
+
+private:
+    void InitSwapchain();
+    void CreateCommandPool();
+    void SetupSwapChain();
 };
 
 

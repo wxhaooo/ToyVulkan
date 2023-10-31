@@ -16,7 +16,7 @@ namespace vks
     VulkanDevice::VulkanDevice(VkPhysicalDevice physicalDevice)
     {
         if(physicalDevice == nullptr)
-            vks::helper::exitFatal("physical device is invalid",-1);
+            vks::helper::ExitFatal("physical device is invalid",-1);
         this->physicalDevice = physicalDevice;
         // Store Properties features, limits and properties of the physical device for later use
         // Device properties also contain limits and sparse properties
@@ -75,7 +75,7 @@ namespace vks
 	*
 	* @return VkResult of the device creation call
 	*/
-	VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, void* pNextChain, bool useSwapChain, VkQueueFlags requestedQueueTypes)
+	VkResult VulkanDevice::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, void* pNextChain, bool useSwapChain, VkQueueFlags requestedQueueTypes)
 	{			
 		// Desired queues need to be requested upon logical device creation
 		// Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if the application
@@ -91,7 +91,7 @@ namespace vks
 		// Graphics queue
 		if (requestedQueueTypes & VK_QUEUE_GRAPHICS_BIT)
 		{
-			queueFamilyIndices.graphics = getQueueFamilyIndex(VK_QUEUE_GRAPHICS_BIT);
+			queueFamilyIndices.graphics = GetQueueFamilyIndex(VK_QUEUE_GRAPHICS_BIT);
 			VkDeviceQueueCreateInfo queueInfo{};
 			queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 			queueInfo.queueFamilyIndex = queueFamilyIndices.graphics;
@@ -107,7 +107,7 @@ namespace vks
 		// Dedicated compute queue
 		if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT)
 		{
-			queueFamilyIndices.compute = getQueueFamilyIndex(VK_QUEUE_COMPUTE_BIT);
+			queueFamilyIndices.compute = GetQueueFamilyIndex(VK_QUEUE_COMPUTE_BIT);
 			if (queueFamilyIndices.compute != queueFamilyIndices.graphics)
 			{
 				// If compute family index differs, we need an additional queue create info for the compute queue
@@ -128,7 +128,7 @@ namespace vks
 		// Dedicated transfer queue
 		if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT)
 		{
-			queueFamilyIndices.transfer = getQueueFamilyIndex(VK_QUEUE_TRANSFER_BIT);
+			queueFamilyIndices.transfer = GetQueueFamilyIndex(VK_QUEUE_TRANSFER_BIT);
 			if ((queueFamilyIndices.transfer != queueFamilyIndices.graphics) && (queueFamilyIndices.transfer != queueFamilyIndices.compute))
 			{
 				// If transfer family index differs, we need an additional queue create info for the transfer queue
@@ -174,7 +174,7 @@ namespace vks
 		{
 			for (const char* enabledExtension : deviceExtensions)
 			{
-				if (!extensionSupported(enabledExtension)) {
+				if (!ExtensionSupported(enabledExtension)) {
 					std::cerr << "Enabled device extension \"" << enabledExtension << "\" is not present at device level\n";
 				}
 			}
@@ -188,7 +188,7 @@ namespace vks
 		VkResult result = CheckVulkanResult(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice));
     	
 		// Create a default command pool for graphics command buffers
-		commandPool = createCommandPool(queueFamilyIndices.graphics);
+		commandPool = CreateCommandPool(queueFamilyIndices.graphics);
 
 		return result;
 	}
@@ -203,7 +203,7 @@ namespace vks
 	*
 	* @throw Throws an exception if no queue family index could be found that supports the requested flags
 	*/
-	uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlags queueFlags) const
+	uint32_t VulkanDevice::GetQueueFamilyIndex(VkQueueFlags queueFlags) const
     {
     	// Dedicated queue for compute
     	// Try to find a queue family index that supports compute but not graphics
@@ -250,7 +250,7 @@ namespace vks
 	*
 	* @return True if the extension is supported (present in the list read at device creation time)
 	*/
-	bool VulkanDevice::extensionSupported(std::string extension)
+	bool VulkanDevice::ExtensionSupported(std::string extension)
     {
     	return (std::find(supportedExtensions.begin(), supportedExtensions.end(), extension) != supportedExtensions.end());
     }
@@ -265,7 +265,7 @@ namespace vks
 	*
 	* @return A handle to the created command buffer
 	*/
-	VkCommandPool VulkanDevice::createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags)
+	VkCommandPool VulkanDevice::CreateCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags)
     {
     	VkCommandPoolCreateInfo cmdPoolInfo = {};
     	cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

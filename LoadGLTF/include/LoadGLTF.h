@@ -5,6 +5,6 @@
 class LoadGLFT :public VulkanApplicationBase
 {
 public:
-    LoadGLFT(bool validation):VulkanApplicationBase("Load GLTF",validation){}
+    LoadGLFT(bool validation):VulkanApplicationBase("Load GLTF",1280,960,validation){}
     ~LoadGLFT() =default;
 };

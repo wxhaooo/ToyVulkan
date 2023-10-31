@@ -108,9 +108,9 @@ namespace vks
 		/** @brief Disable message boxes on fatal errors */
 		extern bool errorModeSilent;
 		
-		void exitFatal(const std::string& message, int32_t exitCode);
+		void ExitFatal(const std::string& message, int32_t exitCode);
 		
-		void exitFatal(const std::string& message, VkResult resultCode);
+		void ExitFatal(const std::string& message, VkResult resultCode);
 	}
 }
 
