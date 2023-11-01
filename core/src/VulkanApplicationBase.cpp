@@ -23,12 +23,24 @@ VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_
 
 VulkanApplicationBase::~VulkanApplicationBase()
 {
-   swapChain.reset();
+    swapChain.reset();
 
-    vkDestroyCommandPool(device,cmdPool,nullptr);
+    vkDestroyImageView(device, depthStencil.view, nullptr);
+    vkDestroyImage(device, depthStencil.image, nullptr);
+    vkFreeMemory(device, depthStencil.mem, nullptr);
     
-    vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
-    vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
+    vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
+    vkDestroyCommandPool(device,cmdPool,nullptr);
+
+    // barrier
+    for(auto& semaphore : semaphores)
+    {
+        vkDestroySemaphore(device, semaphore.presentComplete, nullptr);
+        vkDestroySemaphore(device, semaphore.renderComplete, nullptr);
+    }
+    for (auto& fence : waitFences) {
+        vkDestroyFence(device, fence, nullptr);
+    }
     
     vulkanDevice.reset();
     if (settings.validation)
@@ -102,25 +114,16 @@ bool VulkanApplicationBase::InitVulkan()
     assert(validFormat);
 
     swapChain = std::make_unique<VulkanSwapChain>(instance,physicalDevice,device);
-
-    // Create synchronization objects
-    VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
-    // Create a semaphore used to synchronize image presentation
-    // Ensures that the image is displayed before we start submitting new commands to the queue
-    CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
-    // Create a semaphore used to synchronize command submission
-    // Ensures that the image is not presented until all commands have been submitted and executed
-    CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
-
-    // Set up submit info structure
-    // Semaphores will stay the same during application lifetime
-    // Command buffer submission info is set by each example
-    submitInfo = vks::initializers::submitInfo();
-    submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
+    
+    // // Set up submit info structure
+    // // Semaphores will stay the same during application lifetime
+    // // Command buffer submission info is set by each example
+    // submitInfo = vks::initializers::SubmitInfo();
+    // submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    // submitInfo.waitSemaphoreCount = 1;
+    // submitInfo.pWaitSemaphores = &semaphores.presentComplete;
+    // submitInfo.signalSemaphoreCount = 1;
+    // submitInfo.pSignalSemaphores = &semaphores.renderComplete;
     
     return true;
 }
@@ -277,8 +280,11 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 void VulkanApplicationBase::Prepare()
 {
     InitSwapchain();
-    CreateCommandPool();
     SetupSwapChain();
+    CreateCommandPool();
+    CreateCommandBuffers();
+    CreateSynchronizationPrimitives();
+    SetupDepthStencil();
 }
 
 void VulkanApplicationBase::InitSwapchain()
@@ -298,6 +304,93 @@ void VulkanApplicationBase::CreateCommandPool()
 void VulkanApplicationBase::SetupSwapChain()
 {
     swapChain->Create(&width,&height,settings.vsync,settings.fullscreen);
+}
+
+void VulkanApplicationBase::CreateCommandBuffers()
+{
+    // Create one command buffer for each swap chain image and reuse for rendering
+    drawCmdBuffers.resize(swapChain->imageCount);
+
+    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
+        vks::initializers::CommandBufferAllocateInfo(
+            cmdPool,
+            VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            static_cast<uint32_t>(drawCmdBuffers.size()));
+
+    CheckVulkanResult(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));   
+}
+
+void VulkanApplicationBase::CreateSynchronizationPrimitives()
+{
+    // Create synchronization objects
+    semaphores.resize(swapChain->imageCount);
+    waitFences.resize(swapChain->imageCount);
+    VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::SemaphoreCreateInfo();
+    for(auto& semaphore:semaphores)
+    {
+        // Create a semaphore used to synchronize image presentation
+        // Ensures that the image is displayed before we start submitting new commands to the queue
+        CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphore.presentComplete));
+        // Create a semaphore used to synchronize command submission
+        // Ensures that the image is not presented until all commands have been submitted and executed
+        CheckVulkanResult(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphore.renderComplete));
+    }
+    // Wait fences to sync command buffer access
+    VkFenceCreateInfo fenceCreateInfo = vks::initializers::FenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+    for (auto& fence : waitFences) {
+        CheckVulkanResult(vkCreateFence(device, &fenceCreateInfo, nullptr, &fence));
+    }
+}
+
+void VulkanApplicationBase::SetupDepthStencil()
+{
+    VkImageCreateInfo imageCI{};
+    imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageCI.imageType = VK_IMAGE_TYPE_2D;
+    imageCI.format = depthFormat;
+    imageCI.extent = { width, height, 1 };
+    imageCI.mipLevels = 1;
+    imageCI.arrayLayers = 1;
+    imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    CheckVulkanResult(vkCreateImage(device, &imageCI, nullptr, &depthStencil.image));
+    VkMemoryRequirements memReqs{};
+    vkGetImageMemoryRequirements(device, depthStencil.image, &memReqs);
+
+    VkMemoryAllocateInfo memAllloc{};
+    memAllloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memAllloc.allocationSize = memReqs.size;
+    memAllloc.memoryTypeIndex = vulkanDevice->GetMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    CheckVulkanResult(vkAllocateMemory(device, &memAllloc, nullptr, &depthStencil.mem));
+    CheckVulkanResult(vkBindImageMemory(device, depthStencil.image, depthStencil.mem, 0));
+
+    VkImageViewCreateInfo imageViewCI{};
+    imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCI.image = depthStencil.image;
+    imageViewCI.format = depthFormat;
+    imageViewCI.subresourceRange.baseMipLevel = 0;
+    imageViewCI.subresourceRange.levelCount = 1;
+    imageViewCI.subresourceRange.baseArrayLayer = 0;
+    imageViewCI.subresourceRange.layerCount = 1;
+    imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
+    if (depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
+        imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    CheckVulkanResult(vkCreateImageView(device, &imageViewCI, nullptr, &depthStencil.view));
+}
+
+void VulkanApplicationBase::SetupFrameBuffer()
+{
+    
+}
+
+void VulkanApplicationBase::SetupRenderPass()
+{
+    
 }
 
 void VulkanApplicationBase::GetEnabledExtensions()

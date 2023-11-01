@@ -5,8 +5,12 @@ namespace vks
 {
     namespace initializers
     {
-        VkSemaphoreCreateInfo semaphoreCreateInfo();
-        VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
-        VkSubmitInfo submitInfo();
+        VkSemaphoreCreateInfo SemaphoreCreateInfo();
+        VkFenceCreateInfo FenceCreateInfo(VkFenceCreateFlags flags = 0);
+        VkSubmitInfo SubmitInfo();
+        VkCommandBufferAllocateInfo CommandBufferAllocateInfo(
+            VkCommandPool commandPool, 
+            VkCommandBufferLevel level, 
+            uint32_t bufferCount);
     }    
 }

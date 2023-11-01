@@ -32,9 +32,11 @@ public:
 
     uint32_t apiVersion = VK_API_VERSION_1_0;
 
-    bool InitVulkan();
-    /** @brief Prepares all Vulkan resources and functions required to run the sample */
-    virtual void Prepare();
+    struct {
+        VkImage image;
+        VkDeviceMemory mem;
+        VkImageView view;
+    } depthStencil;
 
     uint32_t width;
     uint32_t height;
@@ -42,6 +44,10 @@ public:
     GLFWwindow* window = nullptr;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 #endif
+
+    bool InitVulkan();
+    /** @brief Prepares all Vulkan resources and functions required to run the sample */
+    virtual void Prepare();
 
 protected:
     // Vulkan instance, stores all per-application states
@@ -91,12 +97,13 @@ protected:
     // Wraps the swap chain to present images (framebuffers) to the windowing system
     std::unique_ptr<VulkanSwapChain> swapChain;
     // Synchronization semaphores
-    struct {
+    struct Semaphores{
         // Swap chain image presentation
         VkSemaphore presentComplete;
         // Command buffer submission and execution
         VkSemaphore renderComplete;
-    } semaphores;
+    };
+    std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
     bool requiresStencil{ false };
 
@@ -110,11 +117,19 @@ protected:
     virtual void GetEnabledFeatures();
     /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
     virtual void GetEnabledExtensions();
+    /** @brief (Virtual) Setup default depth and stencil views */
+    virtual void SetupDepthStencil();
+    /** @brief (Virtual) Setup default framebuffers for all requested swapchain images */
+    virtual void SetupFrameBuffer();
+    /** @brief (Virtual) Setup a default renderpass */
+    virtual void SetupRenderPass();
 
 private:
     void InitSwapchain();
     void CreateCommandPool();
     void SetupSwapChain();
+    void CreateCommandBuffers();
+    void CreateSynchronizationPrimitives();
 };
 
 
