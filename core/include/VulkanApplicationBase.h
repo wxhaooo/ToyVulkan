@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -45,11 +46,28 @@ public:
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 #endif
 
+    bool prepared = false;
+    bool viewUpdated = false;
+    /** @brief Last frame time measured using a high performance timer (if available) */
+    float frameTimer = 1.0f;
+    // Defines a frame rate independent timer value clamped from -1.0...1.0
+    // For use in animations, rotations, etc.
+    float timer = 0.0f;
+    // Multiplier for speeding up (or slowing down) the global timer
+    float timerSpeed = 0.25f;
+    bool paused = false;
+
     bool InitVulkan();
     /** @brief Prepares all Vulkan resources and functions required to run the sample */
     virtual void Prepare();
+    /** @brief Entry point for the main render loop */
+    void RenderLoop();
 
 protected:
+    // Frame counter to display fps
+    uint32_t frameCounter = 0;
+    uint32_t lastFPS = 0;
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastTimestamp, tPrevEnd;
     // Vulkan instance, stores all per-application states
     VkInstance instance;
     std::vector<std::string> supportedInstanceExtensions;
@@ -123,6 +141,8 @@ protected:
     virtual void SetupFrameBuffer();
     /** @brief (Virtual) Setup a default renderpass */
     virtual void SetupRenderPass();
+    virtual void Render() = 0;
+
 
 private:
     void InitSwapchain();
@@ -130,6 +150,8 @@ private:
     void SetupSwapChain();
     void CreateCommandBuffers();
     void CreateSynchronizationPrimitives();
+    void CreatePipelineCache();
+    void NextFrame();
 };
 
 
