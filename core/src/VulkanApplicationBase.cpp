@@ -119,9 +119,9 @@ bool VulkanApplicationBase::InitVulkan()
     VkBool32 validFormat{ false };
     // Sample that make use of stencil will require a depth + stencil format, so we select from a different list
     if (requiresStencil) {
-        validFormat = vks::utils::getSupportedDepthStencilFormat(physicalDevice, &depthFormat);
+        validFormat = vks::utils::GetSupportedDepthStencilFormat(physicalDevice, &depthFormat);
     } else {
-        validFormat = vks::utils::getSupportedDepthFormat(physicalDevice, &depthFormat);
+        validFormat = vks::utils::GetSupportedDepthFormat(physicalDevice, &depthFormat);
     }
     assert(validFormat);
 
@@ -509,6 +509,7 @@ void VulkanApplicationBase::SetupFrameBuffer()
 void VulkanApplicationBase::NextFrame()
 {
     auto tStart = std::chrono::high_resolution_clock::now();
+    // view changed
     Render();
     frameCounter++;
     auto tEnd = std::chrono::high_resolution_clock::now();
@@ -531,6 +532,7 @@ void VulkanApplicationBase::NextFrame()
         lastTimestamp = tEnd;
     }
     tPrevEnd = tEnd;
+    // update UI
 }
 
 void VulkanApplicationBase::RenderLoop()

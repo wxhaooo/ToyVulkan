@@ -15,7 +15,7 @@ void LoadGLFT::Prepare()
 
 void LoadGLFT::LoadAsset()
 {
-       
+    
 }
 
 void LoadGLFT::Render()

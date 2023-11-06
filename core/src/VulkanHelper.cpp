@@ -1,10 +1,17 @@
 ﻿#include <VulkanHelper.h>
+#include <fstream>
 
 namespace vks
 {
     namespace helper
     {
         bool errorModeSilent = false;
+
+        bool FileExists(const std::string &filename)
+        {
+            std::ifstream f(filename.c_str());
+            return !f.fail();
+        }
 
         void ExitFatal(const std::string& message, int32_t exitCode)
         {

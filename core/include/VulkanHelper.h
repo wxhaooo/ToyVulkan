@@ -107,6 +107,8 @@ namespace vks
 	{
 		/** @brief Disable message boxes on fatal errors */
 		extern bool errorModeSilent;
+
+		bool FileExists(const std::string &filename);
 		
 		void ExitFatal(const std::string& message, int32_t exitCode);
 		

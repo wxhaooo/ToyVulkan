@@ -1,9 +1,3 @@
-add_compile_definitions(GLFW_INCLUDE_VULKAN)
-add_compile_definitions(GLM_FORCE_RADIANS)
-add_compile_definitions(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
-add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
-add_compile_definitions(USE_FRONTEND_GLFW)
-
 file(GLOB LoadGLTFSource "./src/*.cpp")
 file(GLOB LoadGLTFHeader ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
