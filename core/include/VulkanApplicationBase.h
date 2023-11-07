@@ -142,6 +142,8 @@ protected:
     virtual void SetupRenderPass();
     virtual void Render() = 0;
 
+    // utility
+    VkPipelineShaderStageCreateInfo LoadShader(std::string fileName, VkShaderStageFlagBits stage);
 
 private:
     void InitSwapchain();

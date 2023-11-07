@@ -1,4 +1,5 @@
-﻿#include <fstream>
+﻿#include <filesystem>
+#include <fstream>
 #include <VulkanHelper.h>
 
 namespace vks
@@ -37,12 +38,14 @@ namespace vks
     	// iOS & macOS: VulkanExampleBase::getAssetPath() implemented externally to allow access to Objective-C components
     	const std::string GetAssetPath()
         {
-        	return "./../assets/";
+            std::string workingPath = std::filesystem::current_path().string();
+        	return workingPath + "/assets/";
         }
 		
     	const std::string GetShaderBasePath()
         {
-        	return "./../shaders/";
+            std::string workingPath = std::filesystem::current_path().string();
+        	return workingPath + "/shaders/";
         }
     }    
 }
