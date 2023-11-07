@@ -2,11 +2,10 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <memory>
 #include <vulkan/vulkan_core.h>
 #include <VulkanDevice.h>
-#include <memory>
 #include <GLFW/glfw3.h>
-
 #include <VulkanSwapChain.h>
 
 class VulkanApplicationBase

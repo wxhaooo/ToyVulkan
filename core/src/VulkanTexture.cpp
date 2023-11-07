@@ -1,6 +1,10 @@
 ﻿#include <VulkanTexture.h>
 #include <VulkanInitializers.h>
 #include <VulkanUtils.h>
+#include <VulkanHelper.h>
+
+#undef min
+#undef max
 
 namespace vks
 {

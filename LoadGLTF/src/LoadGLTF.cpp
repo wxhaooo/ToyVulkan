@@ -1,5 +1,7 @@
 #include<iostream>
 #include<LoadGLTF.h>
+#include <VulkanHelper.h>
+#include <VulkanGLTFModel.h>
 
 #if _DEBUG
 bool enableValidation = true;
@@ -15,7 +17,8 @@ void LoadGLFT::Prepare()
 
 void LoadGLFT::LoadAsset()
 {
-    
+    std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
+    gltfModel->LoadGLTFFile("D:/Code/Vulkan/ToyVulkan/ToyVulkan/assets/models/FlightHelmet/glTF/FlightHelmet.gltf",vulkanDevice.get(),queue);
 }
 
 void LoadGLFT::Render()

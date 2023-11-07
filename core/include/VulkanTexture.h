@@ -6,14 +6,9 @@
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
-#include <VulkanBuffer.h>
 #include <VulkanDevice.h>
-#include <VulkanHelper.h>
 #include <ktx.h>
 #include <ktxvulkan.h>
-
-#undef min
-#undef max
 
 namespace vks
 {

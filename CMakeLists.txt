@@ -15,6 +15,7 @@ add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
 add_compile_definitions(USE_FRONTEND_GLFW)
 add_compile_definitions(TINYGLTF_IMPLEMENTATION)
 add_compile_definitions(STB_IMAGE_IMPLEMENTATION)
+add_compile_definitions(TINYGLTF_NO_STB_IMAGE_WRITE)
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
@@ -22,6 +23,7 @@ find_package(Eigen3 REQUIRED)
 
 include_directories(external/ktx/include)
 include_directories(external/ktx/other_include)
+include_directories(external/tinygltf)
 
 add_subdirectory(3rd/imgui)
 add_subdirectory(core)

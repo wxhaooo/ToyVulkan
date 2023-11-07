@@ -113,6 +113,10 @@ namespace vks
 		void ExitFatal(const std::string& message, int32_t exitCode);
 		
 		void ExitFatal(const std::string& message, VkResult resultCode);
+		
+		const std::string GetAssetPath();
+		
+		const std::string GetShaderBasePath();
 	}
 }
 

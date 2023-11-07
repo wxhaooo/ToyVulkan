@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-
 #include <VulkanBuffer.h>
 
 namespace vks

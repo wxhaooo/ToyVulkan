@@ -1,5 +1,5 @@
-﻿#include <VulkanHelper.h>
-#include <fstream>
+﻿#include <fstream>
+#include <VulkanHelper.h>
 
 namespace vks
 {
@@ -32,6 +32,17 @@ namespace vks
         void ExitFatal(const std::string& message, VkResult resultCode)
         {
             ExitFatal(message, (int32_t)resultCode);
+        }
+
+    	// iOS & macOS: VulkanExampleBase::getAssetPath() implemented externally to allow access to Objective-C components
+    	const std::string GetAssetPath()
+        {
+        	return "./../assets/";
+        }
+		
+    	const std::string GetShaderBasePath()
+        {
+        	return "./../shaders/";
         }
     }    
 }
