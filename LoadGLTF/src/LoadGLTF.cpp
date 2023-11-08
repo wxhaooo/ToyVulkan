@@ -12,7 +12,18 @@ bool enablleValidation = false;
 
 LoadGLFT::~LoadGLFT()
 {
-    
+	// Clean up used Vulkan resources
+	// Note : Inherited destructor cleans up resources stored in base class
+	vkDestroyPipeline(device, pipelines.solid, nullptr);
+	if (pipelines.wireframe != VK_NULL_HANDLE) {
+		vkDestroyPipeline(device, pipelines.wireframe, nullptr);
+	}
+
+	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.matrices, nullptr);
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.textures, nullptr);
+
+	shaderData.buffer.Destroy();
 }
 
 void LoadGLFT::Prepare()
@@ -149,6 +160,11 @@ void LoadGLFT::PreparePipelines()
 			rasterizationStateCI.lineWidth = 1.0f;
 			CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.wireframe));
 		}	
+}
+
+void LoadGLFT::BuildCommandBuffer()
+{
+		
 }
 
 void LoadGLFT::Render()

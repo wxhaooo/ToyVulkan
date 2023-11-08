@@ -19,6 +19,7 @@ private:
     void UpdateUniformBuffers();
     void SetupDescriptors();
     void PreparePipelines();
+    void BuildCommandBuffer();
 
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     struct ShaderData {

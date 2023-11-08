@@ -553,7 +553,9 @@ void VulkanApplicationBase::GetEnabledExtensions()
 
 void VulkanApplicationBase::GetEnabledFeatures()
 {
-    
+    // Fill mode non solid is required for wireframe display
+    if (deviceFeatures.fillModeNonSolid)
+        enabledFeatures.fillModeNonSolid = VK_TRUE;
 }
 
 VkPipelineShaderStageCreateInfo VulkanApplicationBase::LoadShader(std::string fileName, VkShaderStageFlagBits stage)
