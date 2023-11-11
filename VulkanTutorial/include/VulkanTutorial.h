@@ -538,11 +538,15 @@ public:
 
 		vkDeviceWaitIdle(vkDevice);
 
+		// clean and recreate swapchain
 		CleanUpSwapChain();
-
 		CreateSwapChain();
 		CreateImageViews();
+
+		// recreate depth resource
 		CreateDepthResources();
+
+		// recreate frame buffer
 		CreateFrameBuffers();
 	}
 

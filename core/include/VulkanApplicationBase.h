@@ -8,6 +8,8 @@
 #include <GLFW/glfw3.h>
 #include <VulkanSwapChain.h>
 
+class Camera;
+
 class VulkanApplicationBase
 {
 public:
@@ -17,7 +19,7 @@ public:
     virtual ~VulkanApplicationBase();
 
     /** @brief Encapsulated physical and logical vulkan device */
-    std::unique_ptr<vks::VulkanDevice> vulkanDevice;
+    std::unique_ptr<vks::VulkanDevice> vulkanDevice = nullptr;
 
     struct Settings
     {
@@ -45,6 +47,7 @@ public:
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 #endif
 
+    bool wireframe = false;
     bool prepared = false;
     bool viewUpdated = false;
     /** @brief Last frame time measured using a high performance timer (if available) */
@@ -55,14 +58,22 @@ public:
     // Multiplier for speeding up (or slowing down) the global timer
     float timerSpeed = 0.25f;
     bool paused = false;
+    uint32_t currentFrame = 0;
+    uint32_t maxFrameInFlight = 0;
+    VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
+
+    std::unique_ptr<Camera> camera = nullptr;
 
     bool InitVulkan();
     /** @brief Prepares all Vulkan resources and functions required to run the sample */
     virtual void Prepare();
     /** @brief Entry point for the main render loop */
     void RenderLoop();
+    virtual void ReCreateVulkanResource();
 
 protected:
+    // swap chain image index
+    uint32_t currentBuffer = 0; 
     // Frame counter to display fps
     uint32_t frameCounter = 0;
     uint32_t lastFPS = 0;
@@ -103,8 +114,6 @@ protected:
     VkRenderPass renderPass = VK_NULL_HANDLE;
     // List of available frame buffers (same as number of swap chain images)
     std::vector<VkFramebuffer>frameBuffers;
-    // Active frame buffer index
-    uint32_t currentBuffer = 0;
     // Descriptor set pool
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     // List of shader modules created (stored for cleanup)
@@ -129,6 +138,11 @@ protected:
     // create surface from surface
     void CreateWindowsSurface();
     void DestroyWindows();
+    
+    void RenderFrame();
+    void PrepareFrame();
+    void SubmitFrame();
+
     virtual VkResult CreateInstance(bool enableValidation);
     /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
     virtual void GetEnabledFeatures();
@@ -140,7 +154,15 @@ protected:
     virtual void SetupFrameBuffer();
     /** @brief (Virtual) Setup a default renderpass */
     virtual void SetupRenderPass();
+    /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
+    virtual void BuildCommandBuffers();
+    /** @brief (Virtual) Called when the window has been resized, can be used by the sample application to recreate resources */
+    virtual void WindowResized();
+    /** @brief (Virtual) Called when the camera view has changed */
+    virtual void ViewChanged();
     virtual void Render() = 0;
+    virtual void SetupCamera();
+
 
     // utility
     VkPipelineShaderStageCreateInfo LoadShader(std::string fileName, VkShaderStageFlagBits stage);
@@ -153,6 +175,7 @@ private:
     void CreateSynchronizationPrimitives();
     void CreatePipelineCache();
     void NextFrame();
+    void DestroyCommandBuffers();
 };
 
 

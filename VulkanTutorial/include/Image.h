@@ -3,10 +3,8 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
-#include "VkUtils.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <VkUtils.h>
+#include <stb_image.h>
 
 class Image
 {

@@ -12,6 +12,8 @@
 #include <VulkanInitializers.h>
 #include <VulkanUtils.h>
 
+#include <Camera.h>
+
 VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height, bool validation)
 {
     this->title = applicationName;
@@ -127,16 +129,6 @@ bool VulkanApplicationBase::InitVulkan()
 
     swapChain = std::make_unique<VulkanSwapChain>(instance,physicalDevice,device);
     
-    // // Set up submit info structure
-    // // Semaphores will stay the same during application lifetime
-    // // Command buffer submission info is set by each example
-    // submitInfo = vks::initializers::SubmitInfo();
-    // submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    // submitInfo.waitSemaphoreCount = 1;
-    // submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-    // submitInfo.signalSemaphoreCount = 1;
-    // submitInfo.pSignalSemaphores = &semaphores.renderComplete;
-    
     return true;
 }
 
@@ -148,7 +140,7 @@ bool VulkanApplicationBase::SetupWindows()
     if (!glfwInit()) return false;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
     if(!glfwVulkanSupported())
     {
         vks::helper::ExitFatal("GLFW: Vulkan Not Supported\n",-1);
@@ -303,6 +295,8 @@ void VulkanApplicationBase::Prepare()
     SetupRenderPass();
     CreatePipelineCache();
     SetupFrameBuffer();
+    
+    SetupCamera();
 }
 
 void VulkanApplicationBase::InitSwapchain()
@@ -322,12 +316,13 @@ void VulkanApplicationBase::CreateCommandPool()
 void VulkanApplicationBase::SetupSwapChain()
 {
     swapChain->Create(&width,&height,settings.vsync,settings.fullscreen);
+    maxFrameInFlight = swapChain->imageCount;
 }
 
 void VulkanApplicationBase::CreateCommandBuffers()
 {
     // Create one command buffer for each swap chain image and reuse for rendering
-    drawCmdBuffers.resize(swapChain->imageCount);
+    drawCmdBuffers.resize(maxFrameInFlight);
 
     VkCommandBufferAllocateInfo cmdBufAllocateInfo =
         vks::initializers::CommandBufferAllocateInfo(
@@ -341,8 +336,8 @@ void VulkanApplicationBase::CreateCommandBuffers()
 void VulkanApplicationBase::CreateSynchronizationPrimitives()
 {
     // Create synchronization objects
-    semaphores.resize(swapChain->imageCount);
-    waitFences.resize(swapChain->imageCount);
+    semaphores.resize(maxFrameInFlight);
+    waitFences.resize(maxFrameInFlight);
     VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::SemaphoreCreateInfo();
     for(auto& semaphore:semaphores)
     {
@@ -473,6 +468,26 @@ void VulkanApplicationBase::SetupRenderPass()
 	CheckVulkanResult(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
 }
 
+void VulkanApplicationBase::ViewChanged()
+{
+    
+}
+
+void VulkanApplicationBase::WindowResized()
+{
+    
+}
+
+void VulkanApplicationBase::BuildCommandBuffers()
+{
+    
+}
+
+void VulkanApplicationBase::DestroyCommandBuffers()
+{
+    vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
+}
+
 void VulkanApplicationBase::CreatePipelineCache()
 {
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -498,7 +513,7 @@ void VulkanApplicationBase::SetupFrameBuffer()
     frameBufferCreateInfo.layers = 1;
 
     // Create frame buffers for every swap chain image
-    frameBuffers.resize(swapChain->imageCount);
+    frameBuffers.resize(maxFrameInFlight);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
         attachments[0] = swapChain->buffers[i].view;
@@ -516,7 +531,11 @@ void VulkanApplicationBase::NextFrame()
     auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
     frameTimer = (float)tDiff / 1000.0f;
     // update camera
-
+    camera->Update(frameTimer);
+    if (camera->Moving())
+    {
+        viewUpdated = true;
+    }
     // Convert to clamped timer value
     if (!paused)
     {
@@ -540,10 +559,68 @@ void VulkanApplicationBase::RenderLoop()
     while(!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        NextFrame();
+        if(prepared)
+            NextFrame();
     }
 
     DestroyWindows();
+}
+
+void VulkanApplicationBase::ReCreateVulkanResource()
+{
+    if (!prepared) return;
+    prepared = false;
+
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    CheckVulkanResult(vkDeviceWaitIdle(device));
+    this->width = width;
+    this->height = height;
+    SetupSwapChain();
+    // Recreate the frame buffers
+    vkDestroyImageView(device, depthStencil.view, nullptr);
+    vkDestroyImage(device, depthStencil.image, nullptr);
+    vkFreeMemory(device, depthStencil.mem, nullptr);
+    SetupDepthStencil();
+    for (uint32_t i = 0; i < frameBuffers.size(); i++) {
+        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+    }
+    SetupFrameBuffer();
+    // ui overlay resize
+
+    // Command buffers need to be recreated as they may store
+    // references to the recreated frame buffer
+    DestroyCommandBuffers();
+    CreateCommandBuffers();
+    BuildCommandBuffers();
+	
+    // SRS - Recreate fences in case number of swapchain images has changed on resize
+    for(auto& semaphore : semaphores)
+    {
+        vkDestroySemaphore(device, semaphore.presentComplete, nullptr);
+        vkDestroySemaphore(device, semaphore.renderComplete, nullptr);
+    }
+    for (auto& fence : waitFences) {
+        vkDestroyFence(device, fence, nullptr);
+    }
+    CreateSynchronizationPrimitives();
+
+    vkDeviceWaitIdle(device);
+
+    if ((width > 0.0f) && (height > 0.0f)) {
+        camera->UpdateAspectRatio((float)width / (float)height);
+    }
+
+    // Notify derived class
+    WindowResized();
+    ViewChanged();
+
+    prepared = true;
 }
 
 void VulkanApplicationBase::GetEnabledExtensions()
@@ -573,5 +650,44 @@ VkPipelineShaderStageCreateInfo VulkanApplicationBase::LoadShader(std::string fi
     shaderModules.push_back(shaderStage.module);
     return shaderStage;
 }
+
+void VulkanApplicationBase::SetupCamera()
+{
+    camera = std::make_unique<Camera>();
+}
+
+void VulkanApplicationBase::RenderFrame()
+{
+    PrepareFrame();
+    // Set up submit info structure
+    submitInfo = vks::initializers::SubmitInfo();
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &semaphores[currentFrame].presentComplete;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &semaphores[currentFrame].renderComplete;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &drawCmdBuffers[currentFrame];
+    CheckVulkanResult(vkQueueSubmit(queue, 1, &submitInfo, waitFences[currentFrame]));
+    SubmitFrame();
+}
+
+void VulkanApplicationBase::PrepareFrame()
+{
+    // Acquire the next image from the swap chain
+    CheckVulkanResult(swapChain->AcquireNextImage(semaphores[currentFrame].presentComplete, &currentBuffer));
+    // Only reset the fence if we are submitting work
+    CheckVulkanResult(vkResetFences(device, 1, &waitFences[currentFrame]));
+}
+
+void VulkanApplicationBase::SubmitFrame()
+{
+    swapChain->QueuePresent(queue, currentBuffer, semaphores[currentFrame].renderComplete);
+    CheckVulkanResult(vkQueueWaitIdle(queue));
+    
+    currentFrame = (currentFrame + 1) % maxFrameInFlight;
+}
+
+
 
 

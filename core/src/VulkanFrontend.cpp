@@ -17,7 +17,7 @@ namespace vks
             void FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
             {
                 auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
-                // app->ReCreateVulkanResource();
+                app->ReCreateVulkanResource();
             }
 
             void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)

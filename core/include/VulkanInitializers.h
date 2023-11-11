@@ -6,14 +6,28 @@ namespace vks
 {
     namespace initializers
     {
-        VkSubmitInfo SubmitInfo();
-        VkSemaphoreCreateInfo SemaphoreCreateInfo();
-        VkFenceCreateInfo FenceCreateInfo(VkFenceCreateFlags flags = 0);
+#pragma region Sync
 
+    	VkSemaphoreCreateInfo SemaphoreCreateInfo();
+    	VkFenceCreateInfo FenceCreateInfo(VkFenceCreateFlags flags = 0);
+    	
+#pragma endregion Sync
+
+#pragma region Memory
+    	
         VkBufferCreateInfo BufferCreateInfo();
         VkBufferCreateInfo BufferCreateInfo(VkBufferUsageFlags usage,VkDeviceSize size);
         VkMemoryAllocateInfo MemoryAllocateInfo();
         VkMappedMemoryRange MappedMemoryRange();
+    	
+#pragma endregion Memory
+
+#pragma region RenderPass
+
+    	VkRenderPassBeginInfo RenderPassBeginInfo();
+    	VkRenderPassCreateInfo RenderPassCreateInfo();
+    	
+#pragma endregion RenderPass
 
 #pragma region Image
         
@@ -25,12 +39,15 @@ namespace vks
         
 #pragma endregion Image
 
-#pragma region CommandBuffer
+#pragma region Command
         
         VkCommandBufferAllocateInfo CommandBufferAllocateInfo(VkCommandPool commandPool, VkCommandBufferLevel level, uint32_t bufferCount);
         VkCommandBufferBeginInfo CommandBufferBeginInfo();
+
+    	VkSubmitInfo SubmitInfo();
+    	
         
-#pragma endregion CommandBuffer
+#pragma endregion Command
 
 #pragma region Descriptor
 
@@ -75,6 +92,9 @@ namespace vks
 		VkGraphicsPipelineCreateInfo PipelineCreateInfo();
     	VkComputePipelineCreateInfo ComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags = 0);
 
+    	VkViewport Viewport(float width, float height, float minDepth, float maxDepth);
+    	VkRect2D Rect2D(uint32_t width, uint32_t height, int32_t offsetX, int32_t offsetY);
+    	
 #pragma endregion Pipeline
     }    
 }

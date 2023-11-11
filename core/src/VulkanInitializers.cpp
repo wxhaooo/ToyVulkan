@@ -4,27 +4,26 @@ namespace vks
 {
     namespace initializers
     {
-        VkSemaphoreCreateInfo SemaphoreCreateInfo()
+#pragma region Sync
+
+    	VkSemaphoreCreateInfo SemaphoreCreateInfo()
         {
-            VkSemaphoreCreateInfo semaphoreCreateInfo {};
-            semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            return semaphoreCreateInfo;
+        	VkSemaphoreCreateInfo semaphoreCreateInfo {};
+        	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        	return semaphoreCreateInfo;
         }
 
-        VkFenceCreateInfo FenceCreateInfo(VkFenceCreateFlags flags)
+    	VkFenceCreateInfo FenceCreateInfo(VkFenceCreateFlags flags)
         {
-            VkFenceCreateInfo fenceCreateInfo {};
-            fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fenceCreateInfo.flags = flags;
-            return fenceCreateInfo;
+        	VkFenceCreateInfo fenceCreateInfo {};
+        	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        	fenceCreateInfo.flags = flags;
+        	return fenceCreateInfo;
         }
+    	
+#pragma endregion Sync
 
-        VkSubmitInfo SubmitInfo()
-        {
-            VkSubmitInfo submitInfo {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            return submitInfo;
-        }
+#pragma region Memory
         
         VkBufferCreateInfo BufferCreateInfo()
         {
@@ -55,6 +54,26 @@ namespace vks
             mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
             return mappedMemoryRange;
         }
+
+#pragma endregion Memory
+
+#pragma region RenderPass
+    	
+    	VkRenderPassBeginInfo RenderPassBeginInfo()
+        {
+        	VkRenderPassBeginInfo renderPassBeginInfo {};
+        	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        	return renderPassBeginInfo;
+        }
+
+    	VkRenderPassCreateInfo RenderPassCreateInfo()
+        {
+        	VkRenderPassCreateInfo renderPassCreateInfo {};
+        	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        	return renderPassCreateInfo;
+        }
+    	
+#pragma endregion RenderPass
 
 #pragma region Image
         
@@ -92,7 +111,7 @@ namespace vks
         
 #pragma endregion Image
 
-#pragma region CommandBuffer
+#pragma region Command
 
         VkCommandBufferAllocateInfo CommandBufferAllocateInfo(VkCommandPool commandPool, VkCommandBufferLevel level, uint32_t bufferCount)
         {
@@ -110,8 +129,15 @@ namespace vks
             cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
             return cmdBufferBeginInfo;
         }
+
+    	VkSubmitInfo SubmitInfo()
+    	{
+    		VkSubmitInfo submitInfo {};
+    		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    		return submitInfo;
+    	}
         
-#pragma endregion CommnandBuffer
+#pragma endregion Commnand
 
 #pragma region Descriptor
 
@@ -414,6 +440,26 @@ namespace vks
         	computePipelineCreateInfo.flags = flags;
         	return computePipelineCreateInfo;
         }
+
+    	VkViewport Viewport(float width, float height, float minDepth, float maxDepth)
+    	{
+    		VkViewport viewport {};
+    		viewport.width = width;
+    		viewport.height = height;
+    		viewport.minDepth = minDepth;
+    		viewport.maxDepth = maxDepth;
+    		return viewport;
+    	}
+
+    	VkRect2D Rect2D(uint32_t width, uint32_t height, int32_t offsetX, int32_t offsetY)
+    	{
+    		VkRect2D rect2D {};
+    		rect2D.extent.width = width;
+    		rect2D.extent.height = height;
+    		rect2D.offset.x = offsetX;
+    		rect2D.offset.y = offsetY;
+    		return rect2D;
+    	}
     	
 #pragma endregion Pipeline
         

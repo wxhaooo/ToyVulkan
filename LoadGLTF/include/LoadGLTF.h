@@ -14,12 +14,13 @@ public:
     void LoadAsset();
     void PrepareUniformBuffers();
     void Render() override;
+    void SetupCamera() override;
+    void BuildCommandBuffers() override;
 
 private:
     void UpdateUniformBuffers();
     void SetupDescriptors();
     void PreparePipelines();
-    void BuildCommandBuffer();
 
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     struct ShaderData {
