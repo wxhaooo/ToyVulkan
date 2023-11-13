@@ -73,7 +73,7 @@ public:
 
 protected:
     // swap chain image index
-    uint32_t currentBuffer = 0; 
+    uint32_t currentImageIndex = 0; 
     // Frame counter to display fps
     uint32_t frameCounter = 0;
     uint32_t lastFPS = 0;

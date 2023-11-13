@@ -548,6 +548,8 @@ public:
 
 		// recreate frame buffer
 		CreateFrameBuffers();
+
+		currentFrame = 0;
 	}
 
 private:

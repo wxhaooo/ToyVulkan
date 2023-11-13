@@ -25,6 +25,8 @@ VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_
 
 VulkanApplicationBase::~VulkanApplicationBase()
 {
+    CheckVulkanResult(vkDeviceWaitIdle(device));
+    
     swapChain.reset();
 
     if (descriptorPool != VK_NULL_HANDLE)
@@ -39,6 +41,7 @@ VulkanApplicationBase::~VulkanApplicationBase()
     for (auto& shaderModule : shaderModules)
         vkDestroyShaderModule(device, shaderModule, nullptr);
 
+    // depth image info
     vkDestroyImageView(device, depthStencil.view, nullptr);
     vkDestroyImage(device, depthStencil.image, nullptr);
     vkFreeMemory(device, depthStencil.mem, nullptr);
@@ -610,7 +613,7 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     }
     CreateSynchronizationPrimitives();
 
-    vkDeviceWaitIdle(device);
+    CheckVulkanResult(vkDeviceWaitIdle(device));
 
     if ((width > 0.0f) && (height > 0.0f)) {
         camera->UpdateAspectRatio((float)width / (float)height);
@@ -620,6 +623,7 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     WindowResized();
     ViewChanged();
 
+    currentFrame = 0;
     prepared = true;
 }
 
@@ -674,15 +678,17 @@ void VulkanApplicationBase::RenderFrame()
 
 void VulkanApplicationBase::PrepareFrame()
 {
+    //wait pre-frame
+    CheckVulkanResult(vkWaitForFences(device, 1, &waitFences[currentFrame], VK_TRUE, UINT64_MAX));
     // Acquire the next image from the swap chain
-    CheckVulkanResult(swapChain->AcquireNextImage(semaphores[currentFrame].presentComplete, &currentBuffer));
+    CheckVulkanResult(swapChain->AcquireNextImage(semaphores[currentFrame].presentComplete, &currentImageIndex));
     // Only reset the fence if we are submitting work
     CheckVulkanResult(vkResetFences(device, 1, &waitFences[currentFrame]));
 }
 
 void VulkanApplicationBase::SubmitFrame()
 {
-    swapChain->QueuePresent(queue, currentBuffer, semaphores[currentFrame].renderComplete);
+    swapChain->QueuePresent(queue, currentImageIndex, semaphores[currentFrame].renderComplete);
     CheckVulkanResult(vkQueueWaitIdle(queue));
     
     currentFrame = (currentFrame + 1) % maxFrameInFlight;

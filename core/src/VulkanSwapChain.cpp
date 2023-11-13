@@ -336,7 +336,7 @@ VkResult VulkanSwapChain::QueuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 {
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.pNext = NULL;
+	presentInfo.pNext = VK_NULL_HANDLE;
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapChain;
 	presentInfo.pImageIndices = &imageIndex;
@@ -355,10 +355,7 @@ void VulkanSwapChain::Cleanup()
 	if (swapChain != VK_NULL_HANDLE)
 	{
 		for (uint32_t i = 0; i < imageCount; i++)
-		{
 			vkDestroyImageView(device, buffers[i].view, nullptr);
-			vkDestroyImage(device, buffers[i].image, nullptr);
-		}
 	}
 	if (surface != VK_NULL_HANDLE)
 	{
