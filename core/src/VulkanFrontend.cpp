@@ -22,11 +22,14 @@ namespace vks
 
             void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
             {
-	    
+                auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
+                
             }
 
             void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods)
             {
+                auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
+                
                 // auto app = reinterpret_cast<VulkanTutorial*>(glfwGetWindowUserPointer(window));
                 // if (app == nullptr) return;
                 //

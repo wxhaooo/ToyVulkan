@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <VulkanApplicationBase.h>
-
 #include <VulkanGLTFModel.h>
 
 class LoadGLFT :public VulkanApplicationBase
@@ -16,6 +15,9 @@ public:
     void Render() override;
     void SetupCamera() override;
     void BuildCommandBuffers() override;
+
+protected:
+    void ViewChanged() override;
 
 private:
     void UpdateUniformBuffers();

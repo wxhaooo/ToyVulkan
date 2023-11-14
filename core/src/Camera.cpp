@@ -1,4 +1,5 @@
 ﻿#include <Camera.h>
+#include <MathUtils.h>
 
 void Camera::UpdateViewMatrix()
 {
@@ -175,12 +176,12 @@ bool Camera::UpdatePad(glm::vec2 axisLeft, glm::vec2 axisRight, float deltaTime)
 
 void Camera::SetLookAt(glm::vec3 pos, glm::vec3 target)
 {
-	// glm::vec3 defaultUp(0.0f, 0.0f, 1.0f);
-	// matrices.view = glm::lookAt(pos, target, defaultUp);
-	//
-	// this->position = Eigen::Vector3f(matrices.view[3][0], matrices.view[3][1], matrices.view[3][2]);
-	// // ref: Introduction to 3D Game PROGRAMMING With DirectX 12,section 5.6.2
-	// this->rotation = MathUtils::GetEulerAngleFromRotationMatrix(matrices.view);
-	// UpdateViewMatrix();
+	glm::vec3 defaultUp(0.0f, 0.0f, 1.0f);
+	matrices.view = glm::lookAt(pos, target, defaultUp);
+	
+	this->position = matrices.view[3];
+	// ref: Introduction to 3D Game PROGRAMMING With DirectX 12,section 5.6.2
+	this->rotation = math::GetEulerAngleFromRotationMatrix(matrices.view);
+	UpdateViewMatrix();
 }
 

@@ -36,8 +36,10 @@ void LoadGLFT::Prepare()
 void LoadGLFT::SetupCamera()
 {
 	VulkanApplicationBase::SetupCamera();
-	camera->type = Camera::CameraType::lookat;
 	camera->flipY = true;
+	camera->type = Camera::CameraType::lookat;
+	
+	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
 	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
 	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
 	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
@@ -207,7 +209,10 @@ void LoadGLFT::BuildCommandBuffers()
 	}
 }
 
-
+void LoadGLFT::ViewChanged()
+{
+	UpdateUniformBuffers();
+}
 
 void LoadGLFT::Render()
 {

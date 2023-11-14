@@ -154,6 +154,7 @@ bool VulkanApplicationBase::SetupWindows()
     glfwSetFramebufferSizeCallback(window, vks::frontend::GLFW::FrameBufferResizeCallback);
     glfwSetMouseButtonCallback(window, vks::frontend::GLFW::MouseButtonCallback);
     glfwSetKeyCallback(window, vks::frontend::GLFW::KeyBoardCallback);
+    
 #endif
 
     return true;
