@@ -432,6 +432,13 @@ namespace vks
 			return pipelineCreateInfo;
 		}
 
+    	VkPipelineCacheCreateInfo PipelineCacheCreateInfo()
+    	{
+    		VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+    		pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    		return pipelineCacheCreateInfo;
+    	}
+
     	VkComputePipelineCreateInfo ComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags)
         {
         	VkComputePipelineCreateInfo computePipelineCreateInfo {};

@@ -90,6 +90,7 @@ namespace vks
 		VkPipelineTessellationStateCreateInfo PipelineTessellationStateCreateInfo(uint32_t patchControlPoints);
 		VkGraphicsPipelineCreateInfo PipelineCreateInfo(VkPipelineLayout layout,VkRenderPass renderPass,VkPipelineCreateFlags flags = 0);
 		VkGraphicsPipelineCreateInfo PipelineCreateInfo();
+    	VkPipelineCacheCreateInfo PipelineCacheCreateInfo();
     	VkComputePipelineCreateInfo ComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags = 0);
 
     	VkViewport Viewport(float width, float height, float minDepth, float maxDepth);

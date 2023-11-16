@@ -5,6 +5,7 @@
 #include <VulkanInitializers.h>
 
 #include <Camera.h>
+#include <Singleton.hpp>
 
 LoadGLFT::~LoadGLFT()
 {
@@ -29,13 +30,14 @@ void LoadGLFT::Prepare()
 	PrepareUniformBuffers();
 	SetupDescriptors();
 	PreparePipelines();
-	BuildCommandBuffers();
 	prepared = true;
 }
 
 void LoadGLFT::SetupCamera()
 {
 	VulkanApplicationBase::SetupCamera();
+	Camera* camera = Singleton<Camera>::Instance();
+	
 	camera->flipY = true;
 	camera->type = Camera::CameraType::lookat;
 	
@@ -68,6 +70,7 @@ void LoadGLFT::PrepareUniformBuffers()
 
 void LoadGLFT::UpdateUniformBuffers()
 {
+	Camera* camera = Singleton<Camera>::Instance();
     shaderData.values.projection = camera->matrices.perspective;
     shaderData.values.model = camera->matrices.view;
     shaderData.values.viewPos = camera->viewPos;
@@ -174,39 +177,15 @@ void LoadGLFT::PreparePipelines()
 
 void LoadGLFT::BuildCommandBuffers()
 {
-	VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::CommandBufferBeginInfo();
-
-	VkClearValue clearValues[2];
-	clearValues[0].color = defaultClearColor;
-	clearValues[1].depthStencil = { 1.0f, 0 };
-
-	VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
-	renderPassBeginInfo.renderPass = renderPass;
-	renderPassBeginInfo.renderArea.offset.x = 0;
-	renderPassBeginInfo.renderArea.offset.y = 0;
-	renderPassBeginInfo.renderArea.extent.width = width;
-	renderPassBeginInfo.renderArea.extent.height = height;
-	renderPassBeginInfo.clearValueCount = 2;
-	renderPassBeginInfo.pClearValues = clearValues;
-
 	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
 	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
 
-	for (size_t i = 0; i < drawCmdBuffers.size(); ++i)
-	{
-		renderPassBeginInfo.framebuffer = frameBuffers[i];
-		CheckVulkanResult(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-		vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-		vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-		// Bind scene matrices descriptor to set 0
-		vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-		vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.wireframe : pipelines.solid);
-		gltfModel->Draw(drawCmdBuffers[i], pipelineLayout);
-		// drawUI(drawCmdBuffers[i]);
-		vkCmdEndRenderPass(drawCmdBuffers[i]);
-		CheckVulkanResult(vkEndCommandBuffer(drawCmdBuffers[i]));
-	}
+	vkCmdSetViewport(drawCmdBuffers[currentFrame], 0, 1, &viewport);
+	vkCmdSetScissor(drawCmdBuffers[currentFrame], 0, 1, &scissor);
+	// Bind scene matrices descriptor to set 0
+	vkCmdBindDescriptorSets(drawCmdBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+	vkCmdBindPipeline(drawCmdBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.wireframe : pipelines.solid);
+	gltfModel->Draw(drawCmdBuffers[currentFrame], pipelineLayout);
 }
 
 void LoadGLFT::ViewChanged()
@@ -217,6 +196,7 @@ void LoadGLFT::ViewChanged()
 void LoadGLFT::Render()
 {
 	RenderFrame();
+	Camera* camera = Singleton<Camera>::Instance();
     if(camera->updated)
 	    UpdateUniformBuffers();
 }

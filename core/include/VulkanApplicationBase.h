@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <VulkanSwapChain.h>
 
+class VulkanGUI;
 class Camera;
 
 class VulkanApplicationBase
@@ -61,8 +62,6 @@ public:
     uint32_t currentFrame = 0;
     uint32_t maxFrameInFlight = 0;
     VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
-
-    std::unique_ptr<Camera> camera = nullptr;
 
     bool InitVulkan();
     /** @brief Prepares all Vulkan resources and functions required to run the sample */
@@ -132,6 +131,8 @@ protected:
     std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
     bool requiresStencil{ false };
+
+    std::unique_ptr<VulkanGUI> gui;
 
     // add different front end here,glfw,SDL.etc
     bool SetupWindows();

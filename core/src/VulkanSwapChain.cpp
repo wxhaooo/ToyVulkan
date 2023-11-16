@@ -1,5 +1,6 @@
 ﻿#include <VulkanSwapChain.h>
 #include <VulkanHelper.h>
+#include <GLFW/glfw3.h>
 
 /**
 * Set instance, physical and logical device to use for the swapchain and get all required function pointers
@@ -22,11 +23,12 @@ VulkanSwapChain::~VulkanSwapChain()
 }
 
 #if USE_FRONTEND_GLFW
-void VulkanSwapChain::InitSurface(VkSurfaceKHR surface)
+void VulkanSwapChain::Init(GLFWwindow* window, VkSurfaceKHR surface)
 {
     if(surface == VK_NULL_HANDLE)
         vks::helper::ExitFatal("surface is null",-1);
 
+	this->window = window;
     this->surface = surface;
 
     // Get available queue family properties

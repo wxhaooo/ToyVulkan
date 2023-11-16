@@ -13,6 +13,8 @@
 #include <VulkanUtils.h>
 
 #include <Camera.h>
+#include <Singleton.hpp>
+#include <VulkanImGUI.h>
 
 VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height, bool validation)
 {
@@ -301,11 +303,25 @@ void VulkanApplicationBase::Prepare()
     SetupFrameBuffer();
     
     SetupCamera();
+
+    if(settings.overlay)
+    {
+        ImGUICreateInfo imGUICreateInfo;
+        imGUICreateInfo.instance = instance;
+        imGUICreateInfo.vulkanDevice = vulkanDevice.get();
+        imGUICreateInfo.vulkanSwapChain = swapChain.get();
+        imGUICreateInfo.renderPass = renderPass;
+        imGUICreateInfo.glfwWindow = window;
+        imGUICreateInfo.copyQueue = queue;
+
+        gui = std::make_unique<VulkanGUI>(imGUICreateInfo);
+        // Singleton<VulkanGUI>::Instance(imGUICreateInfo);
+    }
 }
 
 void VulkanApplicationBase::InitSwapchain()
 {
-    swapChain->InitSurface(surface); 
+    swapChain->Init(window,surface);
 }
 
 void VulkanApplicationBase::CreateCommandPool()
@@ -535,6 +551,7 @@ void VulkanApplicationBase::NextFrame()
     auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
     frameTimer = (float)tDiff / 1000.0f;
     // update camera
+    Camera* camera = Singleton<Camera>::Instance();
     camera->Update(frameTimer);
     if (camera->Moving())
     {
@@ -567,7 +584,11 @@ void VulkanApplicationBase::RenderLoop()
             NextFrame();
     }
 
-    DestroyWindows();
+    if(settings.overlay)
+        gui.reset();
+    
+    glfwDestroyWindow(window);
+    glfwTerminate();
 }
 
 void VulkanApplicationBase::ReCreateVulkanResource()
@@ -616,6 +637,8 @@ void VulkanApplicationBase::ReCreateVulkanResource()
 
     CheckVulkanResult(vkDeviceWaitIdle(device));
 
+    Camera* camera = Singleton<Camera>::Instance();
+
     if ((width > 0.0f) && (height > 0.0f)) {
         camera->UpdateAspectRatio((float)width / (float)height);
     }
@@ -658,7 +681,7 @@ VkPipelineShaderStageCreateInfo VulkanApplicationBase::LoadShader(std::string fi
 
 void VulkanApplicationBase::SetupCamera()
 {
-    camera = std::make_unique<Camera>();
+   
 }
 
 void VulkanApplicationBase::RenderFrame()
@@ -685,6 +708,37 @@ void VulkanApplicationBase::PrepareFrame()
     CheckVulkanResult(swapChain->AcquireNextImage(semaphores[currentFrame].presentComplete, &currentImageIndex));
     // Only reset the fence if we are submitting work
     CheckVulkanResult(vkResetFences(device, 1, &waitFences[currentFrame]));
+
+    // begin render pass
+    VkCommandBufferBeginInfo beginInfo = vks::initializers::CommandBufferBeginInfo();
+    CheckVulkanResult(vkBeginCommandBuffer(drawCmdBuffers[currentFrame], &beginInfo));
+
+    VkRenderPassBeginInfo renderPassInfo = vks::initializers::RenderPassBeginInfo();
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = frameBuffers[currentFrame];
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = {width,height};
+
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
+    renderPassInfo.clearValueCount = clearValues.size();
+    renderPassInfo.pClearValues = clearValues.data();
+
+    // update gui
+    gui->NewFrame();
+    gui->UpdateBuffer();
+    
+    vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    gui->DrawFrame(drawCmdBuffers[currentFrame]);
+
+    // build custom command
+    BuildCommandBuffers();
+
+    vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
+    CheckVulkanResult(vkEndCommandBuffer(drawCmdBuffers[currentFrame]));
 }
 
 void VulkanApplicationBase::SubmitFrame()

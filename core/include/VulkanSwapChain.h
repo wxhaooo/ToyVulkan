@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
 typedef struct _SwapChainBuffers
@@ -23,7 +24,7 @@ public:
     ~VulkanSwapChain();
     
 #if USE_FRONTEND_GLFW
-    void InitSurface(VkSurfaceKHR surface);
+    void Init(GLFWwindow* window, VkSurfaceKHR surface);
 #endif
     // void Connect(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
     void Create(uint32_t* width, uint32_t* height, bool vsync = false, bool fullscreen = false);
@@ -37,5 +38,6 @@ private:
     VkInstance instance;
     VkDevice device;
     VkPhysicalDevice physicalDevice;
+    GLFWwindow* window;
     VkSurfaceKHR surface;
 };
