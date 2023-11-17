@@ -6,7 +6,7 @@
 class LoadGLFT :public VulkanApplicationBase
 {
 public:
-    LoadGLFT(bool validation):VulkanApplicationBase("Load GLTF",1280,960,validation){}
+    LoadGLFT():VulkanApplicationBase("Load GLTF",1280,960){}
     ~LoadGLFT() override;
 
     void Prepare() override;
@@ -14,7 +14,7 @@ public:
     void PrepareUniformBuffers();
     void Render() override;
     void SetupCamera() override;
-    void BuildCommandBuffers() override;
+    void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
 
 protected:
     void ViewChanged() override;

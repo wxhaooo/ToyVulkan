@@ -15,14 +15,14 @@
 #include <Camera.h>
 #include <Singleton.hpp>
 #include <VulkanImGUI.h>
+#include <GraphicSettings.hpp>
 
-VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height, bool validation)
+VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height)
 {
     this->title = applicationName;
     this->name = applicationName;
     this->width = width;
     this->height = height;
-    this->settings.validation = validation;
 }
 
 VulkanApplicationBase::~VulkanApplicationBase()
@@ -63,7 +63,7 @@ VulkanApplicationBase::~VulkanApplicationBase()
         vkDestroyFence(device, fence, nullptr);
     
     vulkanDevice.reset();
-    if (settings.validation)
+    if (Singleton<GraphicSettings>::Instance()->validation)
         vks::debug::freeDebugCallback(instance);
     vkDestroyInstance(instance,nullptr);
 }
@@ -71,11 +71,13 @@ VulkanApplicationBase::~VulkanApplicationBase()
 bool VulkanApplicationBase::InitVulkan()
 {
     SetupWindows();
+
+    auto graphicSettings = Singleton<GraphicSettings>::Instance();
     
-    CheckVulkanResult(CreateInstance(settings.validation));
+    CheckVulkanResult(CreateInstance(graphicSettings->validation));
 
     // If requested, we enable the default validation layers for debugging
-    if (settings.validation)
+    if (graphicSettings->validation)
         vks::debug::setupDebugging(instance);
 
     // create surface from frontend
@@ -125,7 +127,7 @@ bool VulkanApplicationBase::InitVulkan()
     // Find a suitable depth and/or stencil format
     VkBool32 validFormat{ false };
     // Sample that make use of stencil will require a depth + stencil format, so we select from a different list
-    if (requiresStencil) {
+    if (Singleton<GraphicSettings>::Instance()->requiresStencil) {
         validFormat = vks::utils::GetSupportedDepthStencilFormat(physicalDevice, &depthFormat);
     } else {
         validFormat = vks::utils::GetSupportedDepthFormat(physicalDevice, &depthFormat);
@@ -182,12 +184,8 @@ void VulkanApplicationBase::DestroyWindows()
 
 VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 {
-    this->settings.validation = enableValidation;
-
-#if _DEBUG
-    this->settings.validation = true;
-#endif
-
+    auto graphicSettings = Singleton<GraphicSettings>::Instance();
+    
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = name.c_str();
@@ -242,7 +240,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
     instanceCreateInfo.pApplicationInfo = &appInfo;
 
     // Enable the debug utils extension if available (e.g. when debugging tools are present)
-    if (settings.validation || std::find(supportedInstanceExtensions.begin(), supportedInstanceExtensions.end(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != supportedInstanceExtensions.end()) {
+    if (graphicSettings->validation || std::find(supportedInstanceExtensions.begin(), supportedInstanceExtensions.end(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != supportedInstanceExtensions.end()) {
         instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
@@ -254,7 +252,7 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 
     // The VK_LAYER_KHRONOS_validation contains all current validation functionality.
     const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
-    if (settings.validation)
+    if (graphicSettings->validation)
     {
         // Check if this layer is available at instance level
         uint32_t instanceLayerCount;
@@ -304,7 +302,8 @@ void VulkanApplicationBase::Prepare()
     
     SetupCamera();
 
-    if(settings.overlay)
+    auto graphicSettings = Singleton<GraphicSettings>::Instance();
+    if(graphicSettings->overlay)
     {
         ImGUICreateInfo imGUICreateInfo;
         imGUICreateInfo.instance = instance;
@@ -335,7 +334,9 @@ void VulkanApplicationBase::CreateCommandPool()
 
 void VulkanApplicationBase::SetupSwapChain()
 {
-    swapChain->Create(&width,&height,settings.vsync,settings.fullscreen);
+    auto graphicSettings = Singleton<GraphicSettings>::Instance();
+
+    swapChain->Create(&width,&height,graphicSettings->vsync,graphicSettings->fullscreen);
     maxFrameInFlight = swapChain->imageCount;
 }
 
@@ -498,7 +499,7 @@ void VulkanApplicationBase::WindowResized()
     
 }
 
-void VulkanApplicationBase::BuildCommandBuffers()
+void VulkanApplicationBase::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
     
 }
@@ -584,7 +585,8 @@ void VulkanApplicationBase::RenderLoop()
             NextFrame();
     }
 
-    if(settings.overlay)
+    auto graphicSettings = Singleton<GraphicSettings>::Instance();
+    if(graphicSettings->overlay)
         gui.reset();
     
     glfwDestroyWindow(window);
@@ -622,7 +624,6 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     // references to the recreated frame buffer
     DestroyCommandBuffers();
     CreateCommandBuffers();
-    BuildCommandBuffers();
 	
     // SRS - Recreate fences in case number of swapchain images has changed on resize
     for(auto& semaphore : semaphores)
@@ -732,11 +733,10 @@ void VulkanApplicationBase::PrepareFrame()
     
     vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    gui->DrawFrame(drawCmdBuffers[currentFrame]);
-
     // build custom command
-    BuildCommandBuffers();
-
+    BuildCommandBuffers(drawCmdBuffers[currentFrame]);
+    gui->DrawFrame(drawCmdBuffers[currentFrame]);
+    
     vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
     CheckVulkanResult(vkEndCommandBuffer(drawCmdBuffers[currentFrame]));
 }

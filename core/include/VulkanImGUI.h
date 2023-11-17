@@ -8,13 +8,12 @@
 
 struct ImGUICreateInfo
 {
-	VkInstance instance;
-	vks::VulkanDevice* vulkanDevice;
-	VulkanSwapChain* vulkanSwapChain;
-	VkQueue copyQueue;
-	VkRenderPass renderPass;
-
-	GLFWwindow* glfwWindow;
+	VkInstance instance = VK_NULL_HANDLE;
+	vks::VulkanDevice* vulkanDevice = nullptr;
+	VulkanSwapChain* vulkanSwapChain = nullptr;
+	VkQueue copyQueue = VK_NULL_HANDLE;
+	VkRenderPass renderPass = VK_NULL_HANDLE;
+	GLFWwindow* glfwWindow = nullptr;
 };
 
 class VulkanGUI
@@ -37,20 +36,22 @@ public:
 private:
 
 	void InitVulkanResource();
+
+	void PrepareFontTexture();
+	void CreatePipelineCache();
+	void PrepareShaders();
+	void PrepareRenderPass();
+	void PreparePipelines();
+	void SetupDescriptors();
+
 	void CleanUpVulkanResource();
 	void InitImGUIResource();
 	
 	int32_t vertexCount = 0;
 	vks::Buffer vertexBuffer;
-	// VkBuffer vertexBuffer = VK_NULL_HANDLE;
-	// VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
-	// void* vertexBufferMapped = nullptr;
 	
 	int32_t indexCount = 0;
 	vks::Buffer indexBuffer;
-	// VkBuffer indexBuffer = VK_NULL_HANDLE;
-	// VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
-	// void* indexBufferMapped = nullptr;
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout descriptorSetLayout;
@@ -60,15 +61,13 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipeline pipeline;
 
+	VkShaderModule vertShaderModule;
+	VkShaderModule fragShaderModule;
+
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
 	vks::Texture2D fontImageTexture;
-
-	// VkDeviceMemory fontMemory = VK_NULL_HANDLE;
-	// VkImage fontImage = VK_NULL_HANDLE;
-	// VkImageView fontView = VK_NULL_HANDLE;
-	// VkSampler sampler;
 	
 	ImGuiStyle vulkanStyle;
 	VkPhysicalDeviceDriverProperties driverProperties = {};
@@ -76,12 +75,13 @@ private:
 	std::vector<VkImage> images;
 	std::vector<VkImageView> imageViews;
 	std::vector<VkFramebuffer> frameBuffers;
+	VkFormat depthFormat;
 
 	// external resource
 	VkInstance instance;
 	vks::VulkanDevice* vulkanDevice;
 	VulkanSwapChain* vulkanSwapChain;
 	VkQueue copyQueue;
-	VkRenderPass renderPass;
+	VkRenderPass renderPass = VK_NULL_HANDLE;
 	GLFWwindow* glfwWindow;
 };

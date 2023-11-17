@@ -25,3 +25,7 @@ vulkanExample中的东西重新整理并重写了下gltfLoading这个case。
 
 * 修复适配后ImGUI的一些bug，先做了一个简单的测试，目前ImGUI显示在模型下面，需要修复一下
 
+## 2023-11-17
+
+* 简单重构一下代码，增加GrphicSetting，增加IMGUI的RenderPass （打算先将结果渲染到IMGUI中）
+

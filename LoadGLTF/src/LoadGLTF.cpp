@@ -175,17 +175,17 @@ void LoadGLFT::PreparePipelines()
 		}	
 }
 
-void LoadGLFT::BuildCommandBuffers()
+void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
 	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
 	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
 
-	vkCmdSetViewport(drawCmdBuffers[currentFrame], 0, 1, &viewport);
-	vkCmdSetScissor(drawCmdBuffers[currentFrame], 0, 1, &scissor);
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	// Bind scene matrices descriptor to set 0
-	vkCmdBindDescriptorSets(drawCmdBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-	vkCmdBindPipeline(drawCmdBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.wireframe : pipelines.solid);
-	gltfModel->Draw(drawCmdBuffers[currentFrame], pipelineLayout);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.wireframe : pipelines.solid);
+	gltfModel->Draw(commandBuffer, pipelineLayout);
 }
 
 void LoadGLFT::ViewChanged()

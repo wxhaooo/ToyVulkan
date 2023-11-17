@@ -15,20 +15,12 @@ class VulkanApplicationBase
 {
 public:
     VulkanApplicationBase() = delete;
-    VulkanApplicationBase(std::string applicationName, uint32_t width, uint32_t height, bool validation);
+    VulkanApplicationBase(std::string applicationName, uint32_t width, uint32_t height);
 
     virtual ~VulkanApplicationBase();
 
     /** @brief Encapsulated physical and logical vulkan device */
     std::unique_ptr<vks::VulkanDevice> vulkanDevice = nullptr;
-
-    struct Settings
-    {
-        bool validation = false;
-        bool fullscreen = false;
-        bool vsync = false;
-        bool overlay = true;
-    } settings;
 
     std::string title = "Vulkan Example";
     std::string name = "vulkanExample";
@@ -130,7 +122,6 @@ protected:
     };
     std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
-    bool requiresStencil{ false };
 
     std::unique_ptr<VulkanGUI> gui;
 
@@ -156,7 +147,7 @@ protected:
     /** @brief (Virtual) Setup a default renderpass */
     virtual void SetupRenderPass();
     /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
-    virtual void BuildCommandBuffers();
+    virtual void BuildCommandBuffers(VkCommandBuffer commandBuffer);
     /** @brief (Virtual) Called when the window has been resized, can be used by the sample application to recreate resources */
     virtual void WindowResized();
     /** @brief (Virtual) Called when the camera view has changed */
