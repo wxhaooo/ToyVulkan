@@ -309,9 +309,13 @@ void VulkanApplicationBase::Prepare()
         imGUICreateInfo.instance = instance;
         imGUICreateInfo.vulkanDevice = vulkanDevice.get();
         imGUICreateInfo.vulkanSwapChain = swapChain.get();
-        imGUICreateInfo.renderPass = renderPass;
         imGUICreateInfo.glfwWindow = window;
         imGUICreateInfo.copyQueue = queue;
+        
+        if(graphicSettings->standaloneGUI)
+            imGUICreateInfo.renderPass = VK_NULL_HANDLE;
+        else
+            imGUICreateInfo.renderPass = renderPass;
 
         gui = std::make_unique<VulkanGUI>(imGUICreateInfo);
         // Singleton<VulkanGUI>::Instance(imGUICreateInfo);
@@ -714,30 +718,38 @@ void VulkanApplicationBase::PrepareFrame()
     VkCommandBufferBeginInfo beginInfo = vks::initializers::CommandBufferBeginInfo();
     CheckVulkanResult(vkBeginCommandBuffer(drawCmdBuffers[currentFrame], &beginInfo));
 
-    VkRenderPassBeginInfo renderPassInfo = vks::initializers::RenderPassBeginInfo();
-    renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = frameBuffers[currentFrame];
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = {width,height};
+    VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
+    renderPassBeginInfo.renderPass = renderPass;
+    renderPassBeginInfo.framebuffer = frameBuffers[currentFrame];
+    renderPassBeginInfo.renderArea.offset = { 0, 0 };
+    renderPassBeginInfo.renderArea.extent = {width,height};
 
     std::array<VkClearValue, 2> clearValues{};
     clearValues[0].color = { 0.0f, 0.0f, 0.0f,1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
-    renderPassInfo.clearValueCount = clearValues.size();
-    renderPassInfo.pClearValues = clearValues.data();
+    renderPassBeginInfo.clearValueCount = clearValues.size();
+    renderPassBeginInfo.pClearValues = clearValues.data();
 
     // update gui
     gui->NewFrame();
     gui->UpdateBuffer();
     
-    vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    // build custom command
+    vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    // offscreen pass
     BuildCommandBuffers(drawCmdBuffers[currentFrame]);
-    gui->DrawFrame(drawCmdBuffers[currentFrame]);
+
+    // gui pass
+    if(gui->standaloneRenderPass)
+    {
+        vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
+        renderPassBeginInfo.renderPass = gui->renderPass;
+        vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    }
     
+    gui->DrawFrame(drawCmdBuffers[currentFrame], frameBuffers[currentFrame]);
     vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
+    
     CheckVulkanResult(vkEndCommandBuffer(drawCmdBuffers[currentFrame]));
 }
 

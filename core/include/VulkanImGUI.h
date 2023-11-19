@@ -31,8 +31,12 @@ public:
 	
 	void NewFrame();
 	void UpdateBuffer();
-	void DrawFrame(VkCommandBuffer commandBuffer);
+	void DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
 
+	// renderpass
+	bool standaloneRenderPass = false;
+	VkRenderPass renderPass = VK_NULL_HANDLE;
+	
 private:
 
 	void InitVulkanResource();
@@ -82,6 +86,6 @@ private:
 	vks::VulkanDevice* vulkanDevice;
 	VulkanSwapChain* vulkanSwapChain;
 	VkQueue copyQueue;
-	VkRenderPass renderPass = VK_NULL_HANDLE;
+	
 	GLFWwindow* glfwWindow;
 };

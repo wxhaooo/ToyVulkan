@@ -6,6 +6,7 @@
 bool enableValidation = true;
 #else
 bool enableValidation = false;
+
 #endif
 
 int main()

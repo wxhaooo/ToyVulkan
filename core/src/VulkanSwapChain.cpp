@@ -160,6 +160,8 @@ void VulkanSwapChain::Create(uint32_t* width, uint32_t* height, bool vsync, bool
 		*height = surfCaps.currentExtent.height;
 	}
 
+	// cache swapchain extent
+	imageExtent = swapchainExtent;
 
 	// Select a present mode for the swapchain
 

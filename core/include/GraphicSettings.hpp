@@ -8,4 +8,5 @@ public:
     bool fullscreen = false;
     bool vsync = false;
     bool overlay = true;
+    bool standaloneGUI = true;
 };

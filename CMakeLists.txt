@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(VCPKG_DIR "D:/Utility/")
+set(VCPKG_DIR "E:/Code/")
 
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 

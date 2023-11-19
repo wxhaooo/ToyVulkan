@@ -118,10 +118,10 @@ void VulkanGUI::UpdateBuffer()
 	indexBuffer.Flush();
 }
 
-void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer)
+void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
 {
 	ImGuiIO& io = ImGui::GetIO();
-
+	
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -252,6 +252,8 @@ void VulkanGUI::PrepareRenderPass()
 {
 	// use external renderpass
 	if(renderPass != VK_NULL_HANDLE) return;
+
+	standaloneRenderPass = true;
 
 	auto graphicSetting = Singleton<GraphicSettings>::Instance();
 	if (graphicSetting->requiresStencil)
@@ -438,6 +440,10 @@ void VulkanGUI::CleanUpVulkanResource()
 	indexBuffer.Destroy();
 
 	fontImageTexture.Destroy();
+
+	if(standaloneRenderPass)
+		vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
+	
 	vkDestroyPipelineCache(vulkanDevice->logicalDevice, pipelineCache, nullptr);
 	vkDestroyPipeline(vulkanDevice->logicalDevice, pipeline, nullptr);
 	vkDestroyPipelineLayout(vulkanDevice->logicalDevice, pipelineLayout, nullptr);
