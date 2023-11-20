@@ -108,6 +108,13 @@ namespace vks
             imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             return imageMemoryBarrier;
         }
+
+    	VkFramebufferCreateInfo FramebufferCreateInfo()
+    	{
+    		VkFramebufferCreateInfo framebufferCreateInfo {};
+    		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    		return framebufferCreateInfo;
+    	}
         
 #pragma endregion Image
 

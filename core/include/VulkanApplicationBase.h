@@ -120,6 +120,46 @@ protected:
         // Command buffer submission and execution
         VkSemaphore renderComplete;
     };
+
+    // Framebuffer for offscreen rendering
+    struct FrameBufferAttachment {
+        VkImage image;
+        VkDeviceMemory mem;
+        VkImageView view;
+    };
+
+    struct OffscreenPass
+    {
+        VkDevice device = VK_NULL_HANDLE;
+        int32_t width, height;
+        std::vector<VkFramebuffer> frameBuffer;
+        std::vector<FrameBufferAttachment> color, depth;
+        VkRenderPass renderPass;
+        VkSampler sampler;
+        VkDescriptorImageInfo descriptor;
+
+        ~OffscreenPass()
+        {
+            for(uint32_t i = 0;i < frameBuffer.size(); i++)
+            {
+                vkDestroyFramebuffer(device,frameBuffer[i],nullptr);
+
+                vkDestroyImage(device,color[i].image,nullptr);
+                vkDestroyImageView(device,color[i].view,nullptr);
+                vkFreeMemory(device,color[i].mem,nullptr);
+                
+                vkDestroyImage(device,depth[i].image,nullptr);
+                vkDestroyImageView(device,depth[i].view,nullptr);
+                vkFreeMemory(device,depth[i].mem,nullptr);
+            }
+
+            vkDestroyRenderPass(device,renderPass,nullptr);
+            vkDestroySampler(device,sampler,nullptr);
+        }
+    };
+
+    std::unique_ptr<OffscreenPass> offscreenPass;
+    
     std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
 
@@ -141,11 +181,13 @@ protected:
     /** @brief (Virtual) Called after the physical device extensions have been read, can be used to enable extensions based on the supported extension listing*/
     virtual void GetEnabledExtensions();
     /** @brief (Virtual) Setup default depth and stencil views */
-    virtual void SetupDepthStencil();
+    virtual void SetupDefaultDepthStencil();
     /** @brief (Virtual) Setup default framebuffers for all requested swapchain images */
-    virtual void SetupFrameBuffer();
+    virtual void SetupDefaultFrameBuffer();
+    /** @brief (Virtual) Setup offscreen vulan resource (image view and frame buffer.etc) */
+    virtual void SetupOffscreenResource();
     /** @brief (Virtual) Setup a default renderpass */
-    virtual void SetupRenderPass();
+    virtual void SetupDefaultRenderPass();
     /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
     virtual void BuildCommandBuffers(VkCommandBuffer commandBuffer);
     /** @brief (Virtual) Called when the window has been resized, can be used by the sample application to recreate resources */
@@ -165,7 +207,7 @@ private:
     void SetupSwapChain();
     void CreateCommandBuffers();
     void CreateSynchronizationPrimitives();
-    void CreatePipelineCache();
+    void CreateDefaultPipelineCache();
     void NextFrame();
     void DestroyCommandBuffers();
 };

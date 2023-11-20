@@ -36,6 +36,7 @@ namespace vks
         VkImageViewCreateInfo ImageViewCreateInfo();
         /** @brief Initialize an image memory barrier with no image transfer ownership */
         VkImageMemoryBarrier ImageMemoryBarrier();
+    	VkFramebufferCreateInfo FramebufferCreateInfo();
         
 #pragma endregion Image
 

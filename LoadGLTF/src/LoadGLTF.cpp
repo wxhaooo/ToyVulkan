@@ -7,6 +7,8 @@
 #include <Camera.h>
 #include <Singleton.hpp>
 
+#include "GraphicSettings.hpp"
+
 LoadGLFT::~LoadGLFT()
 {
 	// Clean up used Vulkan resources
@@ -152,7 +154,15 @@ void LoadGLFT::PreparePipelines()
 		LoadShader(vks::helper::GetShaderBasePath() + "gltfloading/mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT)
 	};
 
-	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo(pipelineLayout, renderPass, 0);
+	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
+	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
+	pipelineCI.layout = pipelineLayout;
+	
+	if(!graphicSettings->standaloneGUI)
+		pipelineCI.renderPass = offscreenPass->renderPass;
+	else
+		pipelineCI.renderPass = renderPass;
+	
 	pipelineCI.pVertexInputState = &vertexInputStateCI;
 	pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
 	pipelineCI.pRasterizationState = &rasterizationStateCI;
@@ -163,6 +173,7 @@ void LoadGLFT::PreparePipelines()
 	pipelineCI.pDynamicState = &dynamicStateCI;
 	pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 	pipelineCI.pStages = shaderStages.data();
+	pipelineCI.flags = 0;
 
 	// Solid rendering pipeline
 	CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.solid));

@@ -7,6 +7,6 @@ public:
     bool validation = false;
     bool fullscreen = false;
     bool vsync = false;
-    bool overlay = true;
+    bool enableGUI = true;
     bool standaloneGUI = true;
 };
