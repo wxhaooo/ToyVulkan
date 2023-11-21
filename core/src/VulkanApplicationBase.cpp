@@ -16,6 +16,7 @@
 #include <Singleton.hpp>
 #include <VulkanImGUI.h>
 #include <GraphicSettings.hpp>
+#include <backends/imgui_impl_glfw.h>
 
 VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height)
 {
@@ -306,6 +307,8 @@ void VulkanApplicationBase::Prepare()
 
 	// default off-screen vulkan resource
 	SetupOffscreenResource();
+	SetupOffscreenRenderPass();
+	SetupOffscreenFrameBuffer();
 	
 	CreateDefaultPipelineCache();
     
@@ -559,12 +562,11 @@ void VulkanApplicationBase::SetupOffscreenResource()
 {
 	offscreenPass = std::make_unique<OffscreenPass>();
 	offscreenPass->device = device;
-	offscreenPass->frameBuffer.resize(maxFrameInFlight);
 	offscreenPass->color.resize(maxFrameInFlight);
 	offscreenPass->depth.resize(maxFrameInFlight);
 	offscreenPass->width = static_cast<int32_t>(swapChain->imageExtent.width);
 	offscreenPass->height = static_cast<int32_t>(swapChain->imageExtent.height);
-
+	
 	for(uint32_t i = 0; i < maxFrameInFlight; i++)
 	{
 		// Color attachment
@@ -602,22 +604,7 @@ void VulkanApplicationBase::SetupOffscreenResource()
 		colorImageView.subresourceRange.layerCount = 1;
 		colorImageView.image = offscreenPass->color[i].image;
 		CheckVulkanResult(vkCreateImageView(device, &colorImageView, nullptr, &offscreenPass->color[i].view));
-
-		// Create sampler to sample from the attachment in the fragment shader
-		VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
-		samplerInfo.magFilter = VK_FILTER_LINEAR;
-		samplerInfo.minFilter = VK_FILTER_LINEAR;
-		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		samplerInfo.addressModeV = samplerInfo.addressModeU;
-		samplerInfo.addressModeW = samplerInfo.addressModeU;
-		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.maxAnisotropy = 1.0f;
-		samplerInfo.minLod = 0.0f;
-		samplerInfo.maxLod = 1.0f;
-		samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-		CheckVulkanResult(vkCreateSampler(device, &samplerInfo, nullptr, &offscreenPass->sampler));
-
+		
 		// Depth stencil attachment
 		image.format = depthFormat;
 		image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -645,6 +632,98 @@ void VulkanApplicationBase::SetupOffscreenResource()
 		depthStencilView.image = offscreenPass->depth[i].image;
 		CheckVulkanResult(vkCreateImageView(device, &depthStencilView, nullptr, &offscreenPass->depth[i].view));
 		
+		// Fill a descriptor for later use in a descriptor set
+		offscreenPass->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		offscreenPass->descriptor.imageView = offscreenPass->color[i].view;
+		offscreenPass->descriptor.sampler = offscreenPass->sampler;
+	}
+
+	// Create sampler to sample from the attachment in the fragment shader
+	VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerInfo.addressModeV = samplerInfo.addressModeU;
+	samplerInfo.addressModeW = samplerInfo.addressModeU;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.maxAnisotropy = 1.0f;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 1.0f;
+	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	CheckVulkanResult(vkCreateSampler(device, &samplerInfo, nullptr, &offscreenPass->sampler));
+
+}
+
+void VulkanApplicationBase::SetupOffscreenRenderPass()
+{
+	// Create a separate render pass for the offscreen rendering as it may differ from the one used for scene rendering
+	std::array<VkAttachmentDescription, 2> attchmentDescriptions = {};
+	// Color attachment
+	attchmentDescriptions[0].format = swapChain->colorFormat;
+	attchmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attchmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attchmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attchmentDescriptions[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attchmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attchmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attchmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	// Depth attachment
+	attchmentDescriptions[1].format = depthFormat;
+	attchmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attchmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attchmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attchmentDescriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attchmentDescriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attchmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attchmentDescriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+	VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+
+	VkSubpassDescription subpassDescription = {};
+	subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpassDescription.colorAttachmentCount = 1;
+	subpassDescription.pColorAttachments = &colorReference;
+	subpassDescription.pDepthStencilAttachment = &depthReference;
+
+	// Use subpass dependencies for layout transitions
+	std::array<VkSubpassDependency, 2> dependencies;
+
+	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[0].dstSubpass = 0;
+	dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	dependencies[1].srcSubpass = 0;
+	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	// Create the actual renderpass
+	VkRenderPassCreateInfo renderPassInfo = {};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassInfo.attachmentCount = static_cast<uint32_t>(attchmentDescriptions.size());
+	renderPassInfo.pAttachments = attchmentDescriptions.data();
+	renderPassInfo.subpassCount = 1;
+	renderPassInfo.pSubpasses = &subpassDescription;
+	renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+	renderPassInfo.pDependencies = dependencies.data();
+
+	CheckVulkanResult(vkCreateRenderPass(device, &renderPassInfo, nullptr, &offscreenPass->renderPass));
+}
+
+void VulkanApplicationBase::SetupOffscreenFrameBuffer()
+{
+	offscreenPass->frameBuffer.resize(maxFrameInFlight);
+	for(uint32_t i = 0; i < maxFrameInFlight; i++)
+	{
 		VkImageView attachments[2];
 		attachments[0] = offscreenPass->color[i].view;
 		attachments[1] = offscreenPass->depth[i].view;
@@ -658,74 +737,7 @@ void VulkanApplicationBase::SetupOffscreenResource()
 		fbufCreateInfo.layers = 1;
 
 		CheckVulkanResult(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &offscreenPass->frameBuffer[i]));
-
-		// Fill a descriptor for later use in a descriptor set
-		offscreenPass->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		offscreenPass->descriptor.imageView = offscreenPass->color[i].view;
-		offscreenPass->descriptor.sampler = offscreenPass->sampler;
 	}
-
-		// Create a separate render pass for the offscreen rendering as it may differ from the one used for scene rendering
-
-		std::array<VkAttachmentDescription, 2> attchmentDescriptions = {};
-		// Color attachment
-		attchmentDescriptions[0].format = swapChain->colorFormat;
-		attchmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-		attchmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attchmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attchmentDescriptions[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attchmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attchmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attchmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		// Depth attachment
-		attchmentDescriptions[1].format = depthFormat;
-		attchmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attchmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attchmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attchmentDescriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attchmentDescriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attchmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attchmentDescriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
-		VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
-
-		VkSubpassDescription subpassDescription = {};
-		subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpassDescription.colorAttachmentCount = 1;
-		subpassDescription.pColorAttachments = &colorReference;
-		subpassDescription.pDepthStencilAttachment = &depthReference;
-
-		// Use subpass dependencies for layout transitions
-		std::array<VkSubpassDependency, 2> dependencies;
-
-		dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[0].dstSubpass = 0;
-		dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-		dependencies[1].srcSubpass = 0;
-		dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-		// Create the actual renderpass
-		VkRenderPassCreateInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32_t>(attchmentDescriptions.size());
-		renderPassInfo.pAttachments = attchmentDescriptions.data();
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpassDescription;
-		renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-		renderPassInfo.pDependencies = dependencies.data();
-
-		CheckVulkanResult(vkCreateRenderPass(device, &renderPassInfo, nullptr, &offscreenPass->renderPass));
 }
 
 void VulkanApplicationBase::NextFrame()
@@ -887,8 +899,14 @@ void VulkanApplicationBase::RenderFrame()
     SubmitFrame();
 }
 
+void VulkanApplicationBase::NewGUIFrame()
+{
+	
+}
+
 void VulkanApplicationBase::PrepareFrame()
 {
+	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
     //wait pre-frame
     CheckVulkanResult(vkWaitForFences(device, 1, &waitFences[currentFrame], VK_TRUE, UINT64_MAX));
     // Acquire the next image from the swap chain
@@ -901,8 +919,18 @@ void VulkanApplicationBase::PrepareFrame()
     CheckVulkanResult(vkBeginCommandBuffer(drawCmdBuffers[currentFrame], &beginInfo));
 
     VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
-    renderPassBeginInfo.renderPass = renderPass;
-    renderPassBeginInfo.framebuffer = frameBuffers[currentFrame];
+
+	if(graphicSettings->standaloneGUI)
+	{
+		renderPassBeginInfo.renderPass = offscreenPass->renderPass;
+		renderPassBeginInfo.framebuffer = offscreenPass->frameBuffer[currentFrame];
+	}
+	else
+	{
+		renderPassBeginInfo.renderPass = renderPass;
+		renderPassBeginInfo.framebuffer = frameBuffers[currentFrame];
+	}
+	
     renderPassBeginInfo.renderArea.offset = { 0, 0 };
     renderPassBeginInfo.renderArea.extent = {width,height};
 
@@ -914,7 +942,10 @@ void VulkanApplicationBase::PrepareFrame()
     renderPassBeginInfo.pClearValues = clearValues.data();
 
     // update gui
-    gui->NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	NewGUIFrame();
+	ImGui::Render();
     gui->UpdateBuffer();
     
     vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -926,6 +957,7 @@ void VulkanApplicationBase::PrepareFrame()
     {
         vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
         renderPassBeginInfo.renderPass = gui->renderPass;
+    	renderPassBeginInfo.framebuffer = frameBuffers[currentFrame];
         vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
     

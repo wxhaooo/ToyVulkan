@@ -29,7 +29,7 @@ public:
 	VulkanGUI(ImGUICreateInfo& imGUICreateInfo);
 	~VulkanGUI();
 	
-	void NewFrame();
+	// void NewFrame();
 	void UpdateBuffer();
 	void DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
 

@@ -15,6 +15,7 @@ public:
     void Render() override;
     void SetupCamera() override;
     void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
+    void NewGUIFrame() override;
 
 protected:
     void ViewChanged() override;
@@ -44,7 +45,9 @@ private:
     VkDescriptorSet descriptorSet;
 
     struct Pipelines {
-        VkPipeline solid;
-        VkPipeline wireframe = VK_NULL_HANDLE;
+        VkPipeline onscreen = VK_NULL_HANDLE;
+        VkPipeline offscreen = VK_NULL_HANDLE;
+        VkPipeline offscreenWireframe = VK_NULL_HANDLE;
+        VkPipeline onScreenWireframe = VK_NULL_HANDLE;
     } pipelines;
 };

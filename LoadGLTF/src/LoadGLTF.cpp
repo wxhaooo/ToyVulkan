@@ -5,6 +5,7 @@
 #include <VulkanInitializers.h>
 
 #include <Camera.h>
+#include <imgui.h>
 #include <Singleton.hpp>
 
 #include "GraphicSettings.hpp"
@@ -13,9 +14,13 @@ LoadGLFT::~LoadGLFT()
 {
 	// Clean up used Vulkan resources
 	// Note : Inherited destructor cleans up resources stored in base class
-	vkDestroyPipeline(device, pipelines.solid, nullptr);
-	if (pipelines.wireframe != VK_NULL_HANDLE) {
-		vkDestroyPipeline(device, pipelines.wireframe, nullptr);
+	vkDestroyPipeline(device, pipelines.onscreen, nullptr);
+	if (pipelines.onScreenWireframe != VK_NULL_HANDLE) {
+		vkDestroyPipeline(device, pipelines.onScreenWireframe, nullptr);
+	}
+	vkDestroyPipeline(device, pipelines.offscreen, nullptr);
+	if (pipelines.offscreenWireframe != VK_NULL_HANDLE) {
+		vkDestroyPipeline(device, pipelines.offscreenWireframe, nullptr);
 	}
 
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -157,12 +162,7 @@ void LoadGLFT::PreparePipelines()
 	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
 	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
 	pipelineCI.layout = pipelineLayout;
-	
-	if(!graphicSettings->standaloneGUI)
-		pipelineCI.renderPass = offscreenPass->renderPass;
-	else
-		pipelineCI.renderPass = renderPass;
-	
+	pipelineCI.renderPass = renderPass;
 	pipelineCI.pVertexInputState = &vertexInputStateCI;
 	pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
 	pipelineCI.pRasterizationState = &rasterizationStateCI;
@@ -176,18 +176,32 @@ void LoadGLFT::PreparePipelines()
 	pipelineCI.flags = 0;
 
 	// Solid rendering pipeline
-	CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.solid));
+	CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.onscreen));
 
 	// Wire frame rendering pipeline
 	if (deviceFeatures.fillModeNonSolid) {
 		rasterizationStateCI.polygonMode = VK_POLYGON_MODE_LINE;
 		rasterizationStateCI.lineWidth = 1.0f;
-		CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.wireframe));
+		CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.onScreenWireframe));
 	}	
+	
+	// offscreen rendering pipeline
+	if(graphicSettings->standaloneGUI)
+	{
+		pipelineCI.renderPass = offscreenPass->renderPass;
+		CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.offscreen));
+
+		if (deviceFeatures.fillModeNonSolid) {
+			rasterizationStateCI.polygonMode = VK_POLYGON_MODE_LINE;
+			rasterizationStateCI.lineWidth = 1.0f;
+			CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.offscreenWireframe));
+		}	
+	}
 }
 
 void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
+	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
 	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
 	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
 
@@ -195,8 +209,18 @@ void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	// Bind scene matrices descriptor to set 0
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.wireframe : pipelines.solid);
+	if(!graphicSettings->standaloneGUI)
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.onScreenWireframe : pipelines.onscreen);
+	else
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
 	gltfModel->Draw(commandBuffer, pipelineLayout);
+}
+
+void LoadGLFT::NewGUIFrame()
+{
+	ImGui::Begin("Vulkan Texture Test");
+	ImGui::Image((ImTextureID)descriptorSet, ImVec2(offscreenPass->width, offscreenPass->height));
+	ImGui::End();
 }
 
 void LoadGLFT::ViewChanged()

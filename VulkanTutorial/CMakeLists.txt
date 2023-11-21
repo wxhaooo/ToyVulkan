@@ -18,6 +18,7 @@ target_include_directories(VulkanTutorial PUBLIC ${IMGUI_INCLUDE_DIR})
 
 target_link_libraries(VulkanTutorial glfw)
 target_link_libraries(VulkanTutorial ${Vulkan_LIBRARIES} ImGUILib)
-target_link_libraries(VulkanTutorial igl::igl_core igl_copyleft::igl_copyleft_core)
+target_link_libraries(VulkanTutorial igl::igl_core)
+# target_link_libraries(VulkanTutorial igl::igl_core igl_copyleft::igl_copyleft_core)
 
 set_property(TARGET VulkanTutorial PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

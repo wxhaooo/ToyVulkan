@@ -37,24 +37,27 @@ VulkanGUI::~VulkanGUI()
     CleanUpVulkanResource();
 }
 
-void VulkanGUI::NewFrame()
-{
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    // ImGui::Begin("Camera");
-
-    // Camera* camera = Singleton<Camera>::Instance();
-	
-    // ImGui::InputFloat3("Camera Position", camera->position);
-    // ImGui::InputFloat3("Camera Rotation", camera->rotation);
-
-    // ImGui::End();
-
-    ImGui::ShowDemoWindow();
-
-    ImGui::Render();
-}
+// void VulkanGUI::NewFrame()
+// {
+//     ImGui_ImplGlfw_NewFrame();
+// 	ImGui::NewFrame();
+//  
+// 	// ImGui::Begin("Vulkan Texture Test");
+// 	// ImGui::Text("pointer = %p", my_texture.DS);
+// 	// ImGui::Text("size = %d x %d", my_texture.Width, my_texture.Height);
+// 	// ImGui::Image((ImTextureID)my_texture.DS, ImVec2(my_texture.Width, my_texture.Height));
+// 	// ImGui::End();
+//     // ImGui::Begin("Camera");
+//
+//     // Camera* camera = Singleton<Camera>::Instance();
+// 	
+//     // ImGui::InputFloat3("Camera Position", camera->position);
+//     // ImGui::InputFloat3("Camera Rotation", camera->rotation);
+//
+//     // ImGui::End();
+//
+//     // ImGui::ShowDemoWindow();
+// }
 
 void VulkanGUI::UpdateBuffer()
 {

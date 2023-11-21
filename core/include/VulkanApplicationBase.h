@@ -140,6 +140,11 @@ protected:
 
         ~OffscreenPass()
         {
+            if(renderPass != VK_NULL_HANDLE)
+                vkDestroyRenderPass(device,renderPass,nullptr);
+            if(sampler != VK_NULL_HANDLE)
+                vkDestroySampler(device,sampler,nullptr);
+            
             for(uint32_t i = 0;i < frameBuffer.size(); i++)
             {
                 vkDestroyFramebuffer(device,frameBuffer[i],nullptr);
@@ -152,9 +157,6 @@ protected:
                 vkDestroyImageView(device,depth[i].view,nullptr);
                 vkFreeMemory(device,depth[i].mem,nullptr);
             }
-
-            vkDestroyRenderPass(device,renderPass,nullptr);
-            vkDestroySampler(device,sampler,nullptr);
         }
     };
 
@@ -184,8 +186,12 @@ protected:
     virtual void SetupDefaultDepthStencil();
     /** @brief (Virtual) Setup default framebuffers for all requested swapchain images */
     virtual void SetupDefaultFrameBuffer();
-    /** @brief (Virtual) Setup offscreen vulan resource (image view and frame buffer.etc) */
+    /** @brief (Virtual) Setup offscreen renderpass **/
+    virtual void SetupOffscreenRenderPass();
+    /** @brief (Virtual) Setup offscreen vulkan resource (image view and frame buffer.etc) */
     virtual void SetupOffscreenResource();
+    /** @brief (Virtual) Setup offscreen framebuffer */
+    virtual void SetupOffscreenFrameBuffer();
     /** @brief (Virtual) Setup a default renderpass */
     virtual void SetupDefaultRenderPass();
     /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
@@ -196,6 +202,7 @@ protected:
     virtual void ViewChanged();
     virtual void Render() = 0;
     virtual void SetupCamera();
+    virtual void NewGUIFrame();
 
 
     // utility
