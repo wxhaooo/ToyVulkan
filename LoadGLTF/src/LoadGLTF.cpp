@@ -219,7 +219,7 @@ void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 void LoadGLFT::NewGUIFrame()
 {
 	ImGui::Begin("Vulkan Texture Test");
-	ImGui::Image((ImTextureID)descriptorSet, ImVec2(offscreenPass->width, offscreenPass->height));
+	ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(offscreenPass->width, offscreenPass->height));
 	ImGui::End();
 }
 

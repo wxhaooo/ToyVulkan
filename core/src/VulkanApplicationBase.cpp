@@ -562,10 +562,26 @@ void VulkanApplicationBase::SetupOffscreenResource()
 {
 	offscreenPass = std::make_unique<OffscreenPass>();
 	offscreenPass->device = device;
-	offscreenPass->color.resize(maxFrameInFlight);
-	offscreenPass->depth.resize(maxFrameInFlight);
 	offscreenPass->width = static_cast<int32_t>(swapChain->imageExtent.width);
 	offscreenPass->height = static_cast<int32_t>(swapChain->imageExtent.height);
+	
+	offscreenPass->color.resize(maxFrameInFlight);
+	offscreenPass->depth.resize(maxFrameInFlight);
+	offscreenPass->sampler.resize(maxFrameInFlight);
+	offscreenPass->descriptor.resize(maxFrameInFlight);
+	offscreenPass->descriptorSet.resize(maxFrameInFlight);
+
+	std::vector<VkDescriptorPoolSize> poolSizes = {
+		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
+	};
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, maxFrameInFlight);
+	CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &offscreenPass->descriptorPool));
+	VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(&setLayoutBinding, 1);
+	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &offscreenPass->descriptorSetLayout));
+	
+	// Descriptor set for scene matrices
+	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(offscreenPass->descriptorPool, &offscreenPass->descriptorSetLayout, 1);
 	
 	for(uint32_t i = 0; i < maxFrameInFlight; i++)
 	{
@@ -631,28 +647,32 @@ void VulkanApplicationBase::SetupOffscreenResource()
 		depthStencilView.subresourceRange.layerCount = 1;
 		depthStencilView.image = offscreenPass->depth[i].image;
 		CheckVulkanResult(vkCreateImageView(device, &depthStencilView, nullptr, &offscreenPass->depth[i].view));
+
+		// Create sampler to sample from the attachment in the fragment shader
+		VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = samplerInfo.addressModeU;
+		samplerInfo.addressModeW = samplerInfo.addressModeU;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.maxAnisotropy = 1.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 1.0f;
+		samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		CheckVulkanResult(vkCreateSampler(device, &samplerInfo, nullptr, &offscreenPass->sampler[i]));
 		
 		// Fill a descriptor for later use in a descriptor set
-		offscreenPass->descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		offscreenPass->descriptor.imageView = offscreenPass->color[i].view;
-		offscreenPass->descriptor.sampler = offscreenPass->sampler;
+		offscreenPass->descriptor[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		offscreenPass->descriptor[i].imageView = offscreenPass->color[i].view;
+		offscreenPass->descriptor[i].sampler = offscreenPass->sampler[i];
+
+		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &offscreenPass->descriptorSet[i]));
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(offscreenPass->descriptorSet[i],
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &offscreenPass->descriptor[i]);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 	}
-
-	// Create sampler to sample from the attachment in the fragment shader
-	VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	samplerInfo.addressModeV = samplerInfo.addressModeU;
-	samplerInfo.addressModeW = samplerInfo.addressModeU;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.maxAnisotropy = 1.0f;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 1.0f;
-	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	CheckVulkanResult(vkCreateSampler(device, &samplerInfo, nullptr, &offscreenPass->sampler));
-
 }
 
 void VulkanApplicationBase::SetupOffscreenRenderPass()

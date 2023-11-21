@@ -7,6 +7,7 @@
 #include <VulkanDevice.h>
 #include <GLFW/glfw3.h>
 #include <VulkanSwapChain.h>
+#include <VulkanImGUI.h>
 
 class VulkanGUI;
 class Camera;
@@ -132,21 +133,24 @@ protected:
     {
         VkDevice device = VK_NULL_HANDLE;
         int32_t width, height;
+        VkRenderPass renderPass;
         std::vector<VkFramebuffer> frameBuffer;
         std::vector<FrameBufferAttachment> color, depth;
-        VkRenderPass renderPass;
-        VkSampler sampler;
-        VkDescriptorImageInfo descriptor;
+        std::vector<VkSampler> sampler;
+        std::vector<VkDescriptorImageInfo> descriptor;
+
+        VkDescriptorSetLayout descriptorSetLayout;
+        VkDescriptorPool descriptorPool;
+        std::vector<VkDescriptorSet> descriptorSet;
 
         ~OffscreenPass()
         {
             if(renderPass != VK_NULL_HANDLE)
                 vkDestroyRenderPass(device,renderPass,nullptr);
-            if(sampler != VK_NULL_HANDLE)
-                vkDestroySampler(device,sampler,nullptr);
             
             for(uint32_t i = 0;i < frameBuffer.size(); i++)
             {
+                vkDestroySampler(device,sampler[i],nullptr);
                 vkDestroyFramebuffer(device,frameBuffer[i],nullptr);
 
                 vkDestroyImage(device,color[i].image,nullptr);
@@ -157,6 +161,9 @@ protected:
                 vkDestroyImageView(device,depth[i].view,nullptr);
                 vkFreeMemory(device,depth[i].mem,nullptr);
             }
+
+            vkDestroyDescriptorPool(device,descriptorPool,nullptr);
+            vkDestroyDescriptorSetLayout(device,descriptorSetLayout,nullptr);
         }
     };
 
