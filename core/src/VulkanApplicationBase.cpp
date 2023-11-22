@@ -325,7 +325,7 @@ void VulkanApplicationBase::Prepare()
         imGUICreateInfo.copyQueue = queue;
         
         if(graphicSettings->standaloneGUI)
-            imGUICreateInfo.renderPass = VK_NULL_HANDLE;
+	        imGUICreateInfo.renderPass = VK_NULL_HANDLE;
         else
             imGUICreateInfo.renderPass = renderPass;
 
@@ -560,7 +560,7 @@ void VulkanApplicationBase::SetupDefaultFrameBuffer()
 
 void VulkanApplicationBase::SetupOffscreenResource()
 {
-	offscreenPass = std::make_unique<OffscreenPass>();
+	offscreenPass = std::make_unique<vks::OffscreenPass>();
 	offscreenPass->device = device;
 	offscreenPass->width = static_cast<int32_t>(swapChain->imageExtent.width);
 	offscreenPass->height = static_cast<int32_t>(swapChain->imageExtent.height);
@@ -960,13 +960,6 @@ void VulkanApplicationBase::PrepareFrame()
 
     renderPassBeginInfo.clearValueCount = clearValues.size();
     renderPassBeginInfo.pClearValues = clearValues.data();
-
-    // update gui
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
-	NewGUIFrame();
-	ImGui::Render();
-    gui->UpdateBuffer();
     
     vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     // offscreen pass
@@ -980,9 +973,16 @@ void VulkanApplicationBase::PrepareFrame()
     	renderPassBeginInfo.framebuffer = frameBuffers[currentFrame];
         vkCmdBeginRenderPass(drawCmdBuffers[currentFrame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
-    
-    gui->DrawFrame(drawCmdBuffers[currentFrame], frameBuffers[currentFrame]);
-    vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
+	
+	// update gui
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	NewGUIFrame();
+	ImGui::Render();
+	gui->UpdateBuffer();
+    gui->DrawFrame(drawCmdBuffers[currentFrame]);
+
+	vkCmdEndRenderPass(drawCmdBuffers[currentFrame]);
     
     CheckVulkanResult(vkEndCommandBuffer(drawCmdBuffers[currentFrame]));
 }

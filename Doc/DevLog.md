@@ -29,3 +29,11 @@ vulkanExample中的东西重新整理并重写了下gltfLoading这个case。
 
 * 简单重构一下代码，增加GrphicSetting，增加IMGUI的RenderPass （打算先将结果渲染到IMGUI中）
 
+## 2023-11-20 -> 2023-11-22
+
+* 一直在想办法将渲染结果到IMGUI中，debug了好几天，终于搞完了，
+> 后面规划是：
+> 1. 整理一下怎么将渲染结果显示在IMGUI中
+> 2. 搞docking IMGUI
+> 3. IMGUI响应键鼠事件
+> 4. 做deferred rendering

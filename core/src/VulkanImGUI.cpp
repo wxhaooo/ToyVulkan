@@ -20,9 +20,9 @@
 VulkanGUI::VulkanGUI(ImGUICreateInfo& imGUICreateInfo)
         : instance(imGUICreateInfo.instance),
         vulkanDevice(imGUICreateInfo.vulkanDevice),
+		renderPass(imGUICreateInfo.renderPass),
 		vulkanSwapChain(imGUICreateInfo.vulkanSwapChain),
 		copyQueue(imGUICreateInfo.copyQueue),
-		renderPass(imGUICreateInfo.renderPass),
 		glfwWindow(imGUICreateInfo.glfwWindow)
 {
     InitImGUIResource();
@@ -121,10 +121,10 @@ void VulkanGUI::UpdateBuffer()
 	indexBuffer.Flush();
 }
 
-void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
+void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer)
 {
 	ImGuiIO& io = ImGui::GetIO();
-	
+
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -144,6 +144,7 @@ void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuff
 	if (imDrawData->CmdListsCount > 0) {
 
 		VkDeviceSize offsets[1] = { 0 };
+		
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
 
@@ -158,7 +159,14 @@ void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer, VkFramebuffer framebuff
 				scissorRect.offset.y = std::max((int32_t)(pcmd->ClipRect.y), 0);
 				scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
 				scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
+
 				vkCmdSetScissor(commandBuffer, 0, 1, &scissorRect);
+				// Bind DescriptorSet with font or user texture
+				VkDescriptorSet descSet[1] = { descriptorSet };
+				if (pcmd->TextureId != nullptr)
+					descSet[0] = (VkDescriptorSet)pcmd->TextureId;
+			
+				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, descSet, 0, nullptr);
 				vkCmdDrawIndexed(commandBuffer, pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
 				indexOffset += pcmd->ElemCount;
 			}
@@ -213,7 +221,7 @@ void VulkanGUI::SetupDescriptors()
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
 	};
-	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 2);
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 10);
 	CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
 
 	// Descriptor set layout
@@ -361,12 +369,12 @@ void VulkanGUI::PreparePipelines()
 	blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	blendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
-	
+
 	VkPipelineColorBlendStateCreateInfo colorBlendState =
 		vks::initializers::PipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 	
 	VkPipelineDepthStencilStateCreateInfo depthStencilState =
-		vks::initializers::PipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_LESS_OR_EQUAL);
+		vks::initializers::PipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 	
 	VkPipelineViewportStateCreateInfo viewportState =
 		vks::initializers::PipelineViewportStateCreateInfo(1, 1, 0);

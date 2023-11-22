@@ -7,8 +7,8 @@
 #include <Camera.h>
 #include <imgui.h>
 #include <Singleton.hpp>
-
-#include "GraphicSettings.hpp"
+#include <GraphicSettings.hpp>
+#include <VulkanUtils.h>
 
 LoadGLFT::~LoadGLFT()
 {
@@ -183,12 +183,13 @@ void LoadGLFT::PreparePipelines()
 		rasterizationStateCI.polygonMode = VK_POLYGON_MODE_LINE;
 		rasterizationStateCI.lineWidth = 1.0f;
 		CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.onScreenWireframe));
-	}	
+	}
 	
 	// offscreen rendering pipeline
 	if(graphicSettings->standaloneGUI)
 	{
 		pipelineCI.renderPass = offscreenPass->renderPass;
+		rasterizationStateCI.polygonMode = VK_POLYGON_MODE_FILL;
 		CheckVulkanResult(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.offscreen));
 
 		if (deviceFeatures.fillModeNonSolid) {
@@ -219,8 +220,11 @@ void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 void LoadGLFT::NewGUIFrame()
 {
 	ImGui::Begin("Vulkan Texture Test");
-	ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(offscreenPass->width, offscreenPass->height));
+	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+	ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
 	ImGui::End();
+
+	ImGui::ShowDemoWindow();
 }
 
 void LoadGLFT::ViewChanged()

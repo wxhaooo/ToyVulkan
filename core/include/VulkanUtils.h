@@ -9,6 +9,54 @@ constexpr long long DEFAULT_FENCE_TIMEOUT = 100000000000;
 
 namespace vks
 {
+	// Framebuffer for offscreen rendering
+	struct FrameBufferAttachment {
+		VkImage image;
+		VkDeviceMemory mem;
+		VkImageView view;
+	};
+
+	struct OffscreenPass
+	{
+		VkDevice device = VK_NULL_HANDLE;
+		int32_t width, height;
+		VkRenderPass renderPass;
+		std::vector<VkFramebuffer> frameBuffer;
+		std::vector<FrameBufferAttachment> color, depth;
+		std::vector<VkSampler> sampler;
+		std::vector<VkDescriptorImageInfo> descriptor;
+
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorPool descriptorPool;
+		std::vector<VkDescriptorSet> descriptorSet;
+
+		~OffscreenPass()
+		{
+			if(renderPass != VK_NULL_HANDLE)
+				vkDestroyRenderPass(device,renderPass,nullptr);
+            
+			for(uint32_t i = 0;i < frameBuffer.size(); i++)
+			{
+				vkDestroySampler(device,sampler[i],nullptr);
+				vkDestroyFramebuffer(device,frameBuffer[i],nullptr);
+
+				vkDestroyImage(device,color[i].image,nullptr);
+				vkDestroyImageView(device,color[i].view,nullptr);
+				vkFreeMemory(device,color[i].mem,nullptr);
+                
+				vkDestroyImage(device,depth[i].image,nullptr);
+				vkDestroyImageView(device,depth[i].view,nullptr);
+				vkFreeMemory(device,depth[i].mem,nullptr);
+			}
+
+			vkDestroyDescriptorPool(device,descriptorPool,nullptr);
+			vkDestroyDescriptorSetLayout(device,descriptorSetLayout,nullptr);
+		}
+	};	
+}
+
+namespace vks
+{
     namespace utils
     {
         VkBool32 GetSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat *depthFormat);
