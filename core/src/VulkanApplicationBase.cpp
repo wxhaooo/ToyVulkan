@@ -560,7 +560,9 @@ void VulkanApplicationBase::SetupDefaultFrameBuffer()
 
 void VulkanApplicationBase::SetupOffscreenResource()
 {
-	offscreenPass = std::make_unique<vks::OffscreenPass>();
+	if(offscreenPass == nullptr)
+		offscreenPass = std::make_unique<vks::OffscreenPass>();
+	
 	offscreenPass->device = device;
 	offscreenPass->width = static_cast<int32_t>(swapChain->imageExtent.width);
 	offscreenPass->height = static_cast<int32_t>(swapChain->imageExtent.height);
@@ -826,6 +828,7 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     CheckVulkanResult(vkDeviceWaitIdle(device));
     this->width = width;
     this->height = height;
+	
     SetupSwapChain();
     // Recreate the frame buffers
     vkDestroyImageView(device, depthStencil.view, nullptr);
@@ -836,8 +839,14 @@ void VulkanApplicationBase::ReCreateVulkanResource()
         vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
     }
     SetupDefaultFrameBuffer();
-    // ui overlay resize
 
+	// offscreen pass
+	offscreenPass->DestroyResource();
+	SetupOffscreenResource();
+	SetupOffscreenFrameBuffer();
+    // ui overlay resize
+	gui->Resize(width,height);
+	
     // Command buffers need to be recreated as they may store
     // references to the recreated frame buffer
     DestroyCommandBuffers();
@@ -924,6 +933,44 @@ void VulkanApplicationBase::NewGUIFrame()
 	
 }
 
+void VulkanApplicationBase::DrawDockingWindows(bool fullscreen, bool padding)
+{
+	ImGuiDockNodeFlags dockSpaceFlags = ImGuiDockNodeFlags_AutoHideTabBar;
+
+	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+	if (fullscreen)
+	{
+		const ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(viewport->WorkSize);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+	}
+	else
+		dockSpaceFlags &= ~ImGuiDockNodeFlags_PassthruCentralNode;
+
+	if (!padding)
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Engine Demo", nullptr, windowFlags);
+	if (!padding)
+		ImGui::PopStyleVar();
+
+	if (fullscreen)
+		ImGui::PopStyleVar(2);
+
+	// Submit the DockSpace
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+	{
+		ImGuiID dockspace_id = ImGui::GetID("EngineDockSpace");
+		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockSpaceFlags);
+	}
+	ImGui::End();
+}
+
 void VulkanApplicationBase::PrepareFrame()
 {
 	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
@@ -976,7 +1023,10 @@ void VulkanApplicationBase::PrepareFrame()
 	
 	// update gui
 	ImGui_ImplGlfw_NewFrame();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui::NewFrame();
+	DrawDockingWindows();
 	NewGUIFrame();
 	ImGui::Render();
 	gui->UpdateBuffer();

@@ -37,3 +37,8 @@ vulkanExample中的东西重新整理并重写了下gltfLoading这个case。
 > 2. 搞docking IMGUI
 > 3. IMGUI响应键鼠事件
 > 4. 做deferred rendering
+
+## 2023-11-23
+
+* 修复放大缩小时offscreenPass资源创建的bug
+* 增加dockingGUI

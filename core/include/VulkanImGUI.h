@@ -6,7 +6,6 @@
 #include <VulkanSwapChain.h>
 #include <VulkanTexture.h>
 
-
 struct ImGUICreateInfo
 {
 	VkInstance instance = VK_NULL_HANDLE;
@@ -33,6 +32,7 @@ public:
 	// void NewFrame();
 	void UpdateBuffer();
 	void DrawFrame(VkCommandBuffer commandBuffer);
+	void Resize(uint32_t width, uint32_t height);
 
 	// renderpass
 	bool standaloneRenderPass = false;

@@ -34,7 +34,12 @@ namespace vks
 		{
 			if(renderPass != VK_NULL_HANDLE)
 				vkDestroyRenderPass(device,renderPass,nullptr);
-            
+
+			DestroyResource();
+		}
+
+		void DestroyResource()
+		{
 			for(uint32_t i = 0;i < frameBuffer.size(); i++)
 			{
 				vkDestroySampler(device,sampler[i],nullptr);

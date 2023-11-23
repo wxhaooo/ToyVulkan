@@ -170,7 +170,7 @@ protected:
     virtual void Render() = 0;
     virtual void SetupCamera();
     virtual void NewGUIFrame();
-
+    virtual void DrawDockingWindows(bool fullscreen = true,bool padding = true);
 
     // utility
     VkPipelineShaderStageCreateInfo LoadShader(std::string fileName, VkShaderStageFlagBits stage);

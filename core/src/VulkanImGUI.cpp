@@ -121,6 +121,12 @@ void VulkanGUI::UpdateBuffer()
 	indexBuffer.Flush();
 }
 
+void VulkanGUI::Resize(uint32_t width, uint32_t height)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	io.DisplaySize = ImVec2((float)(width), (float)(height));	
+}
+
 void VulkanGUI::DrawFrame(VkCommandBuffer commandBuffer)
 {
 	ImGuiIO& io = ImGui::GetIO();
