@@ -219,11 +219,28 @@ void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 
 void LoadGLFT::NewGUIFrame()
 {
-	ImGui::Begin("Vulkan Texture Test");
-	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-	ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-	ImGui::End();
+	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
+	{
+		if (ImGui::BeginTabBar("UI_ViewTabRoot",ImGuiTabBarFlags_None))
+		{
+			if(ImGui::BeginTabItem("UI_ViewTab_1"))
+			{
+				ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+				ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+				ImGui::EndTabItem();
+			}
 
+			if(ImGui::BeginTabItem("UI_ViewTab_2"))
+			{
+				ImGui::Text("This is the Avocado tab!\nblah blah blah blah blah");
+				ImGui::EndTabItem();
+			}
+			ImGui::EndTabBar();
+		}
+		ImGui::End();
+	}
+
+	
 	ImGui::ShowDemoWindow();
 }
 

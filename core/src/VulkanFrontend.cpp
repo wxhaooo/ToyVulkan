@@ -1,4 +1,6 @@
 ﻿#include <cstdio>
+#include <imgui_internal.h>
+#include <iostream>
 #include <GLFW/glfw3.h>
 #include <VulkanFrontend.h>
 #include <VulkanApplicationBase.h>
@@ -22,12 +24,23 @@ namespace vks
 
             void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
             {
+                // don't pass mouse and keyboard presses further if an ImGui widget is active
+                // auto& io = ImGui::GetIO();
+                // if (io.WantCaptureMouse) return;
+
+                ImGuiContext* currentContext  = ImGui::GetCurrentContext();
+                ImGuiWindow* hoveredWindow =  currentContext->HoveredWindow;
+                if(hoveredWindow == nullptr || !hoveredWindow->ForwardBackend) return;
+                std::cout<<hoveredWindow->Name<<"\n";
                 auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
-                
             }
 
             void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods)
             {
+                // don't pass mouse and keyboard presses further if an ImGui widget is active
+                auto& io = ImGui::GetIO();
+                if (io.WantCaptureKeyboard) return;
+                
                 auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
                 
                 // auto app = reinterpret_cast<VulkanTutorial*>(glfwGetWindowUserPointer(window));

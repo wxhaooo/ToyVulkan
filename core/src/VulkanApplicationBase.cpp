@@ -954,7 +954,7 @@ void VulkanApplicationBase::DrawDockingWindows(bool fullscreen, bool padding)
 
 	if (!padding)
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Engine Demo", nullptr, windowFlags);
+	ImGui::Begin("UI_Engine", nullptr, windowFlags);
 	if (!padding)
 		ImGui::PopStyleVar();
 
@@ -965,7 +965,7 @@ void VulkanApplicationBase::DrawDockingWindows(bool fullscreen, bool padding)
 	ImGuiIO& io = ImGui::GetIO();
 	if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 	{
-		ImGuiID dockspace_id = ImGui::GetID("EngineDockSpace");
+		ImGuiID dockspace_id = ImGui::GetID("UI_DockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockSpaceFlags);
 	}
 	ImGui::End();
