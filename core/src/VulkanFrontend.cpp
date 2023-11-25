@@ -4,6 +4,9 @@
 #include <GLFW/glfw3.h>
 #include <VulkanFrontend.h>
 #include <VulkanApplicationBase.h>
+#include <Singleton.hpp>
+#include <InputManager.h>
+#include <Camera.h>
 
 namespace vks
 {
@@ -31,8 +34,37 @@ namespace vks
                 ImGuiContext* currentContext  = ImGui::GetCurrentContext();
                 ImGuiWindow* hoveredWindow =  currentContext->HoveredWindow;
                 if(hoveredWindow == nullptr || !hoveredWindow->ForwardBackend) return;
-                std::cout<<hoveredWindow->Name<<"\n";
                 auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
+                // if(button == GLFW_MOUSE_BUTTON_LAST && action == GLFW_PRESS)
+                // {
+                //     Camera* camera = Singleton<Camera>::Instance();
+                //     // VulkanGUI* gui = Singleton<VulkanGUI>::Instance();
+                // }
+            }
+
+            void CursorPosCallback(GLFWwindow* window, double xPos, double yPos)
+            {
+                ImGuiContext* currentContext  = ImGui::GetCurrentContext();
+                ImGuiWindow* hoveredWindow =  currentContext->HoveredWindow;
+                if(hoveredWindow == nullptr || !hoveredWindow->ForwardBackend) return;
+
+                VulkanApplicationBase* app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
+                int leftMouseButtonState = glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT);
+                InputManager* inputManager = Singleton<InputManager>::Instance();
+                if(leftMouseButtonState == GLFW_PRESS)
+                {
+                    Camera* camera = Singleton<Camera>::Instance();
+                    
+                    glm::vec2 cachedMousePos = inputManager->mousePos;
+                    // float dx = cachedMousePos.x - static_cast<float>(xPos);
+                    // float dy = cachedMousePos.y - static_cast<float>(yPos);
+                    int32_t dx = static_cast<int32_t>(cachedMousePos.x - xPos);
+                    int32_t dy = static_cast<int32_t>(cachedMousePos.y - yPos);
+
+                    camera->Rotate(glm::vec3(dy * camera->rotationSpeed, -dx * camera->rotationSpeed, 0.0f));
+                    app->viewUpdated = true;
+                }
+                inputManager->mousePos = glm::vec2(xPos,yPos);
             }
 
             void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods)
@@ -55,7 +87,7 @@ namespace vks
                 //     camera->keys.left = (action == GLFW_PRESS);
                 // else if (key == GLFW_KEY_D)
                 //     camera->keys.right = (action == GLFW_PRESS);
-            }        
+            }
         }
     }    
 }

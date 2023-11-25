@@ -61,6 +61,7 @@ public:
     uint32_t maxFrameInFlight = 0;
     VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
 
+    void InitFondation();
     bool InitVulkan();
     /** @brief Prepares all Vulkan resources and functions required to run the sample */
     virtual void Prepare();
@@ -132,7 +133,7 @@ protected:
     std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
 
-    std::unique_ptr<VulkanGUI> gui;
+    VulkanGUI* gui;
 
     // add different front end here,glfw,SDL.etc
     bool SetupWindows();

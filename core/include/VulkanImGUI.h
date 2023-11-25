@@ -89,4 +89,7 @@ private:
 	VkQueue copyQueue;
 	
 	GLFWwindow* glfwWindow;
+
+	// event
+	
 };

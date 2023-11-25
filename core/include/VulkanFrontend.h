@@ -13,6 +13,8 @@ namespace vks
 
             void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
+            void CursorPosCallback(GLFWwindow* window, double xPos, double yPos);
+            
             void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods);
         }
     }    

@@ -22,6 +22,17 @@ public:
         return instance.get();
     }
 
+    template<typename... Ts>
+    static void Init(Ts... args)
+    {
+        CreateInstance(args...);
+    }
+
+    static void Reset()
+    {
+       instance.reset();
+    }
+
 private:
     template<typename... Ts>
     static void CreateInstance(Ts... args)

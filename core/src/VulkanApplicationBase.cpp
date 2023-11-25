@@ -18,6 +18,8 @@
 #include <GraphicSettings.hpp>
 #include <backends/imgui_impl_glfw.h>
 
+#include "InputManager.h"
+
 VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height)
 {
     this->title = applicationName;
@@ -70,6 +72,11 @@ VulkanApplicationBase::~VulkanApplicationBase()
     if (Singleton<GraphicSettings>::Instance()->validation)
         vks::debug::freeDebugCallback(instance);
     vkDestroyInstance(instance,nullptr);
+}
+
+void VulkanApplicationBase::InitFondation()
+{
+	Singleton<InputManager>::Init();
 }
 
 bool VulkanApplicationBase::InitVulkan()
@@ -162,7 +169,8 @@ bool VulkanApplicationBase::SetupWindows()
     glfwSetFramebufferSizeCallback(window, vks::frontend::GLFW::FrameBufferResizeCallback);
     glfwSetMouseButtonCallback(window, vks::frontend::GLFW::MouseButtonCallback);
     glfwSetKeyCallback(window, vks::frontend::GLFW::KeyBoardCallback);
-    
+	glfwSetCursorPosCallback(window, vks::frontend::GLFW::CursorPosCallback);
+	
 #endif
 
     return true;
@@ -329,8 +337,8 @@ void VulkanApplicationBase::Prepare()
         else
             imGUICreateInfo.renderPass = renderPass;
 
-        gui = std::make_unique<VulkanGUI>(imGUICreateInfo);
-        // Singleton<VulkanGUI>::Instance(imGUICreateInfo);
+        // gui = std::make_unique<VulkanGUI>(imGUICreateInfo);
+        gui = Singleton<VulkanGUI>::Instance(imGUICreateInfo);
     }
 }
 
@@ -764,20 +772,24 @@ void VulkanApplicationBase::SetupOffscreenFrameBuffer()
 
 void VulkanApplicationBase::NextFrame()
 {
-    auto tStart = std::chrono::high_resolution_clock::now();
-    // view changed
-    Render();
-    frameCounter++;
+	auto tStart = std::chrono::high_resolution_clock::now();
+	if(viewUpdated)
+		ViewChanged();
+
+	Render();
+	frameCounter++;
     auto tEnd = std::chrono::high_resolution_clock::now();
     auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
     frameTimer = (float)tDiff / 1000.0f;
-    // update camera
-    Camera* camera = Singleton<Camera>::Instance();
-    camera->Update(frameTimer);
-    if (camera->Moving())
-    {
-        viewUpdated = true;
-    }
+	
+	// update camera
+	Camera* camera = Singleton<Camera>::Instance();
+	camera->Update(frameTimer);
+	if (camera->Moving())
+	{
+		viewUpdated = true;
+	}
+	
     // Convert to clamped timer value
     if (!paused)
     {
@@ -807,7 +819,7 @@ void VulkanApplicationBase::RenderLoop()
 
     auto graphicSettings = Singleton<GraphicSettings>::Instance();
     if(graphicSettings->enableGUI)
-        gui.reset();
+        Singleton<VulkanGUI>::Reset();
     
     glfwDestroyWindow(window);
     glfwTerminate();
