@@ -42,3 +42,8 @@ vulkanExample中的东西重新整理并重写了下gltfLoading这个case。
 
 * 修复放大缩小时offscreenPass资源创建的bug
 * 增加dockingGUI
+
+## 2023-11-25
+
+* IMGUI响应鼠标事件
+> IMGUI不能得到当前选择的窗口，所以是通过鼠标悬停的窗口判断的，可能有点区别

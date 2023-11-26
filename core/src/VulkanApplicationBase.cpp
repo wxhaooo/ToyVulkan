@@ -774,7 +774,10 @@ void VulkanApplicationBase::NextFrame()
 {
 	auto tStart = std::chrono::high_resolution_clock::now();
 	if(viewUpdated)
+	{
+		viewUpdated = false;
 		ViewChanged();
+	}
 
 	Render();
 	frameCounter++;

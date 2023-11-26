@@ -46,6 +46,7 @@ void LoadGLFT::SetupCamera()
 	Camera* camera = Singleton<Camera>::Instance();
 	
 	camera->flipY = true;
+	// camera->type = Camera::CameraType::firstperson;
 	camera->type = Camera::CameraType::lookat;
 	
 	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
