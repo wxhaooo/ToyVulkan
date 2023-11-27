@@ -320,8 +320,6 @@ void VulkanApplicationBase::Prepare()
 	
 	CreateDefaultPipelineCache();
     
-    SetupCamera();
-
     auto graphicSettings = Singleton<GraphicSettings>::Instance();
     if(graphicSettings->enableGUI)
     {
@@ -920,11 +918,6 @@ VkPipelineShaderStageCreateInfo VulkanApplicationBase::LoadShader(std::string fi
     assert(shaderStage.module != VK_NULL_HANDLE);
     shaderModules.push_back(shaderStage.module);
     return shaderStage;
-}
-
-void VulkanApplicationBase::SetupCamera()
-{
-   
 }
 
 void VulkanApplicationBase::RenderFrame()

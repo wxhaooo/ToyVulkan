@@ -9,11 +9,11 @@ public:
     LoadGLFT():VulkanApplicationBase("Load GLTF",1280,960){}
     ~LoadGLFT() override;
 
+    void InitFondation() override;
     void Prepare() override;
     void LoadAsset();
     void PrepareUniformBuffers();
     void Render() override;
-    void SetupCamera() override;
     void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
     void NewGUIFrame() override;
 
@@ -36,10 +36,7 @@ private:
         } values;
     } shaderData;
 
-    struct DescriptorSetLayouts {
-        VkDescriptorSetLayout matrices;
-        VkDescriptorSetLayout textures;
-    } descriptorSetLayouts;
+    VkDescriptorSetLayout MVPDescriptorSetLayout;
 
     VkPipelineLayout pipelineLayout;
     VkDescriptorSet descriptorSet;

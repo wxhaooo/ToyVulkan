@@ -13,6 +13,7 @@ int main()
 {
     Singleton<GraphicSettings>::Instance()->validation = enableValidation;
     std::unique_ptr<LoadGLFT> loadGLTFApp = std::make_unique<LoadGLFT>();
+    loadGLTFApp->InitFondation();
     loadGLTFApp->InitVulkan();
     loadGLTFApp->Prepare();
     loadGLTFApp->RenderLoop();

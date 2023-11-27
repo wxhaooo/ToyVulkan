@@ -61,7 +61,7 @@ public:
     uint32_t maxFrameInFlight = 0;
     VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
 
-    void InitFondation();
+    virtual void InitFondation();
     bool InitVulkan();
     /** @brief Prepares all Vulkan resources and functions required to run the sample */
     virtual void Prepare();
@@ -169,7 +169,6 @@ protected:
     /** @brief (Virtual) Called when the camera view has changed */
     virtual void ViewChanged();
     virtual void Render() = 0;
-    virtual void SetupCamera();
     virtual void NewGUIFrame();
     virtual void DrawDockingWindows(bool fullscreen = true,bool padding = true);
 

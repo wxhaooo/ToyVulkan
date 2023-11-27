@@ -14,6 +14,9 @@ LoadGLFT::~LoadGLFT()
 {
 	// Clean up used Vulkan resources
 	// Note : Inherited destructor cleans up resources stored in base class
+
+	gltfModel.reset();
+	
 	vkDestroyPipeline(device, pipelines.onscreen, nullptr);
 	if (pipelines.onScreenWireframe != VK_NULL_HANDLE) {
 		vkDestroyPipeline(device, pipelines.onScreenWireframe, nullptr);
@@ -24,10 +27,24 @@ LoadGLFT::~LoadGLFT()
 	}
 
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.matrices, nullptr);
-	vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.textures, nullptr);
+	vkDestroyDescriptorSetLayout(device, MVPDescriptorSetLayout, nullptr);
 
 	shaderData.buffer.Destroy();
+}
+
+void LoadGLFT::InitFondation()
+{
+	VulkanApplicationBase::InitFondation();
+	
+	Camera* camera = Singleton<Camera>::Instance();
+	camera->flipY = true;
+	// camera->type = Camera::CameraType::firstperson;
+	camera->type = Camera::CameraType::lookat;
+	
+	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
+	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
+	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
+	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
 }
 
 void LoadGLFT::Prepare()
@@ -38,21 +55,6 @@ void LoadGLFT::Prepare()
 	SetupDescriptors();
 	PreparePipelines();
 	prepared = true;
-}
-
-void LoadGLFT::SetupCamera()
-{
-	VulkanApplicationBase::SetupCamera();
-	Camera* camera = Singleton<Camera>::Instance();
-	
-	camera->flipY = true;
-	// camera->type = Camera::CameraType::firstperson;
-	camera->type = Camera::CameraType::lookat;
-	
-	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
-	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
-	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
 }
 
 void LoadGLFT::LoadAsset()
@@ -87,25 +89,33 @@ void LoadGLFT::UpdateUniformBuffers()
 
 void LoadGLFT::SetupDescriptors()
 {
+	// model descriptor set
+	gltfModel->SetupDescriptorSet();
+	
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
-		// One combined image sampler per model image/texture
-		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(gltfModel->images.size())),
 	};
 	// One set for matrices and one per model image/texture
-	const uint32_t maxSetCount = static_cast<uint32_t>(gltfModel->images.size()) + 1;
-	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, maxSetCount);
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 1);
 	CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
 	// Descriptor set layout for passing matrices
 	VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(&setLayoutBinding, 1);
-	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.matrices));
-	// Descriptor set layout for passing material textures
-	setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.textures));
+	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &MVPDescriptorSetLayout));
+
+	// Descriptor set for scene matrices
+	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &MVPDescriptorSetLayout, 1);
+	CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
+	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
+	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+}
+
+void LoadGLFT::PreparePipelines()
+{
+	// create pipeline layout
 	// Pipeline layout using both descriptor sets (set 0 = matrices, set 1 = material)
-	std::array<VkDescriptorSetLayout, 2> setLayouts = { descriptorSetLayouts.matrices, descriptorSetLayouts.textures };
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { MVPDescriptorSetLayout, gltfModel->textureDescriptorSetLayout };
 	VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::PipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
 	// We will use push constants to push the local matrices of a primitive to the vertex shader
 	VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
@@ -113,23 +123,7 @@ void LoadGLFT::SetupDescriptors()
 	pipelineLayoutCI.pushConstantRangeCount = 1;
 	pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
 	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
-
-	// Descriptor set for scene matrices
-	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.matrices, 1);
-	CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
-	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-	// Descriptor sets for materials
-	for (auto& image : gltfModel->images) {
-		const VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.textures, 1);
-		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &image.descriptorSet));
-		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(image.descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &image.texture.descriptor);
-		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-	}
-}
-
-void LoadGLFT::PreparePipelines()
-{
+	
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 	VkPipelineColorBlendAttachmentState blendAttachmentStateCI = vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE);

@@ -5,6 +5,7 @@
 #undef max
 #endif
 #include <tiny_gltf.h>
+#include <VulkanInitializers.h>
 
 namespace vks
 {
@@ -14,6 +15,9 @@ namespace vks
 			// This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
 			VulkanGLTFModel::~VulkanGLTFModel()
 			{
+				vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice, textureDescriptorSetLayout, nullptr);
+				vkDestroyDescriptorPool(vulkanDevice->logicalDevice,descriptorPool,nullptr);
+				
 				for (auto node : nodes) {
 					delete node;
 				}
@@ -329,7 +333,33 @@ namespace vks
 				vkDestroyBuffer(vulkanDevice->logicalDevice, indexStaging.buffer, nullptr);
 				vkFreeMemory(vulkanDevice->logicalDevice, indexStaging.memory, nullptr);
 	        }
-		
+
+			void VulkanGLTFModel::SetupDescriptorSet()
+			{
+				std::vector<VkDescriptorPoolSize> poolSizes = {
+				// One combined image sampler per model image/texture
+				vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(images.size())),
+				};
+				// One set for matrices and one per model image/texture
+				const uint32_t maxSetCount = static_cast<uint32_t>(images.size()) + 1;
+				VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, maxSetCount);
+				CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
+
+				// Descriptor set layout for passing material textures
+				VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+				VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(&setLayoutBinding, 1);
+
+				CheckVulkanResult(vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorSetLayoutCI, nullptr, &textureDescriptorSetLayout));
+
+				// Descriptor sets for materials
+				for (auto& image : images) {
+					const VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &textureDescriptorSetLayout, 1);
+					CheckVulkanResult(vkAllocateDescriptorSets(vulkanDevice->logicalDevice, &allocInfo, &image.descriptorSet));
+					VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(image.descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &image.texture.descriptor);
+					vkUpdateDescriptorSets(vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+				}
+			}
+
 			/*
 				glTF rendering functions
 			*/

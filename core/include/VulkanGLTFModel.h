@@ -27,6 +27,10 @@ namespace vks
 			vks::VulkanDevice* vulkanDevice;
 			VkQueue copyQueue;
 
+			// descriptor info
+			VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+			VkDescriptorSetLayout textureDescriptorSetLayout;
+
 			// The vertex layout for the samples' model
 			struct Vertex {
 				glm::vec3 pos;
@@ -117,7 +121,7 @@ namespace vks
 			void LoadNode(const tinygltf::Node& inputNode, const tinygltf::Model& input, Node* parent, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer);
 
 			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice,VkQueue queue);
-			
+			void SetupDescriptorSet();
 			/*
 				glTF rendering functions
 			*/
