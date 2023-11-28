@@ -47,3 +47,11 @@ vulkanExample中的东西重新整理并重写了下gltfLoading这个case。
 
 * IMGUI响应鼠标事件
 > IMGUI不能得到当前选择的窗口，所以是通过鼠标悬停的窗口判断的，可能有点区别
+
+## 2023-11-26 -> 2023-11-28
+
+* 休息
+* 将descriptorSet的创建和更新都塞到资源里面，pipelineLayout塞到pipeline的创建流程里
+
+## 2023-11-28
+

@@ -18,6 +18,19 @@ namespace vks
 {
 	namespace geometry
 	{
+		enum DescriptorBindingFlags {
+			ImageBaseColor = 0x00000001,
+			ImageNormalMap = 0x00000002
+		};
+
+		enum FileLoadingFlags {
+			None = 0x00000000,
+			PreTransformVertices = 0x00000001,
+			PreMultiplyVertexColors = 0x00000002,
+			FlipY = 0x00000004,
+			DontLoadImages = 0x00000008
+		};
+		
 		// Contains everything required to render a glTF model in Vulkan
 		// This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
 		class VulkanGLTFModel
@@ -120,7 +133,7 @@ namespace vks
 			void LoadMaterials(tinygltf::Model& input);
 			void LoadNode(const tinygltf::Node& inputNode, const tinygltf::Model& input, Node* parent, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer);
 
-			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice,VkQueue queue);
+			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, float scale = 1.0f);
 			void SetupDescriptorSet();
 			/*
 				glTF rendering functions

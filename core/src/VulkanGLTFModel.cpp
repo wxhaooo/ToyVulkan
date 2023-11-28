@@ -11,6 +11,27 @@ namespace vks
 {
 	namespace geometry
 	{
+		/*
+		We use a custom image loading function with tinyglTF, so we can do custom stuff loading ktx textures
+		*/
+		bool loadImageDataFunc(tinygltf::Image* image, const int imageIndex, std::string* error, std::string* warning, int req_width, int req_height, const unsigned char* bytes, int size, void* userData)
+		{
+			// KTX files will be handled by our own code
+			if (image->uri.find_last_of(".") != std::string::npos) {
+				if (image->uri.substr(image->uri.find_last_of(".") + 1) == "ktx") {
+					return true;
+				}
+			}
+
+			return tinygltf::LoadImageData(image, imageIndex, error, warning, req_width, req_height, bytes, size, userData);
+		}
+
+		bool loadImageDataFuncEmpty(tinygltf::Image* image, const int imageIndex, std::string* error, std::string* warning, int req_width, int req_height, const unsigned char* bytes, int size, void* userData) 
+		{
+			// This function will be used for samples that don't require images to be loaded
+			return true;
+		}
+		
 			// Contains everything required to render a glTF model in Vulkan
 			// This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
 			VulkanGLTFModel::~VulkanGLTFModel()
@@ -226,11 +247,18 @@ namespace vks
 				}
 			}
 
-			void VulkanGLTFModel::LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice,VkQueue queue)
+			void VulkanGLTFModel::LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags, float scale)
 	        {
         		
 	            tinygltf::Model glTFInput;
 				tinygltf::TinyGLTF gltfContext;
+
+				if (fileLoadingFlags & FileLoadingFlags::DontLoadImages) {
+					gltfContext.SetImageLoader(loadImageDataFuncEmpty, nullptr);
+				} else {
+					gltfContext.SetImageLoader(loadImageDataFunc, nullptr);
+				}
+				
 				std::string error, warning;
 
 	#if defined(__ANDROID__)
@@ -242,7 +270,7 @@ namespace vks
 
 				// Pass some Vulkan resources required for setup and rendering to the glTF model loading class
 				this->vulkanDevice = vulkanDevice;
-				this->copyQueue = queue;
+				this->copyQueue = transferQueue;
 
 				std::vector<uint32_t> indexBuffer;
 				std::vector<geometry::VulkanGLTFModel::Vertex> vertexBuffer;
@@ -325,7 +353,7 @@ namespace vks
 					1,
 					&copyRegion);
 
-				vulkanDevice->FlushCommandBuffer(copyCmd, queue, true);
+				vulkanDevice->FlushCommandBuffer(copyCmd, transferQueue, true);
 
 				// Free staging resources
 				vkDestroyBuffer(vulkanDevice->logicalDevice, vertexStaging.buffer, nullptr);

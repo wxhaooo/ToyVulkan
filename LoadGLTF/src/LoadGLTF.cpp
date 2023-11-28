@@ -60,7 +60,10 @@ void LoadGLFT::Prepare()
 void LoadGLFT::LoadAsset()
 {
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
-    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/FlightHelmet/glTF/FlightHelmet.gltf",vulkanDevice.get(),queue);
+	vks::geometry::DescriptorBindingFlags descriptorBindingFlags  = vks::geometry::DescriptorBindingFlags::ImageBaseColor;
+	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY | vks::geometry::FileLoadingFlags::PreTransformVertices;
+	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/sponza/sponza.gltf",vulkanDevice.get(),queue);
+    // gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/FlightHelmet/glTF/FlightHelmet.gltf",vulkanDevice.get(),queue);
 }
 
 void LoadGLFT::PrepareUniformBuffers()

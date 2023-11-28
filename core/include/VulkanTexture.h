@@ -34,7 +34,7 @@ namespace vks
 	class Texture2D : public Texture
 	{
 	public:
-		void LoadFromFile(
+		void LoadFromKtxFile(
 			std::string        filename,
 			VkFormat           format,
 			vks::VulkanDevice *device,
@@ -42,6 +42,16 @@ namespace vks
 			VkImageUsageFlags  imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
 			VkImageLayout      imageLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			bool               forceLinear     = false);
+
+		void LoadFromJpgFile(
+			std::string        filename,
+			VkFormat           format,
+			vks::VulkanDevice *device,
+			VkQueue            copyQueue,
+			VkImageUsageFlags  imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageLayout      imageLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			bool               forceLinear     = false);
+		
 		void FromBuffer(
 			void *             buffer,
 			VkDeviceSize       bufferSize,
