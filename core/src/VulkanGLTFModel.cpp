@@ -17,12 +17,15 @@ namespace vks
 		bool loadImageDataFunc(tinygltf::Image* image, const int imageIndex, std::string* error, std::string* warning, int req_width, int req_height, const unsigned char* bytes, int size, void* userData)
 		{
 			// KTX files will be handled by our own code
-			if (image->uri.find_last_of(".") != std::string::npos) {
-				if (image->uri.substr(image->uri.find_last_of(".") + 1) == "ktx") {
+			auto formatPos = image->uri.find_last_of(".");
+			if (formatPos != std::string::npos)
+			{
+				std::string imageFileFormat = image->uri.substr(formatPos + 1);
+				if (imageFileFormat == "ktx")
 					return true;
-				}
 			}
 
+			// default .png & .jpg file
 			return tinygltf::LoadImageData(image, imageIndex, error, warning, req_width, req_height, bytes, size, userData);
 		}
 
@@ -258,6 +261,9 @@ namespace vks
 				} else {
 					gltfContext.SetImageLoader(loadImageDataFunc, nullptr);
 				}
+
+				size_t pos = fileName.find_last_of('/');
+				path = fileName.substr(0, pos);
 				
 				std::string error, warning;
 
@@ -276,7 +282,8 @@ namespace vks
 				std::vector<geometry::VulkanGLTFModel::Vertex> vertexBuffer;
 
 				if (fileLoaded) {
-					LoadImages(glTFInput);
+					if (!(fileLoadingFlags & FileLoadingFlags::DontLoadImages))
+						LoadImages(glTFInput);
 					LoadMaterials(glTFInput);
 					LoadTextures(glTFInput);
 					const tinygltf::Scene& scene = glTFInput.scenes[0];

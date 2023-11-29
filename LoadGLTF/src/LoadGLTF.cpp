@@ -38,13 +38,16 @@ void LoadGLFT::InitFondation()
 	
 	Camera* camera = Singleton<Camera>::Instance();
 	camera->flipY = true;
-	// camera->type = Camera::CameraType::firstperson;
-	camera->type = Camera::CameraType::lookat;
-	
+	camera->type = Camera::CameraType::firstperson;
+	// camera->type = Camera::CameraType::lookat;
+
+	camera->position = { 1.0f, 0.75f, 0.0f };
+	camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
+	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
-	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
-	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
+	// camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
+	// camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
+	// camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
 }
 
 void LoadGLFT::Prepare()
@@ -62,7 +65,8 @@ void LoadGLFT::LoadAsset()
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
 	vks::geometry::DescriptorBindingFlags descriptorBindingFlags  = vks::geometry::DescriptorBindingFlags::ImageBaseColor;
 	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY | vks::geometry::FileLoadingFlags::PreTransformVertices;
-	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/sponza/sponza.gltf",vulkanDevice.get(),queue);
+	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
+		vulkanDevice.get(), queue, gltfLoadingFlags);
     // gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/FlightHelmet/glTF/FlightHelmet.gltf",vulkanDevice.get(),queue);
 }
 

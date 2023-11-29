@@ -1,5 +1,6 @@
 ﻿#include <Camera.h>
 #include <MathUtils.h>
+#include <GLFW/glfw3.h>
 
 void Camera::UpdateViewMatrix()
 {
@@ -87,6 +88,7 @@ void Camera::Translate(glm::vec3 delta)
 void Camera::Update(float deltaTime)
 {
     updated = false;
+
     if (type == CameraType::firstperson)
     {
         if (Moving())

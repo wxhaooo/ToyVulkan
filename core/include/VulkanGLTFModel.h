@@ -122,6 +122,8 @@ namespace vks
 			std::vector<Material> materials;
 			std::vector<Node*> nodes;
 
+			std::string path;
+
 			~VulkanGLTFModel();
 
 			/*

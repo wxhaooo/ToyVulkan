@@ -87,8 +87,8 @@ namespace vks
             void KeyBoardCallback(GLFWwindow* window, int key, int scanCode, int action, int mods)
             {
                 // don't pass mouse and keyboard presses further if an ImGui widget is active
-                auto& io = ImGui::GetIO();
-                if (io.WantCaptureKeyboard) return;
+                // auto& io = ImGui::GetIO();
+                // if (io.WantCaptureKeyboard) return;
 
                 ImGuiContext* currentContext  = ImGui::GetCurrentContext();
                 ImGuiWindow* hoveredWindow =  currentContext->HoveredWindow;
@@ -100,14 +100,23 @@ namespace vks
                 Camera* camera = Singleton<Camera>::Instance();
                 if(camera->type == Camera::firstperson)
                 {
+                    // GLFW_PRESS and GLFW_REPEATED
                     if (key == GLFW_KEY_W)
-                        camera->keys.up = (action == GLFW_PRESS);
-                    else if (key == GLFW_KEY_S)
-                        camera->keys.down = (action == GLFW_PRESS);
-                    else if (key == GLFW_KEY_A)
-                        camera->keys.left = (action == GLFW_PRESS);
-                    else if (key == GLFW_KEY_D)
-                        camera->keys.right = (action == GLFW_PRESS);
+                        camera->keys.up = action != GLFW_RELEASE;
+                    if (key == GLFW_KEY_S)
+                        camera->keys.down = action != GLFW_RELEASE;
+                    if (key == GLFW_KEY_A)
+                        camera->keys.left = action != GLFW_RELEASE;
+                    if (key == GLFW_KEY_D)
+                        camera->keys.right = action != GLFW_RELEASE;
+                    // if (key == GLFW_KEY_W)
+                    //     camera->keys.up = action == GLFW_PRESS;
+                    // if (key == GLFW_KEY_S)
+                    //     camera->keys.down = action == GLFW_PRESS;
+                    // if (key == GLFW_KEY_A)
+                    //     camera->keys.left = action == GLFW_PRESS;
+                    // if (key == GLFW_KEY_D)
+                    //     camera->keys.right = action == GLFW_PRESS;
                 }
             }
         }

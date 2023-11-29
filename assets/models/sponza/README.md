@@ -1,14 +1,16 @@
 # Sponza
 
-Model taken from the Khronos glTF sample model repository at https://github.com/KhronosGroup/glTF-Sample-Models/
+## Screenshot
+
+Lights are shown here, they are not part of the model.
+
+![screenshot](screenshot/large.jpg)
 
 ## Model notes
 
 Tangents have been computed using MikkTSpace, as the original OBJ model did not have them.
 I have manually inspected the normals, and it looks correct to me.
-Be aware that W is -1.0 for most of the tangent signs, you will need to handle tangent W for correct results.
 
-The model has been updated to use .ktx instead .jpg by Sascha Willems, PBR textures have been removed to keep file size down.
 
 ## Sources
 
@@ -16,9 +18,26 @@ The model has been updated to use .ktx instead .jpg by Sascha Willems, PBR textu
 
 - https://www.cryengine.com/marketplace/product/CEMP-1102
 
+### http://www.alexandre-pestana.com/pbr-textures-sponza/
+
+- www.alexandre-pestana.com/downloads/SponzaPBR_Textures.rar
+
+I needed to resize some of the alpha mask textures to the 1024x1024 resolution used by the new texture pack,
+and merge in diffuse with alpha.
+I also repacked the separate metallic/roughness textures into the glTF layout (G - roughness, B - metallic).
+The images are also re-encoded as PNG instead of TGA.
+All the materials also had a constant diffuse factor of about 0.58. I assume it was supposed to be there, so I kept it.
+I also ran the vertices and indices through a mesh optimizer.
+
 ## Licensing notes
 
+Taken from copyright.txt in SponzaPBR\_Textures.rar
+
 ```
+PBR textures for the Sponza model.
+For more informations: www.alexandre-pestana.com
+
+
 Original copyright:
 
 July 14, 2011 Morgan McGuire modified the model from Crytek's OBJ
