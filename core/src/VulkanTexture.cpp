@@ -3,8 +3,13 @@
 #include <VulkanUtils.h>
 #include <VulkanHelper.h>
 
+#include "VulkanGLTFModel.h"
+// #include <tiny_gltf.h>
+
+#ifdef WIN32
 #undef min
 #undef max
+#endif
 
 namespace vks
 {
@@ -17,13 +22,14 @@ namespace vks
 
 	void Texture::Destroy()
 	{
-		vkDestroyImageView(device->logicalDevice, view, nullptr);
-		vkDestroyImage(device->logicalDevice, image, nullptr);
+		if(view)
+			vkDestroyImageView(device->logicalDevice, view, nullptr);
+		if(image)
+			vkDestroyImage(device->logicalDevice, image, nullptr);
 		if (sampler)
-		{
 			vkDestroySampler(device->logicalDevice, sampler, nullptr);
-		}
-		vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
+		if(deviceMemory)
+			vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
 	}
 
 	ktxResult Texture::LoadKTXFile(std::string filename, ktxTexture **target)

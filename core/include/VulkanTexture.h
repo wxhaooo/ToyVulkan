@@ -10,6 +10,11 @@
 #include <ktx.h>
 #include <ktxvulkan.h>
 
+namespace tinygltf
+{
+	struct Image;
+}
+
 namespace vks
 {
 	class Texture

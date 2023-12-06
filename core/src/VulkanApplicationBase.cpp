@@ -785,10 +785,6 @@ void VulkanApplicationBase::NextFrame()
 	
 	// update camera
 	Camera* camera = Singleton<Camera>::Instance();
-	// camera->keys.up = glfwGetKey(window,GLFW_KEY_W);
-	// camera->keys.down = glfwGetKey(window,GLFW_KEY_S);
-	// camera->keys.left = glfwGetKey(window,GLFW_KEY_A);
-	// camera->keys.right = glfwGetKey(window,GLFW_KEY_D);
 	camera->Update(frameTimer);
 	if (camera->Moving())
 	{

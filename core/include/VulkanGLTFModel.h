@@ -18,6 +18,14 @@ namespace vks
 {
 	namespace geometry
 	{
+
+		extern VkDescriptorSetLayout descriptorSetLayoutImage;
+		extern VkDescriptorSetLayout descriptorSetLayoutUbo;
+		extern VkMemoryPropertyFlags memoryPropertyFlags;
+		extern uint32_t descriptorBindingFlags;
+
+		void LoadTextureFromGLTFImage(Texture* texture, tinygltf::Image& gltfImage, std::string path, vks::VulkanDevice* device, VkQueue copyQueue);
+		
 		enum DescriptorBindingFlags {
 			ImageBaseColor = 0x00000001,
 			ImageNormalMap = 0x00000002
@@ -30,6 +38,13 @@ namespace vks
 			FlipY = 0x00000004,
 			DontLoadImages = 0x00000008
 		};
+
+		enum RenderFlags {
+			BindImages = 0x00000001,
+			RenderOpaqueNodes = 0x00000002,
+			RenderAlphaMaskedNodes = 0x00000004,
+			RenderAlphaBlendedNodes = 0x00000008
+		};
 		
 		// Contains everything required to render a glTF model in Vulkan
 		// This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
@@ -38,18 +53,33 @@ namespace vks
 		public:
 			// The class requires some Vulkan objects so it can create it's own resources
 			vks::VulkanDevice* vulkanDevice;
+			// copyQueue == transferQueue
 			VkQueue copyQueue;
 
 			// descriptor info
 			VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-			VkDescriptorSetLayout textureDescriptorSetLayout;
 
-			// The vertex layout for the samples' model
+			/*
+				glTF default vertex layout with easy Vulkan mapping functions
+			*/
+			enum class VertexComponent { Position, Normal, UV, Color, Tangent, Joint0, Weight0 };
+
 			struct Vertex {
 				glm::vec3 pos;
 				glm::vec3 normal;
 				glm::vec2 uv;
-				glm::vec3 color;
+				glm::vec4 color;
+				glm::vec4 joint0;
+				glm::vec4 weight0;
+				glm::vec4 tangent;
+				static VkVertexInputBindingDescription vertexInputBindingDescription;
+				static std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions;
+				static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
+				static VkVertexInputBindingDescription InputBindingDescription(uint32_t binding);
+				static VkVertexInputAttributeDescription InputAttributeDescription(uint32_t binding, uint32_t location, VertexComponent component);
+				static std::vector<VkVertexInputAttributeDescription> InputAttributeDescriptions(uint32_t binding, const std::vector<VertexComponent> components);
+				/** @brief Returns the default pipeline vertex input state create info structure for the requested vertex components */
+				static VkPipelineVertexInputStateCreateInfo* GetPipelineVertexInputState(const std::vector<VertexComponent> components);
 			};
 
 			// Single vertex buffer for all primitives
@@ -69,59 +99,133 @@ namespace vks
 			// To keep things simple, they only contain those properties that are required for this sample
 			struct Node;
 
-			// A primitive contains the data for a single draw call
+			// A glTF material stores information in e.g. the texture that is attached to it and colors
+			struct Material {
+				VulkanDevice* device = nullptr;
+				enum AlphaMode { ALPHAMODE_OPAQUE, ALPHAMODE_MASK, ALPHAMODE_BLEND };
+				AlphaMode alphaMode = ALPHAMODE_OPAQUE;
+				float alphaCutoff = 1.0f;
+				float metallicFactor = 1.0f;
+				float roughnessFactor = 1.0f;
+				glm::vec4 baseColorFactor = glm::vec4(1.0f);
+				Texture* baseColorTexture = nullptr;
+				Texture* metallicRoughnessTexture = nullptr;
+				Texture* normalTexture = nullptr;
+				Texture* occlusionTexture = nullptr;
+				Texture* emissiveTexture = nullptr;
+
+				Texture* specularGlossinessTexture;
+				Texture* diffuseTexture;
+
+				VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+
+				Material(vks::VulkanDevice* device) : device(device) {}
+
+				void Destory();
+				void CreateDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, uint32_t descriptorBindingFlags);
+			};
+
+			/*
+				glTF primitive
+			*/
 			struct Primitive {
 				uint32_t firstIndex;
 				uint32_t indexCount;
-				int32_t materialIndex;
+				uint32_t firstVertex;
+				uint32_t vertexCount;
+				Material& material;
+
+				struct Dimensions {
+					glm::vec3 min = glm::vec3(FLT_MAX);
+					glm::vec3 max = glm::vec3(-FLT_MAX);
+					glm::vec3 size;
+					glm::vec3 center;
+					float radius;
+				} dimensions;
+
+				void SetDimensions(glm::vec3 min, glm::vec3 max);
+				Primitive(uint32_t firstIndex, uint32_t indexCount, Material& material) : firstIndex(firstIndex), indexCount(indexCount), material(material) {}
 			};
 
-			// Contains the node's (optional) geometry and can be made up of an arbitrary number of primitives
+			/*
+				glTF mesh
+			*/
 			struct Mesh {
-				std::vector<Primitive> primitives;
+				vks::VulkanDevice* device;
+
+				std::vector<Primitive*> primitives;
+				std::string name;
+
+				struct UniformBuffer {
+					VkBuffer buffer;
+					VkDeviceMemory memory;
+					VkDescriptorBufferInfo descriptor;
+					VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+					void* mapped;
+				} uniformBuffer;
+
+				struct UniformBlock {
+					glm::mat4 matrix;
+					glm::mat4 jointMatrix[64]{};
+					float jointcount{ 0 };
+				} uniformBlock;
+
+				Mesh(vks::VulkanDevice* device, glm::mat4 matrix);
+				~Mesh();
 			};
 
-			// A node represents an object in the glTF scene graph
+			/*
+				glTF skin
+			*/
+			struct Skin {
+				std::string name;
+				Node* skeletonRoot = nullptr;
+				std::vector<glm::mat4> inverseBindMatrices;
+				std::vector<Node*> joints;
+			};
+
+			/*
+				glTF node
+			*/
 			struct Node {
 				Node* parent;
+				uint32_t index;
 				std::vector<Node*> children;
-				Mesh mesh;
 				glm::mat4 matrix;
-				~Node() {
-					for (auto& child : children) {
-						delete child;
-					}
-				}
-			};
-
-			// A glTF material stores information in e.g. the texture that is attached to it and colors
-			struct Material {
-				glm::vec4 baseColorFactor = glm::vec4(1.0f);
-				uint32_t baseColorTextureIndex;
-			};
-
-			// Contains the texture for a single glTF image
-			// Images may be reused by texture objects and are as such separated
-			struct Image {
-				Texture2D texture;
-				// We also store (and create) a descriptor set that's used to access this texture from the fragment shader
-				VkDescriptorSet descriptorSet;
-			};
-
-			// A glTF texture stores a reference to the image and a sampler
-			// In this sample, we are only interested in the image
-			struct Texture {
-				int32_t imageIndex;
+				std::string name;
+				Mesh* mesh;
+				Skin* skin;
+				int32_t skinIndex = -1;
+				glm::vec3 translation{};
+				glm::vec3 scale{ 1.0f };
+				glm::quat rotation{};
+				glm::mat4 LocalMatrix();
+				glm::mat4 GetMatrix();
+				void Update();
+				~Node();
 			};
 
 			/*
 				Model data
 			*/
-			std::vector<Image> images;
 			std::vector<Texture> textures;
 			std::vector<Material> materials;
 			std::vector<Node*> nodes;
+			std::vector<Node*> linearNodes;
+			std::vector<Skin*> skins;
 
+			struct Dimensions {
+				glm::vec3 min = glm::vec3(FLT_MAX);
+				glm::vec3 max = glm::vec3(-FLT_MAX);
+				glm::vec3 size;
+				glm::vec3 center;
+				float radius;
+			} dimensions;
+
+			Texture emptyTexture;
+
+			bool metallicRoughnessWorkflow = true;
+			bool buffersBound = false;
 			std::string path;
 
 			~VulkanGLTFModel();
@@ -131,19 +235,27 @@ namespace vks
 				The following functions take a glTF input model loaded via tinyglTF and convert all required data into our own structure
 			*/
 			void LoadImages(tinygltf::Model& input);
-			void LoadTextures(tinygltf::Model& input);
 			void LoadMaterials(tinygltf::Model& input);
-			void LoadNode(const tinygltf::Node& inputNode, const tinygltf::Model& input, Node* parent, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer);
+			void LoadNode(Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalScale);
 
 			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, float scale = 1.0f);
-			void SetupDescriptorSet();
 			/*
 				glTF rendering functions
 			*/
+			void BindBuffers(VkCommandBuffer commandBuffer);
 			// Draw a single node including child nodes (if present)
-			void DrawNode(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, Node* node);
+			void DrawNode(Node* node, VkCommandBuffer commandBuffer, uint32_t renderFlags = 0, VkPipelineLayout pipelineLayout = VK_NULL_HANDLE, uint32_t bindImageSet = 1);
 			// Draw the glTF scene starting at the top-level-nodes
-			void Draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout);
+			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
+
+		private:
+			void CreateEmptyTexture(VkQueue transferQueue);
+			Texture* GetTexture(uint32_t index);
+			void GetSceneDimensions();
+			void GetNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);
+			void PrepareNodeDescriptor(Node* node, VkDescriptorSetLayout descriptorSetLayout);
+			// void LoadAnimations(tinygltf::Model &gltfModel);
+			// void LoadSkins(tinygltf::Model& gltfModel);
 		};
 	}
 }

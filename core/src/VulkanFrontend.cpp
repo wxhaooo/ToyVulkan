@@ -109,14 +109,6 @@ namespace vks
                         camera->keys.left = action != GLFW_RELEASE;
                     if (key == GLFW_KEY_D)
                         camera->keys.right = action != GLFW_RELEASE;
-                    // if (key == GLFW_KEY_W)
-                    //     camera->keys.up = action == GLFW_PRESS;
-                    // if (key == GLFW_KEY_S)
-                    //     camera->keys.down = action == GLFW_PRESS;
-                    // if (key == GLFW_KEY_A)
-                    //     camera->keys.left = action == GLFW_PRESS;
-                    // if (key == GLFW_KEY_D)
-                    //     camera->keys.right = action == GLFW_PRESS;
                 }
             }
         }

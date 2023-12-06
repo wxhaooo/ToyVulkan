@@ -37,17 +37,20 @@ void LoadGLFT::InitFondation()
 	VulkanApplicationBase::InitFondation();
 	
 	Camera* camera = Singleton<Camera>::Instance();
-	camera->flipY = true;
-	camera->type = Camera::CameraType::firstperson;
-	// camera->type = Camera::CameraType::lookat;
+	// set flipY true, if gltfLoadingFlags != vks::geometry::FileLoadingFlags::FlipY;
+	// camera->flipY = true;
+	// camera->type = Camera::CameraType::firstperson;
 
-	camera->position = { 1.0f, 0.75f, 0.0f };
-	camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
-	// camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
-	// camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
-	// camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
-	// camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
+	// camera->position = { 1.0f, 0.75f, 0.0f };
+	// camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
+	// camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+
+	camera->type = Camera::CameraType::lookat;
+	camera->flipY = true;
+	camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
+	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
+	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
+	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
 }
 
 void LoadGLFT::Prepare()
@@ -63,11 +66,14 @@ void LoadGLFT::Prepare()
 void LoadGLFT::LoadAsset()
 {
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
-	vks::geometry::DescriptorBindingFlags descriptorBindingFlags  = vks::geometry::DescriptorBindingFlags::ImageBaseColor;
-	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY | vks::geometry::FileLoadingFlags::PreTransformVertices;
-	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
-		vulkanDevice.get(), queue, gltfLoadingFlags);
-    // gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/FlightHelmet/glTF/FlightHelmet.gltf",vulkanDevice.get(),queue);
+	vks::geometry::descriptorBindingFlags  = vks::geometry::DescriptorBindingFlags::ImageBaseColor;
+	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
+	// gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/rubbertoy/rubbertoy.gltf",
+		// vulkanDevice.get(), queue, gltfLoadingFlags);
+	// gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/sponza_ktx/sponza.gltf",
+		// vulkanDevice.get(), queue, gltfLoadingFlags);
+    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/FlightHelmet/glTF/FlightHelmet.gltf",
+    	vulkanDevice.get(),queue);
 }
 
 void LoadGLFT::PrepareUniformBuffers()
@@ -96,9 +102,6 @@ void LoadGLFT::UpdateUniformBuffers()
 
 void LoadGLFT::SetupDescriptors()
 {
-	// model descriptor set
-	gltfModel->SetupDescriptorSet();
-	
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
 	};
@@ -121,8 +124,12 @@ void LoadGLFT::SetupDescriptors()
 void LoadGLFT::PreparePipelines()
 {
 	// create pipeline layout
-	// Pipeline layout using both descriptor sets (set 0 = matrices, set 1 = material)
-	std::array<VkDescriptorSetLayout, 2> setLayouts = { MVPDescriptorSetLayout, gltfModel->textureDescriptorSetLayout };
+	// Pipeline layout using both descriptor sets (set 0 = matrices,set 1 = sampler)
+	std::vector<VkDescriptorSetLayout> setLayouts;
+	setLayouts.push_back(MVPDescriptorSetLayout);
+	setLayouts.push_back(vks::geometry::descriptorSetLayoutImage);
+	// setLayouts.push_back(MVPDescriptorSetLayout);
+	// std::array<VkDescriptorSetLayout, 1> setLayouts = { MVPDescriptorSetLayout };
 	VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::PipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
 	// We will use push constants to push the local matrices of a primitive to the vertex shader
 	VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
@@ -216,7 +223,7 @@ void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.onScreenWireframe : pipelines.onscreen);
 	else
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
-	gltfModel->Draw(commandBuffer, pipelineLayout);
+	gltfModel->Draw(commandBuffer, vks::geometry::RenderFlags::BindImages, pipelineLayout,1);
 }
 
 void LoadGLFT::NewGUIFrame()
