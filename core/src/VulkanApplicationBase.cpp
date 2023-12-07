@@ -11,6 +11,7 @@
 #include <VulkanFrontend.h>
 #include <VulkanInitializers.h>
 #include <VulkanUtils.h>
+#include <VulkanRenderPass.h>
 
 #include <Camera.h>
 #include <Singleton.hpp>
@@ -18,7 +19,7 @@
 #include <GraphicSettings.hpp>
 #include <backends/imgui_impl_glfw.h>
 
-#include "InputManager.h"
+#include <InputManager.h>
 
 VulkanApplicationBase::VulkanApplicationBase(std::string applicationName,uint32_t width, uint32_t height)
 {
@@ -313,6 +314,11 @@ void VulkanApplicationBase::Prepare()
     SetupDefaultRenderPass();
     SetupDefaultFrameBuffer();
 
+	// default deferred vulkan resource
+	SetupDeferredResource();
+	SetupDeferredRenderPass();
+	SetupDeferredFrameBuffer();
+
 	// default off-screen vulkan resource
 	SetupOffscreenResource();
 	SetupOffscreenRenderPass();
@@ -562,6 +568,21 @@ void VulkanApplicationBase::SetupDefaultFrameBuffer()
         attachments[0] = swapChain->buffers[i].view;
         CheckVulkanResult(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
     }
+}
+
+void VulkanApplicationBase::SetupDeferredResource()
+{
+	
+}
+
+void VulkanApplicationBase::SetupDeferredRenderPass()
+{
+	
+}
+
+void VulkanApplicationBase::SetupDeferredFrameBuffer()
+{
+	
 }
 
 void VulkanApplicationBase::SetupOffscreenResource()

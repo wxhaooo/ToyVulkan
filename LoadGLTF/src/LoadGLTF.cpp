@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <Singleton.hpp>
 #include <GraphicSettings.hpp>
+#include <VulkanRenderPass.h>
 #include <VulkanUtils.h>
 
 LoadGLFT::~LoadGLFT()

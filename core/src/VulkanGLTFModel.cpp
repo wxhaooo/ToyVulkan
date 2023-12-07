@@ -885,19 +885,23 @@ namespace vks
 				for (Node* node : linearNodes) {
 					if (node->mesh) {
 						const glm::mat4 localMatrix = node->GetMatrix();
+						const glm::mat3 localMatrixInvT = transpose(inverse(glm::mat3(localMatrix)));
 						for (Primitive* primitive : node->mesh->primitives) {
 							for (uint32_t i = 0; i < primitive->vertexCount; i++) {
 								Vertex& vertex = vertexBuffer[primitive->firstVertex + i];
+								
 								// Pre-transform vertex positions by node-hierarchy
 								if (preTransform) {
 									vertex.pos = glm::vec3(localMatrix * glm::vec4(vertex.pos, 1.0f));
-									vertex.normal = glm::normalize(glm::mat3(localMatrix) * vertex.normal);
+									vertex.normal = normalize(localMatrixInvT * vertex.normal);
 								}
+
 								// Flip Y-Axis of vertex positions
 								if (flipY) {
 									vertex.pos.y *= -1.0f;
 									vertex.normal.y *= -1.0f;
 								}
+								
 								// Pre-Multiply vertex colors with material base color
 								if (preMultiplyColor) {
 									vertex.color = primitive->material.baseColorFactor * vertex.color;
@@ -1072,8 +1076,9 @@ namespace vks
 				if (node->mesh->primitives.size() > 0)
 				{
 					auto nodeMatrix = node->GetMatrix();
-					// glm::mat4 idMat = glm::mat4(1.0f);
+					glm::mat4 idMat = glm::mat4(1.0f);
 					// Pass the final matrix to the vertex shader using push constants
+					// vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &idMat);
 					vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeMatrix);
 				}
 				for (Primitive* primitive : node->mesh->primitives) {

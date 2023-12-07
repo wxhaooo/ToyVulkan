@@ -127,7 +127,7 @@ protected:
         // Command buffer submission and execution
         VkSemaphore renderComplete;
     };
-
+    
     std::unique_ptr<vks::OffscreenPass> offscreenPass;
     
     std::vector<Semaphores> semaphores;
@@ -154,12 +154,6 @@ protected:
     virtual void SetupDefaultDepthStencil();
     /** @brief (Virtual) Setup default framebuffers for all requested swapchain images */
     virtual void SetupDefaultFrameBuffer();
-    /** @brief (Virtual) Setup offscreen renderpass **/
-    virtual void SetupOffscreenRenderPass();
-    /** @brief (Virtual) Setup offscreen vulkan resource (image view and frame buffer.etc) */
-    virtual void SetupOffscreenResource();
-    /** @brief (Virtual) Setup offscreen framebuffer */
-    virtual void SetupOffscreenFrameBuffer();
     /** @brief (Virtual) Setup a default renderpass */
     virtual void SetupDefaultRenderPass();
     /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
@@ -184,6 +178,18 @@ private:
     void CreateDefaultPipelineCache();
     void NextFrame();
     void DestroyCommandBuffers();
+
+private:
+    /** @brief (Virtual) Setup offscreen renderpass **/
+    void SetupOffscreenRenderPass();
+    /** @brief (Virtual) Setup offscreen vulkan resource (image view and frame buffer.etc) */
+    void SetupOffscreenResource();
+    /** @brief (Virtual) Setup offscreen framebuffer */
+    void SetupOffscreenFrameBuffer();
+    
+    void SetupDeferredResource();
+    void SetupDeferredRenderPass();
+    void SetupDeferredFrameBuffer();
 };
 
 
