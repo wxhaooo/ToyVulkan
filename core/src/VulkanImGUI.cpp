@@ -20,7 +20,6 @@
 VulkanGUI::VulkanGUI(ImGUICreateInfo& imGUICreateInfo)
         : instance(imGUICreateInfo.instance),
         vulkanDevice(imGUICreateInfo.vulkanDevice),
-		renderPass(imGUICreateInfo.renderPass),
 		vulkanSwapChain(imGUICreateInfo.vulkanSwapChain),
 		copyQueue(imGUICreateInfo.copyQueue),
 		glfwWindow(imGUICreateInfo.glfwWindow)
@@ -270,8 +269,6 @@ void VulkanGUI::PrepareRenderPass()
 	// use external renderpass
 	if(renderPass != VK_NULL_HANDLE) return;
 
-	standaloneRenderPass = true;
-
 	auto graphicSetting = Singleton<GraphicSettings>::Instance();
 	if (graphicSetting->requiresStencil)
 		vks::utils::GetSupportedDepthStencilFormat(vulkanDevice->physicalDevice, &depthFormat);
@@ -335,7 +332,7 @@ void VulkanGUI::PrepareRenderPass()
 	dependencies[1].srcAccessMask = 0;
 	dependencies[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 	dependencies[1].dependencyFlags = 0;
-
+	
 	VkRenderPassCreateInfo renderPassInfo = {};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -458,8 +455,7 @@ void VulkanGUI::CleanUpVulkanResource()
 
 	fontImageTexture.Destroy();
 
-	if(standaloneRenderPass)
-		vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
+	vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
 	
 	vkDestroyPipelineCache(vulkanDevice->logicalDevice, pipelineCache, nullptr);
 	vkDestroyPipeline(vulkanDevice->logicalDevice, pipeline, nullptr);

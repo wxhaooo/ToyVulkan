@@ -1,5 +1,12 @@
 ﻿#pragma once
+#include <memory>
 #include <VulkanDevice.h>
+
+namespace vks
+{
+    struct AttachmentCreateInfo;
+    class VulkanFrameBuffer;
+}
 
 namespace vks
 {
@@ -26,5 +33,31 @@ namespace vks
 
         ~OffscreenPass();
         void DestroyResource();
-    };	
+    };
+
+    class VulkanRenderPass
+    {
+    public:
+        VulkanRenderPass() = delete;
+        VulkanRenderPass(const std::string& renderPassName, VulkanDevice* device);
+        ~VulkanRenderPass();
+        
+        VkRenderPass renderPass;
+        std::unique_ptr<VulkanFrameBuffer> vulkanFrameBuffer = nullptr;
+
+        void Init(uint32_t width, uint32_t height, uint32_t maxFrameInFlight);
+
+        void AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
+        
+        void AddAttachment(vks::AttachmentCreateInfo attachmentInfo);
+
+        void CreateRenderPass();
+
+        void CreateDescriptorSet();
+    
+    private:
+        std::string name;
+        VulkanDevice* vulkanDevice = nullptr;
+
+    };
 }

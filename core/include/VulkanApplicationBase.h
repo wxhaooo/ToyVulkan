@@ -9,13 +9,15 @@
 #include <VulkanSwapChain.h>
 #include <VulkanImGUI.h>
 
-class VulkanGUI;
-class Camera;
+#include <VulkanFrameBuffer.h>
 
 namespace vks
 {
-    class OffscreenPass;
+    class VulkanRenderPass;
 }
+
+class VulkanGUI;
+class Camera;
 
 class VulkanApplicationBase
 {
@@ -67,7 +69,8 @@ public:
     virtual void Prepare();
     /** @brief Entry point for the main render loop */
     void RenderLoop();
-    virtual void ReCreateVulkanResource();
+    void ReCreateVulkanResource();
+    virtual void ReCreateVulkanResource_Child();
 
 protected:
     // swap chain image index
@@ -111,7 +114,7 @@ protected:
     // Global render pass for frame buffer writes
     VkRenderPass renderPass = VK_NULL_HANDLE;
     // List of available frame buffers (same as number of swap chain images)
-    std::vector<VkFramebuffer>frameBuffers;
+    std::vector<VkFramebuffer> swapChainFrameBuffers;
     // Descriptor set pool
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     // List of shader modules created (stored for cleanup)
@@ -127,8 +130,6 @@ protected:
         // Command buffer submission and execution
         VkSemaphore renderComplete;
     };
-    
-    std::unique_ptr<vks::OffscreenPass> offscreenPass;
     
     std::vector<Semaphores> semaphores;
     std::vector<VkFence> waitFences;
@@ -165,7 +166,8 @@ protected:
     virtual void Render() = 0;
     virtual void NewGUIFrame();
     virtual void DrawDockingWindows(bool fullscreen = true,bool padding = true);
-
+    virtual void PrepareRenderPass(VkCommandBuffer commandBuffer);
+    
     // utility
     VkPipelineShaderStageCreateInfo LoadShader(std::string fileName, VkShaderStageFlagBits stage);
 
@@ -178,18 +180,6 @@ private:
     void CreateDefaultPipelineCache();
     void NextFrame();
     void DestroyCommandBuffers();
-
-private:
-    /** @brief (Virtual) Setup offscreen renderpass **/
-    void SetupOffscreenRenderPass();
-    /** @brief (Virtual) Setup offscreen vulkan resource (image view and frame buffer.etc) */
-    void SetupOffscreenResource();
-    /** @brief (Virtual) Setup offscreen framebuffer */
-    void SetupOffscreenFrameBuffer();
-    
-    void SetupDeferredResource();
-    void SetupDeferredRenderPass();
-    void SetupDeferredFrameBuffer();
 };
 
 

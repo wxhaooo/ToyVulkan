@@ -2,6 +2,7 @@
 #include <iostream>
 #include <VulkanApplicationBase.h>
 #include <VulkanGLTFModel.h>
+#include <VulkanRenderPass.h>
 
 class LoadGLFT :public VulkanApplicationBase
 {
@@ -16,6 +17,8 @@ public:
     void Render() override;
     void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
     void NewGUIFrame() override;
+    void ReCreateVulkanResource_Child() override;
+    void PrepareRenderPass(VkCommandBuffer commandBuffer) override;
 
 protected:
     void ViewChanged() override;
@@ -24,6 +27,13 @@ private:
     void UpdateUniformBuffers();
     void SetupDescriptors();
     void PreparePipelines();
+
+    /** @brief Setup offscreen renderpass **/
+    void SetupOffscreenRenderPass();
+    /** @brief Setup offscreen vulkan resource (image view and frame buffer.etc) */
+    void SetupOffscreenResource();
+    /** @brief Setup offscreen framebuffer */
+    void SetupOffscreenFrameBuffer();
 
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     struct ShaderData {
@@ -40,6 +50,8 @@ private:
 
     VkPipelineLayout pipelineLayout;
     VkDescriptorSet descriptorSet;
+
+    std::unique_ptr<vks::OffscreenPass> offscreenPass;
 
     struct Pipelines {
         VkPipeline onscreen = VK_NULL_HANDLE;

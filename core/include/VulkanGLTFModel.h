@@ -22,7 +22,6 @@ namespace vks
 		extern VkDescriptorSetLayout descriptorSetLayoutImage;
 		extern VkDescriptorSetLayout descriptorSetLayoutUbo;
 		extern VkMemoryPropertyFlags memoryPropertyFlags;
-		extern uint32_t descriptorBindingFlags;
 
 		void LoadTextureFromGLTFImage(Texture* texture, tinygltf::Image& gltfImage, std::string path, vks::VulkanDevice* device, VkQueue copyQueue);
 		
@@ -238,15 +237,15 @@ namespace vks
 			void LoadMaterials(tinygltf::Model& input);
 			void LoadNode(Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalScale);
 
-			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, float scale = 1.0f);
+			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, uint32_t descriptorBindingFlags = DescriptorBindingFlags::ImageBaseColor, float scale = 1.0f);
 			/*
 				glTF rendering functions
 			*/
 			void BindBuffers(VkCommandBuffer commandBuffer);
 			// Draw a single node including child nodes (if present)
-			void DrawNode(Node* node, VkCommandBuffer commandBuffer, uint32_t renderFlags = 0, VkPipelineLayout pipelineLayout = VK_NULL_HANDLE, uint32_t bindImageSet = 1);
+			void DrawNode(Node* node, VkCommandBuffer commandBuffer, bool pushConstant, uint32_t renderFlags = 0, VkPipelineLayout pipelineLayout = VK_NULL_HANDLE, uint32_t bindImageSet = 1);
 			// Draw the glTF scene starting at the top-level-nodes
-			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
+			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, bool pushConstant,  VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
 
 		private:
 			void CreateEmptyTexture(VkQueue transferQueue);

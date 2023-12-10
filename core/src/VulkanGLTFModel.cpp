@@ -16,7 +16,6 @@ namespace vks
 		VkDescriptorSetLayout descriptorSetLayoutImage = VK_NULL_HANDLE;
 		VkDescriptorSetLayout descriptorSetLayoutUbo = VK_NULL_HANDLE;
 		VkMemoryPropertyFlags memoryPropertyFlags = 0;
-		uint32_t descriptorBindingFlags = DescriptorBindingFlags::ImageBaseColor;
 
 		void LoadTextureFromGLTFImage(Texture* texture, tinygltf::Image& gltfImage, std::string path, vks::VulkanDevice* device, VkQueue copyQueue)
 		{
@@ -826,7 +825,7 @@ namespace vks
 			linearNodes.push_back(newNode);
 		}
 
-		void VulkanGLTFModel::LoadGLTFFile(std::string fileName, VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags, float scale)
+		void VulkanGLTFModel::LoadGLTFFile(std::string fileName, VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags, uint32_t descriptorBindingFlags, float scale)
         {
             tinygltf::Model glTFInput;
 			tinygltf::TinyGLTF gltfContext;
@@ -1070,7 +1069,7 @@ namespace vks
 			glTF rendering functions
 		*/
 		// Draw a single node including child nodes (if present)
-		void VulkanGLTFModel::DrawNode(Node* node, VkCommandBuffer commandBuffer, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet)
+		void VulkanGLTFModel::DrawNode(Node* node, VkCommandBuffer commandBuffer, bool pushConstant, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet)
 		{
 			if (node->mesh) {
 				if (node->mesh->primitives.size() > 0)
@@ -1079,7 +1078,8 @@ namespace vks
 					glm::mat4 idMat = glm::mat4(1.0f);
 					// Pass the final matrix to the vertex shader using push constants
 					// vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &idMat);
-					vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeMatrix);
+					if(pushConstant)
+						vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeMatrix);
 				}
 				for (Primitive* primitive : node->mesh->primitives) {
 					bool skip = false;
@@ -1102,12 +1102,12 @@ namespace vks
 				}
 			}
 			for (auto& child : node->children) {
-				DrawNode(child, commandBuffer, renderFlags, pipelineLayout, bindImageSet);
+				DrawNode(child, commandBuffer, pushConstant, renderFlags, pipelineLayout, bindImageSet);
 			}
 		}
 		
 		// Draw the glTF scene starting at the top-level-nodes
-		void VulkanGLTFModel::Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet)
+		void VulkanGLTFModel::Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, bool pushConstant, VkPipelineLayout pipelineLayout, uint32_t bindImageSet)
 		{
 			if (!buffersBound) {
 				const VkDeviceSize offsets[1] = {0};
@@ -1115,7 +1115,7 @@ namespace vks
 				vkCmdBindIndexBuffer(commandBuffer, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
 			}
 			for (auto& node : nodes) {
-				DrawNode(node, commandBuffer, renderFlags, pipelineLayout, bindImageSet);
+				DrawNode(node, commandBuffer, pushConstant, renderFlags, pipelineLayout, bindImageSet);
 			}
 		}
 

@@ -12,7 +12,6 @@ struct ImGUICreateInfo
 	vks::VulkanDevice* vulkanDevice = nullptr;
 	VulkanSwapChain* vulkanSwapChain = nullptr;
 	VkQueue copyQueue = VK_NULL_HANDLE;
-	VkRenderPass renderPass = VK_NULL_HANDLE;
 	GLFWwindow* glfwWindow = nullptr;
 };
 
@@ -33,9 +32,7 @@ public:
 	void UpdateBuffer();
 	void DrawFrame(VkCommandBuffer commandBuffer);
 	void Resize(uint32_t width, uint32_t height);
-
-	// renderpass
-	bool standaloneRenderPass = false;
+	
 	VkRenderPass renderPass = VK_NULL_HANDLE;
 	
 private:
