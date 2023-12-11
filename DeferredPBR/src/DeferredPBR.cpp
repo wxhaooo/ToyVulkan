@@ -51,7 +51,7 @@ void DeferredPBR::InitFondation()
 	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 }
 
-void DeferredPBR::SetupDeferredRenderPass()
+void DeferredPBR::SetupMrtRenderPass()
 {
 	mrtRenderPass = std::make_unique<vks::VulkanRenderPass>("mrtRenderPass",vulkanDevice.get());
 	const uint32_t imageWidth = swapChain->imageExtent.width;
@@ -60,35 +60,34 @@ void DeferredPBR::SetupDeferredRenderPass()
     
 	// Four attachments (3 color, 1 depth)
 	vks::AttachmentCreateInfo attachmentInfo = {};
-	attachmentInfo.name ="world_position";
-	attachmentInfo.binding = 0;
 	attachmentInfo.width = imageWidth;
 	attachmentInfo.height = imageHeight;
 	attachmentInfo.layerCount = 1;
 	attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	// Color attachments
 	// Attachment 0: (World space) Positions
-	attachmentInfo.binding = 1;
+	attachmentInfo.binding = 0;
+	attachmentInfo.name ="world_position";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 1: (World space) Normals
-	attachmentInfo.binding = 2;
+	attachmentInfo.binding = 1;
 	attachmentInfo.name ="world_normal";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 2: Albedo (color)
-	attachmentInfo.binding = 3;
+	attachmentInfo.binding = 2;
 	attachmentInfo.name ="vertex_color";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 3: Depth
 	attachmentInfo.name ="depth";
-	attachmentInfo.binding = 4;
+	attachmentInfo.binding = 3;
 	attachmentInfo.format = depthFormat;
-	attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	VkFilter magFiler = VK_FILTER_NEAREST;
@@ -100,13 +99,20 @@ void DeferredPBR::SetupDeferredRenderPass()
 	mrtRenderPass->CreateDescriptorSet();
 }
 
+void DeferredPBR::SetupLightingRenderPass()
+{
+	lightingRenderPass = std::make_unique<vks::VulkanRenderPass>("lightingRenderPass", vulkanDevice.get());
+	const uint32_t imageWidth = swapChain->imageExtent.width;
+	const uint32_t imageHeight = swapChain->imageExtent.height;
+	mrtRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
+}
 
 void DeferredPBR::Prepare()
 {
     VulkanApplicationBase::Prepare();
 
-	// default deferred vulkan resource
-	SetupDeferredRenderPass();
+	SetupMrtRenderPass();
+	// SetupLightingRenderPass();
 	
     LoadAsset();
 	PrepareUniformBuffers();
@@ -289,7 +295,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 void DeferredPBR::ReCreateVulkanResource_Child()
 {
 	mrtRenderPass.reset();
-	SetupDeferredRenderPass();
+	SetupMrtRenderPass();
 }
 
 void DeferredPBR::NewGUIFrame()

@@ -325,7 +325,9 @@ void VulkanApplicationBase::Prepare()
     CreateDefaultPipelineCache();
 
     auto graphicSettings = Singleton<GraphicSettings>::Instance();
-    if (graphicSettings->enableGUI)
+    auto guiSettings = Singleton<GuiSettings>::Instance();
+    
+    if (guiSettings->enableGUI)
     {
         ImGUICreateInfo imGUICreateInfo;
         imGUICreateInfo.instance = instance;
@@ -617,7 +619,9 @@ void VulkanApplicationBase::RenderLoop()
     }
 
     auto graphicSettings = Singleton<GraphicSettings>::Instance();
-    if (graphicSettings->enableGUI)
+    auto guiSettings = Singleton<GuiSettings>::Instance();
+
+    if (guiSettings->enableGUI)
         Singleton<VulkanGUI>::Reset();
 
     glfwDestroyWindow(window);

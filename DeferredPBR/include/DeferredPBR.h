@@ -7,7 +7,7 @@
 class DeferredPBR :public VulkanApplicationBase
 {
 public:
-    DeferredPBR():VulkanApplicationBase("Deferred PBR",1280,960){}
+    DeferredPBR():VulkanApplicationBase("Deferred PBR",1920,960){}
     ~DeferredPBR() override;
 
     void InitFondation() override;
@@ -27,9 +27,9 @@ private:
     void UpdateUniformBuffers();
     void SetupDescriptors();
     void PreparePipelines();
-    void SetupDeferredRenderPass();
+    void SetupMrtRenderPass();
+    void SetupLightingRenderPass();
 
-    std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     struct ShaderData {
         vks::Buffer buffer;
@@ -38,6 +38,9 @@ private:
             glm::mat4 view;
         } values;
     } shaderData;
+
+    std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
+    std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
 
     VkDescriptorSetLayout MVPDescriptorSetLayout;
 

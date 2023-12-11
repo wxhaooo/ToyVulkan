@@ -75,10 +75,9 @@ namespace vks
 		bool hasDepth = false; 
 		bool hasColor = false;
 
-		uint32_t attachmentIndex = 0;
-
 		for (auto& attachment : firstFrameBuffer->attachments)
 		{
+			uint32_t attachmentIndex = attachment.binding;
 			if (attachment.IsDepthStencil())
 			{
 				// Only one depth attachment allowed
@@ -92,7 +91,7 @@ namespace vks
 				colorReferences.push_back({ attachmentIndex, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
 				hasColor = true;
 			}
-			attachmentIndex++;
+			// attachmentIndex++;
 		}
 
 		// Default render pass setup uses only one subpass
