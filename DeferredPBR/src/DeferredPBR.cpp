@@ -8,6 +8,13 @@
 #include <imgui.h>
 #include <Singleton.hpp>
 #include <GraphicSettings.hpp>
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
 
 DeferredPBR::~DeferredPBR()
 {
@@ -306,13 +313,13 @@ void DeferredPBR::NewGUIFrame()
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
 		for(uint32_t i=0; i < frameBuffer->attachments.size(); i++)
 		{
-			// if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
-				// ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+			if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
+				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(width * scale, height * scale));
 		}
 
-		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
 		ImGui::End();
 	}
 	

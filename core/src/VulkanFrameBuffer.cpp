@@ -72,21 +72,15 @@ namespace vks
 
 		// Color attachment
 		if (createInfo.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-		{
 			aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		}
 
 		// Depth (and/or stencil) attachment
 		if (createInfo.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
 		{
 			if (attachment.HasDepth())
-			{
 				aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-			}
 			if (attachment.HasStencil())
-			{
 				aspectMask = aspectMask | VK_IMAGE_ASPECT_STENCIL_BIT;
-			}
 		}
 
 		assert(aspectMask > 0);

@@ -59,9 +59,9 @@ namespace vks
 	
 	void VulkanRenderPass::CreateRenderPass()
 	{
-		FrameBuffer* frameBuffer = vulkanFrameBuffer->frameBuffers[0];
+		FrameBuffer* firstFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(0);
 		std::vector<VkAttachmentDescription> attachmentDescriptions;
-		for (auto& attachment : frameBuffer->attachments)
+		for (auto& attachment : firstFrameBuffer->attachments)
 			attachmentDescriptions.push_back(attachment.description);
 
 		// Collect attachment references
@@ -72,7 +72,7 @@ namespace vks
 
 		uint32_t attachmentIndex = 0;
 
-		for (auto& attachment : frameBuffer->attachments)
+		for (auto& attachment : firstFrameBuffer->attachments)
 		{
 			if (attachment.IsDepthStencil())
 			{
@@ -99,9 +99,7 @@ namespace vks
 			subpass.colorAttachmentCount = static_cast<uint32_t>(colorReferences.size());
 		}
 		if (hasDepth)
-		{
 			subpass.pDepthStencilAttachment = &depthReference;
-		}
 
 		// Use subpass dependencies for attachment layout transitions
 		std::array<VkSubpassDependency, 2> dependencies;
@@ -133,33 +131,31 @@ namespace vks
 		renderPassInfo.pDependencies = dependencies.data();
 		CheckVulkanResult(vkCreateRenderPass(vulkanDevice->logicalDevice, &renderPassInfo, nullptr, &renderPass));
 
-		std::vector<VkImageView> attachmentViews;
-		for (auto attachment : frameBuffer->attachments)
-		{
-			attachmentViews.push_back(attachment.view);
-		}
-
-		// Find. max number of layers across attachments
-		uint32_t maxLayers = 0;
-		for (auto attachment : frameBuffer->attachments)
-		{
-			if (attachment.subresourceRange.layerCount > maxLayers)
-			{
-				maxLayers = attachment.subresourceRange.layerCount;
-			}
-		}
-
-		VkFramebufferCreateInfo framebufferInfo = {};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = renderPass;
-		framebufferInfo.pAttachments = attachmentViews.data();
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
-		framebufferInfo.width = vulkanFrameBuffer->Width();
-		framebufferInfo.height = vulkanFrameBuffer->Height();
-		framebufferInfo.layers = maxLayers;
-
 		for(uint32_t i=0;i<vulkanFrameBuffer->frameBufferCount;i++)
 		{
+			FrameBuffer* frameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
+
+			std::vector<VkImageView> attachmentViews;
+			for (auto attachment : frameBuffer->attachments)
+				attachmentViews.push_back(attachment.view);
+
+			// Find. max number of layers across attachments
+			uint32_t maxLayers = 0;
+			for (auto attachment : frameBuffer->attachments)
+			{
+				if (attachment.subresourceRange.layerCount > maxLayers)
+					maxLayers = attachment.subresourceRange.layerCount;
+			}
+
+			VkFramebufferCreateInfo framebufferInfo = {};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = renderPass;
+			framebufferInfo.pAttachments = attachmentViews.data();
+			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
+			framebufferInfo.width = vulkanFrameBuffer->Width();
+			framebufferInfo.height = vulkanFrameBuffer->Height();
+			framebufferInfo.layers = maxLayers;
+			
 			FrameBuffer* currentFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
 			CheckVulkanResult(vkCreateFramebuffer(vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &currentFrameBuffer->frameBuffer));
 		}
