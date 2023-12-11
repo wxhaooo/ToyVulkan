@@ -286,6 +286,12 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	vkCmdEndRenderPass(commandBuffer);
 }
 
+void DeferredPBR::ReCreateVulkanResource_Child()
+{
+	mrtRenderPass.reset();
+	SetupDeferredRenderPass();
+}
+
 void DeferredPBR::NewGUIFrame()
 {
 	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
@@ -309,7 +315,7 @@ void DeferredPBR::NewGUIFrame()
 		ImGui::End();
 	}
 
-	if(ImGui::Begin("UI_Deferred_View"))
+	if(ImGui::Begin("UI_GBuffer_View"))
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);

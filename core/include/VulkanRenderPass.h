@@ -47,6 +47,8 @@ namespace vks
 
         void Init(uint32_t width, uint32_t height, uint32_t maxFrameInFlight);
 
+        void Destroy();
+        
         void AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
         
         void AddAttachment(vks::AttachmentCreateInfo attachmentInfo);

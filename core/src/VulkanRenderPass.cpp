@@ -48,13 +48,18 @@ namespace vks
 
 	VulkanRenderPass::~VulkanRenderPass()
 	{
-		vulkanFrameBuffer.reset();
-		vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
+		Destroy();
 	}
 
 	void VulkanRenderPass::Init(uint32_t width, uint32_t height, uint32_t maxFrameInFlight)
 	{
 		vulkanFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice, width, height, maxFrameInFlight);
+	}
+
+	void VulkanRenderPass::Destroy()
+	{
+		vulkanFrameBuffer.reset();
+		vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
 	}
 	
 	void VulkanRenderPass::CreateRenderPass()
