@@ -76,8 +76,13 @@ namespace vks
         VkFramebuffer frameBuffer;
         std::vector<FramebufferAttachment> attachments;
 
-        VkDescriptorSetLayout descriptorSetLayout;
-        VkDescriptorPool descriptorPool;
+        VkDescriptorSetLayout attachmentDescriptorSetLayout;
+        VkDescriptorPool attachmentDescriptorPool;
+
+        VkDescriptorSetLayout frameBufferDescriptorSetLayout;
+        VkDescriptorPool frameBufferDescriptorPool;
+
+        VkDescriptorSet frameBufferDescriptorSet;
         
         /**
        * Default constructor
@@ -100,7 +105,9 @@ namespace vks
        */
         uint32_t AddAttachment(vks::AttachmentCreateInfo createInfo);
 
-        void CreateDescriptorSet(VkSampler sampler);
+        void CreateAttachmentDescriptorSet(VkSampler sampler);
+
+        void CreateFrameBufferDescriptorSet(VkSampler sampler);
     };
 
    

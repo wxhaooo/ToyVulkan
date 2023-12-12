@@ -26,7 +26,8 @@ protected:
 private:
     void UpdateUniformBuffers();
     void SetupDescriptors();
-    void PreparePipelines();
+    void PrepareMrtPipeline();
+    void PrepareLightingPipeline();
     void SetupMrtRenderPass();
     void SetupLightingRenderPass();
 
@@ -47,8 +48,12 @@ private:
     VkPipelineLayout pipelineLayout;
     VkDescriptorSet descriptorSet;
 
+    VkDescriptorSetLayout DescriptorSetLayoutLighting;
+    VkPipelineLayout pipelineLayoutLighting;
+
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
+        VkPipeline lighting = VK_NULL_HANDLE;
     } pipelines;
 };

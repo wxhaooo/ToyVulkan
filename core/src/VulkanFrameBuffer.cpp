@@ -42,11 +42,16 @@ namespace vks
 	{
 		assert(vulkanDevice);
 
-		if(descriptorSetLayout != VK_NULL_HANDLE)
-			vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice,descriptorSetLayout,nullptr);
+		if(attachmentDescriptorSetLayout != VK_NULL_HANDLE)
+			vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice,attachmentDescriptorSetLayout,nullptr);
+		if (attachmentDescriptorPool != VK_NULL_HANDLE)
+			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, attachmentDescriptorPool, nullptr);
+	
+		if(frameBufferDescriptorSetLayout != VK_NULL_HANDLE)
+			vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice,frameBufferDescriptorSetLayout,nullptr);
+		if (frameBufferDescriptorPool != VK_NULL_HANDLE)
+			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, frameBufferDescriptorPool, nullptr);
 
-		if (descriptorPool != VK_NULL_HANDLE)
-			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, descriptorPool, nullptr);
 		
 		for (auto attachment : attachments)
 		{
@@ -143,7 +148,7 @@ namespace vks
 		return static_cast<uint32_t>(attachments.size() - 1);
 	}
 
-	void FrameBuffer::CreateDescriptorSet(VkSampler sampler)
+	void FrameBuffer::CreateAttachmentDescriptorSet(VkSampler sampler)
 	{
 		uint32_t attachmentSize = static_cast<uint32_t>(attachments.size());
 		std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -151,7 +156,7 @@ namespace vks
 		};
 		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(
 			poolSizes, attachmentSize + 5);
-		CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
+		CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &attachmentDescriptorPool));
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBinding =
 		{
 			vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0)
@@ -159,11 +164,11 @@ namespace vks
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
 			setLayoutBinding.data(), setLayoutBinding.size());
 		CheckVulkanResult(
-			vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorSetLayoutCI, nullptr, &descriptorSetLayout));
+			vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorSetLayoutCI, nullptr, &attachmentDescriptorSetLayout));
 
 		// Descriptor set for scene matrices
 		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(
-			descriptorPool, &descriptorSetLayout, 1);
+			attachmentDescriptorPool, &attachmentDescriptorSetLayout, 1);
 		
 		for(uint32_t i = 0; i < attachments.size(); i++)
 		{
@@ -179,6 +184,50 @@ namespace vks
 			CheckVulkanResult(vkAllocateDescriptorSets(vulkanDevice->logicalDevice, &allocInfo, &attachment.descriptorSet));
 			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(attachment.descriptorSet,
 				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &attachment.descriptor);
+			vkUpdateDescriptorSets(vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+		}
+	}
+
+	void FrameBuffer::CreateFrameBufferDescriptorSet(VkSampler sampler)
+	{
+		uint32_t attachmentSize = static_cast<uint32_t>(attachments.size());
+		
+		std::vector<VkDescriptorPoolSize> poolSizes = {
+			vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, attachmentSize),
+		};
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(
+			poolSizes, 1);
+		CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &frameBufferDescriptorPool));
+		std::vector<VkDescriptorSetLayoutBinding> setLayoutBinding;
+		for(uint32_t i = 0; i < attachmentSize; i++)
+		{
+			if(attachments[i].IsDepthStencil()) continue;
+			setLayoutBinding.push_back(vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, i));
+		}
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
+			setLayoutBinding.data(), setLayoutBinding.size());
+		CheckVulkanResult(
+			vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorSetLayoutCI, nullptr, &frameBufferDescriptorSetLayout));
+
+		// Descriptor set for scene matrices
+		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(
+			frameBufferDescriptorPool, &frameBufferDescriptorSetLayout, 1);
+
+		CheckVulkanResult(vkAllocateDescriptorSets(vulkanDevice->logicalDevice, &allocInfo, &frameBufferDescriptorSet));
+		
+		for(uint32_t i = 0; i < attachments.size(); i++)
+		{
+			// create descriptor
+			FramebufferAttachment& attachment = attachments[i];
+
+			if(attachments[i].IsDepthStencil()) continue;
+
+			attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			attachment.descriptor.imageView = attachment.view;
+			attachment.descriptor.sampler = sampler;
+
+			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(frameBufferDescriptorSet,
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, i, &attachment.descriptor);
 			vkUpdateDescriptorSets(vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
 		}
 	}
@@ -241,7 +290,10 @@ namespace vks
 	void VulkanFrameBuffer::CrateDescriptorSet()
 	{
 		for(uint32_t i =0; i<frameBufferCount;i++)
-			frameBuffers[i]->CreateDescriptorSet(sampler);
+		{
+			frameBuffers[i]->CreateAttachmentDescriptorSet(sampler);
+			frameBuffers[i]->CreateFrameBufferDescriptorSet(sampler);
+		}
 	}
 
 }

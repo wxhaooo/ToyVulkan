@@ -34,6 +34,12 @@ DeferredPBR::~DeferredPBR()
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(device, MVPDescriptorSetLayout, nullptr);
 
+	// lighting
+	if(pipelines.lighting != VK_NULL_HANDLE)
+		vkDestroyPipeline(device,pipelines.lighting,nullptr);
+	vkDestroyPipelineLayout(device,pipelineLayoutLighting,nullptr);
+	vkDestroyDescriptorSetLayout(device,DescriptorSetLayoutLighting,nullptr);
+
 	shaderData.buffer.Destroy();
 }
 
@@ -86,12 +92,6 @@ void DeferredPBR::SetupMrtRenderPass()
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
-	// // Attachment 3: GBuffer Depth
-	// attachmentInfo.binding = 3;
-	// attachmentInfo.name = "G_depth";
-	// attachmentInfo.format = VK_FORMAT_R8_UNORM;
-	// mrtRenderPass->AddAttachment(attachmentInfo);
-
 	// Attachment 3: Depth
 	attachmentInfo.name ="depth";
 	attachmentInfo.binding = 3;
@@ -113,20 +113,44 @@ void DeferredPBR::SetupLightingRenderPass()
 	lightingRenderPass = std::make_unique<vks::VulkanRenderPass>("lightingRenderPass", vulkanDevice.get());
 	const uint32_t imageWidth = swapChain->imageExtent.width;
 	const uint32_t imageHeight = swapChain->imageExtent.height;
-	mrtRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
+	lightingRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
+
+	// Four attachments (1 color)
+	vks::AttachmentCreateInfo attachmentInfo = {};
+	attachmentInfo.width = imageWidth;
+	attachmentInfo.height = imageHeight;
+	attachmentInfo.layerCount = 1;
+	attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	// Color attachments
+	attachmentInfo.binding = 0;
+	attachmentInfo.name ="Final";
+	attachmentInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	lightingRenderPass->AddAttachment(attachmentInfo);
+	
+	VkFilter magFiler = VK_FILTER_NEAREST;
+	VkFilter minFiler = VK_FILTER_NEAREST;
+	VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	lightingRenderPass->AddSampler(magFiler,minFiler,addressMode);
+	
+	lightingRenderPass->CreateRenderPass();
+	lightingRenderPass->CreateDescriptorSet();
 }
 
 void DeferredPBR::Prepare()
 {
     VulkanApplicationBase::Prepare();
 
+	// render pass
 	SetupMrtRenderPass();
-	// SetupLightingRenderPass();
+	SetupLightingRenderPass();
 	
     LoadAsset();
 	PrepareUniformBuffers();
 	SetupDescriptors();
-	PreparePipelines();
+
+	// prepare pipelines
+	PrepareMrtPipeline();
+	PrepareLightingPipeline();
 	prepared = true;
 }
 
@@ -188,7 +212,7 @@ void DeferredPBR::SetupDescriptors()
 	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
-void DeferredPBR::PreparePipelines()
+void DeferredPBR::PrepareMrtPipeline()
 {
 	// create pipeline layout
 	// Pipeline layout using both descriptor sets (set 0 = matrices, set 1 = material)
@@ -266,6 +290,67 @@ void DeferredPBR::PreparePipelines()
 	}
 }
 
+void DeferredPBR::PrepareLightingPipeline()
+{
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings
+	{
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2)
+	};
+
+	VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
+	descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
+	descriptorLayoutCI.pBindings = setLayoutBindings.data();
+	CheckVulkanResult(vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorLayoutCI, nullptr, &DescriptorSetLayoutLighting));
+	
+	// create pipeline layout
+	std::vector<VkDescriptorSetLayout> setLayouts = {DescriptorSetLayoutLighting};
+	VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::PipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+	// We will use push constants to push the local matrices of a primitive to the vertex shader
+	// VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
+	// Push constant ranges are part of the pipeline layout
+	pipelineLayoutCI.pushConstantRangeCount = 0;
+	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayoutLighting));
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+	std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates =
+	{
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+	};
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(blendAttachmentStates.size(), blendAttachmentStates.data());
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+	VkPipelineViewportStateCreateInfo viewportStateCI = vks::initializers::PipelineViewportStateCreateInfo(1, 1, 0);
+	VkPipelineMultisampleStateCreateInfo multisampleStateCI = vks::initializers::PipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+	const std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::PipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
+	VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
+
+	const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+		LoadShader(vks::helper::GetShaderBasePath() + "deferred/lighting.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		LoadShader(vks::helper::GetShaderBasePath() + "deferred/lighting.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT)
+	};
+
+	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
+	pipelineCI.layout = pipelineLayoutLighting;
+	pipelineCI.renderPass = lightingRenderPass->renderPass;
+	pipelineCI.pVertexInputState = &vertexInputStateCI;
+	pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
+	pipelineCI.pRasterizationState = &rasterizationStateCI;
+	pipelineCI.pColorBlendState = &colorBlendStateCI;
+	pipelineCI.pMultisampleState = &multisampleStateCI;
+	pipelineCI.pViewportState = &viewportStateCI;
+	pipelineCI.pDepthStencilState = &depthStencilStateCI;
+	pipelineCI.pDynamicState = &dynamicStateCI;
+	pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+	pipelineCI.pStages = shaderStages.data();
+	rasterizationStateCI.polygonMode = VK_POLYGON_MODE_FILL;
+	pipelineCI.flags = 0;
+	CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.lighting));
+}
+
 void DeferredPBR::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
 	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
@@ -283,8 +368,9 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 {
 	VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
 
+	vks::FrameBuffer* mrtFrameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
 	renderPassBeginInfo.renderPass = mrtRenderPass->renderPass;
-	renderPassBeginInfo.framebuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame)->frameBuffer;
+	renderPassBeginInfo.framebuffer = mrtFrameBuffer->frameBuffer;
 
 	renderPassBeginInfo.renderArea.offset = {0, 0};
 	renderPassBeginInfo.renderArea.extent = {width, height};
@@ -301,6 +387,31 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	BuildCommandBuffers(commandBuffer);
 	vkCmdEndRenderPass(commandBuffer);
+
+	// lighting renderpass
+	vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
+	renderPassBeginInfo.renderArea.offset = {0, 0};
+	renderPassBeginInfo.renderArea.extent = {width, height};
+	
+	std::array<VkClearValue, 2> clearValues1{};
+	clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	
+	renderPassBeginInfo.clearValueCount = clearValues.size();
+	renderPassBeginInfo.pClearValues = clearValues.data();
+	
+	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
+	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
+	
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutLighting, 0, 1, &mrtFrameBuffer->frameBufferDescriptorSet, 0, nullptr);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	vkCmdEndRenderPass(commandBuffer);
 }
 
 void DeferredPBR::ReCreateVulkanResource_Child()
@@ -311,11 +422,26 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 
 void DeferredPBR::NewGUIFrame()
 {
+	if(ImGui::Begin("UI_GBuffer_View"))
+	{
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
+		for(uint32_t i=0; i < frameBuffer->attachments.size(); i++)
+		{
+			if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
+				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(width * scale, height * scale));
+		}
+
+		ImGui::End();
+	}
+
 	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
 	{
-		// 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		// 		// ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-		// 		ImGui::EndTabItem();
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
+		ImGui::Image((ImTextureID)frameBuffer->frameBufferDescriptorSet,ImVec2(width * scale, height * scale));
 		// if (ImGui::BeginTabBar("UI_ViewTabRoot",ImGuiTabBarFlags_None))
 		// {
 		// 	if(ImGui::BeginTabItem("UI_ViewTab_1"))
@@ -332,20 +458,6 @@ void DeferredPBR::NewGUIFrame()
 		// 	}
 		// 	ImGui::EndTabBar();
 		// }
-		ImGui::End();
-	}
-
-	if(ImGui::Begin("UI_GBuffer_View"))
-	{
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
-		for(uint32_t i=0; i < frameBuffer->attachments.size(); i++)
-		{
-			if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
-				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(width * scale, height * scale));
-		}
-
 		ImGui::End();
 	}
 	
