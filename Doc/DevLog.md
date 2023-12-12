@@ -60,3 +60,25 @@ tinygltf本来就是支持嵌入的jpg和png等格式的，不支持的只有ktx
 ## 2023-12-05
 
 增加更多的GLTF支持
+
+## 2023-12-06 -> 2023-12-11
+
+重构一部分代码，增加VulkanRenderPass和VulkanFrameBuffer
+实现mrtRenderPass，将Gbuffer的结果显示到imgui
+
+## 2023-12-12
+
+待做备忘：
+
+* 渲染深度缓冲到GBuffer（以grayScale的方式）
+* shader的自动编译
+* 简单延迟光照
+* PBR实现
+* IBL实现
+* 阴影的实现
+* VulkanModel变为VulkanScene，scene管理多个模型、相机以及光照
+* 其他需要重构的地方
+
+存在的bug:
+
+* 缩放窗口时也会导致glfw响应鼠标事件，造成相机视角问题

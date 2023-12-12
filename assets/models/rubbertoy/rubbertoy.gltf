@@ -77,10 +77,53 @@
 			"target":34962
 		}
 	],
+	"extensionsUsed":["KHR_lights_punctual"
+	],
+	"extensionsRequired":["KHR_lights_punctual"
+	],
+	"extensions":{
+		"KHR_lights_punctual":{
+			"lights":[
+				{
+					"name":"pointlight1",
+					"type":"point"
+				},
+				{
+					"name":"pointlight2",
+					"type":"point"
+				}
+			]
+		}
+	},
 	"nodes":[
+		{
+			"children":[1,2,3
+			],
+			"name":"Root"
+		},
 		{
 			"name":"testgeometry_rubbertoy1",
 			"mesh":0
+		},
+		{
+			"matrix":[1,0,0,0,0,1,0,0,0,0,1,0,-0.892614603,1.66481137,0.857260942,1
+			],
+			"extensions":{
+				"KHR_lights_punctual":{
+					"light":0
+				}
+			},
+			"name":"pointlight1"
+		},
+		{
+			"matrix":[1,0,0,0,0,1,0,0,0,0,1,0,0.970003486,1.66481137,0.857260942,1
+			],
+			"extensions":{
+				"KHR_lights_punctual":{
+					"light":1
+				}
+			},
+			"name":"pointlight2"
 		}
 	],
 	"meshes":[
@@ -96,7 +139,7 @@
 					"material":0
 				}
 			],
-			"name":"rubbertoy"
+			"name":"testgeometry_rubbertoy1"
 		}
 	],
 	"materials":[

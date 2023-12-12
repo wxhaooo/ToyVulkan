@@ -43,12 +43,15 @@ void DeferredPBR::InitFondation()
 	
 	Camera* camera = Singleton<Camera>::Instance();
 	// camera->flipY = true;
-	camera->type = Camera::CameraType::firstperson;
-	// camera->type = Camera::CameraType::lookat;
+	// camera->type = Camera::CameraType::firstperson;
+	// camera->position = { 1.0f, 0.75f, 0.0f };
+	// camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
+	// camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 
-	camera->position = { 1.0f, 0.75f, 0.0f };
-	camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+	// toy
+	camera->SetPosition(glm::vec3(0.0f,0.4f,-2.0f));
+	camera->SetRotation(glm::vec3(0.0f, -45.0f, 0.0f));
+	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
 }
 
 void DeferredPBR::SetupMrtRenderPass()
@@ -67,21 +70,27 @@ void DeferredPBR::SetupMrtRenderPass()
 	// Color attachments
 	// Attachment 0: (World space) Positions
 	attachmentInfo.binding = 0;
-	attachmentInfo.name ="world_position";
+	attachmentInfo.name ="G_worldPosition";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 1: (World space) Normals
 	attachmentInfo.binding = 1;
-	attachmentInfo.name ="world_normal";
+	attachmentInfo.name ="G_worldNormal";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 2: Albedo (color)
 	attachmentInfo.binding = 2;
-	attachmentInfo.name ="vertex_color";
+	attachmentInfo.name ="G_vertexColor";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
+
+	// // Attachment 3: GBuffer Depth
+	// attachmentInfo.binding = 3;
+	// attachmentInfo.name = "G_depth";
+	// attachmentInfo.format = VK_FORMAT_R8_UNORM;
+	// mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 3: Depth
 	attachmentInfo.name ="depth";
@@ -129,8 +138,10 @@ void DeferredPBR::LoadAsset()
 			vks::geometry::DescriptorBindingFlags::ImageNormalMap;
 	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
 	// | vks::geometry::PreTransformVertices;
-	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
+	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/rubbertoy/rubbertoy.gltf",
 		vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
+	// gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
+	// 	vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
 }
 
 void DeferredPBR::PrepareUniformBuffers()
@@ -302,22 +313,25 @@ void DeferredPBR::NewGUIFrame()
 {
 	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
 	{
-		if (ImGui::BeginTabBar("UI_ViewTabRoot",ImGuiTabBarFlags_None))
-		{
-			if(ImGui::BeginTabItem("UI_ViewTab_1"))
-			{
-				ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-				// ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-				ImGui::EndTabItem();
-			}
-
-			if(ImGui::BeginTabItem("UI_ViewTab_2"))
-			{
-				ImGui::Text("This is the Avocado tab!\nblah blah blah blah blah");
-				ImGui::EndTabItem();
-			}
-			ImGui::EndTabBar();
-		}
+		// 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		// 		// ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+		// 		ImGui::EndTabItem();
+		// if (ImGui::BeginTabBar("UI_ViewTabRoot",ImGuiTabBarFlags_None))
+		// {
+		// 	if(ImGui::BeginTabItem("UI_ViewTab_1"))
+		// 	{
+		// 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		// 		// ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+		// 		ImGui::EndTabItem();
+		// 	}
+		//
+		// 	if(ImGui::BeginTabItem("UI_ViewTab_2"))
+		// 	{
+		// 		ImGui::Text("This is the Avocado tab!\nblah blah blah blah blah");
+		// 		ImGui::EndTabItem();
+		// 	}
+		// 	ImGui::EndTabBar();
+		// }
 		ImGui::End();
 	}
 
