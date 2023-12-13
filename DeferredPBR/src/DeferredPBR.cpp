@@ -57,7 +57,7 @@ void DeferredPBR::InitFondation()
 	// toy
 	camera->SetPosition(glm::vec3(0.0f,0.4f,-2.0f));
 	camera->SetRotation(glm::vec3(0.0f, -45.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
+	camera->SetPerspective(60.0f, (float)viewportWidth / (float)viewportHeight, 0.1f, 256.0f);	
 }
 
 void DeferredPBR::SetupMrtRenderPass()
@@ -124,7 +124,7 @@ void DeferredPBR::SetupLightingRenderPass()
 	// Color attachments
 	attachmentInfo.binding = 0;
 	attachmentInfo.name ="Final";
-	attachmentInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	lightingRenderPass->AddAttachment(attachmentInfo);
 	
 	VkFilter magFiler = VK_FILTER_NEAREST;
@@ -316,6 +316,7 @@ void DeferredPBR::PrepareLightingPipeline()
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+	rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
 	std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates =
 	{
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
@@ -346,15 +347,14 @@ void DeferredPBR::PrepareLightingPipeline()
 	pipelineCI.pDynamicState = &dynamicStateCI;
 	pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 	pipelineCI.pStages = shaderStages.data();
-	rasterizationStateCI.polygonMode = VK_POLYGON_MODE_FILL;
 	pipelineCI.flags = 0;
 	CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.lighting));
 }
 
 void DeferredPBR::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
-	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
+	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
 
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -373,7 +373,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.framebuffer = mrtFrameBuffer->frameBuffer;
 
 	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {width, height};
+	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
 
 	std::array<VkClearValue, 4> clearValues{};
 	clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -393,7 +393,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
 	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
 	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {width, height};
+	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
 	
 	std::array<VkClearValue, 2> clearValues1{};
 	clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -403,8 +403,8 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.pClearValues = clearValues.data();
 	
 	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
+	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
 	
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -418,6 +418,9 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 {
 	mrtRenderPass.reset();
 	SetupMrtRenderPass();
+
+	lightingRenderPass.reset();
+	SetupLightingRenderPass();
 }
 
 void DeferredPBR::NewGUIFrame()
@@ -426,11 +429,11 @@ void DeferredPBR::NewGUIFrame()
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
+		float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight); 
 		for(uint32_t i=0; i < frameBuffer->attachments.size(); i++)
 		{
 			if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
-				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(width * scale, height * scale));
+				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(viewportWidth * scale, viewportHeight * scale));
 		}
 
 		ImGui::End();
@@ -440,24 +443,8 @@ void DeferredPBR::NewGUIFrame()
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		float scale = std::min(viewportPanelSize.x / (float)width, viewportPanelSize.y / (float)height); 
-		ImGui::Image((ImTextureID)frameBuffer->frameBufferDescriptorSet,ImVec2(width * scale, height * scale));
-		// if (ImGui::BeginTabBar("UI_ViewTabRoot",ImGuiTabBarFlags_None))
-		// {
-		// 	if(ImGui::BeginTabItem("UI_ViewTab_1"))
-		// 	{
-		// 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		// 		// ImGui::Image((ImTextureID)offscreenPass->descriptorSet[currentFrame], ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-		// 		ImGui::EndTabItem();
-		// 	}
-		//
-		// 	if(ImGui::BeginTabItem("UI_ViewTab_2"))
-		// 	{
-		// 		ImGui::Text("This is the Avocado tab!\nblah blah blah blah blah");
-		// 		ImGui::EndTabItem();
-		// 	}
-		// 	ImGui::EndTabBar();
-		// }
+		ImGui::Image((ImTextureID)frameBuffer->frameBufferDescriptorSet,ImVec2(viewportPanelSize.x,viewportPanelSize.y));
+		
 		ImGui::End();
 	}
 	

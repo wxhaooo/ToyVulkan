@@ -22,6 +22,18 @@ namespace vks
             void FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
             {
                 auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
+                int windowsWidth = 0, windowsHeight = 0;
+                glfwGetFramebufferSize(window, &windowsWidth, &windowsHeight);
+                while (windowsWidth == 0 || windowsHeight == 0)
+                {
+                    glfwGetFramebufferSize(window, &windowsWidth, &windowsHeight);
+                    glfwWaitEvents();
+                }
+
+                app->WaitDeviceIdle();
+                app->windowsWidth = windowsWidth;
+                app->windowsHeight = windowsHeight;
+                
                 app->ReCreateVulkanResource();
             }
 

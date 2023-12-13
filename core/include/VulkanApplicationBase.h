@@ -41,8 +41,12 @@ public:
         VkImageView view;
     } depthStencil;
 
-    uint32_t width;
-    uint32_t height;
+    uint32_t windowsWidth;
+    uint32_t windowsHeight;
+
+    uint32_t viewportWidth;
+    uint32_t viewportHeight;
+    
 #ifdef USE_FRONTEND_GLFW
     GLFWwindow* window = nullptr;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -71,6 +75,7 @@ public:
     void RenderLoop();
     void ReCreateVulkanResource();
     virtual void ReCreateVulkanResource_Child();
+    void WaitDeviceIdle();
 
 protected:
     // swap chain image index
@@ -167,7 +172,7 @@ protected:
     virtual void NewGUIFrame();
     virtual void DrawDockingWindows(bool fullscreen = true,bool padding = true);
     virtual void PrepareRenderPass(VkCommandBuffer commandBuffer);
-    
+    virtual bool HandleViewportChanged();
     // utility
     VkPipelineShaderStageCreateInfo LoadShader(std::string fileName, VkShaderStageFlagBits stage);
 

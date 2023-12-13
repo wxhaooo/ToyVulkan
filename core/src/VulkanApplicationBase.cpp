@@ -24,8 +24,10 @@ VulkanApplicationBase::VulkanApplicationBase(std::string applicationName, uint32
 {
     this->title = applicationName;
     this->name = applicationName;
-    this->width = width;
-    this->height = height;
+    this->windowsWidth = width;
+    this->windowsHeight = height;
+    this->viewportWidth = windowsWidth;
+    this->viewportHeight = windowsHeight;
 }
 
 VulkanApplicationBase::~VulkanApplicationBase()
@@ -160,7 +162,7 @@ bool VulkanApplicationBase::SetupWindows()
     if (!glfwInit()) return false;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(static_cast<int>(windowsWidth), static_cast<int>(windowsHeight), title.c_str(), nullptr, nullptr);
     if (!glfwVulkanSupported())
     {
         vks::helper::ExitFatal("GLFW: Vulkan Not Supported\n", -1);
@@ -358,7 +360,7 @@ void VulkanApplicationBase::SetupSwapChain()
 {
     auto graphicSettings = Singleton<GraphicSettings>::Instance();
 
-    swapChain->Create(&width, &height, graphicSettings->vsync, graphicSettings->fullscreen);
+    swapChain->Create(&viewportWidth, &viewportHeight, graphicSettings->vsync, graphicSettings->fullscreen);
     maxFrameInFlight = swapChain->imageCount;
 }
 
@@ -405,7 +407,7 @@ void VulkanApplicationBase::SetupDefaultDepthStencil()
     imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageCI.imageType = VK_IMAGE_TYPE_2D;
     imageCI.format = depthFormat;
-    imageCI.extent = {width, height, 1};
+    imageCI.extent = {viewportWidth, viewportHeight, 1};
     imageCI.mipLevels = 1;
     imageCI.arrayLayers = 1;
     imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -554,8 +556,8 @@ void VulkanApplicationBase::SetupDefaultFrameBuffer()
     frameBufferCreateInfo.renderPass = renderPass;
     frameBufferCreateInfo.attachmentCount = 2;
     frameBufferCreateInfo.pAttachments = attachments;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
+    frameBufferCreateInfo.width = viewportWidth;
+    frameBufferCreateInfo.height = viewportHeight;
     frameBufferCreateInfo.layers = 1;
 
     // Create frame buffers for every swap chain image
@@ -633,18 +635,8 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     if (!prepared) return;
     prepared = false;
 
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    while (width == 0 || height == 0)
-    {
-        glfwGetFramebufferSize(window, &width, &height);
-        glfwWaitEvents();
-    }
-
-    CheckVulkanResult(vkDeviceWaitIdle(device));
-    this->width = width;
-    this->height = height;
-
+    WaitDeviceIdle();
+    
     SetupSwapChain();
     // Recreate the frame buffers
     vkDestroyImageView(device, depthStencil.view, nullptr);
@@ -660,7 +652,7 @@ void VulkanApplicationBase::ReCreateVulkanResource()
     ReCreateVulkanResource_Child();
    
     // ui overlay resize
-    gui->Resize(width, height);
+    gui->Resize(windowsWidth, windowsHeight);
 
     // Command buffers need to be recreated as they may store
     // references to the recreated frame buffer
@@ -683,10 +675,8 @@ void VulkanApplicationBase::ReCreateVulkanResource()
 
     Camera* camera = Singleton<Camera>::Instance();
 
-    if ((width > 0.0f) && (height > 0.0f))
-    {
-        camera->UpdateAspectRatio((float)width / (float)height);
-    }
+    if ((viewportWidth > 0) && (viewportHeight > 0))
+        camera->UpdateAspectRatio((float)viewportWidth / (float)viewportHeight);
 
     // Notify derived class
     WindowResized();
@@ -699,6 +689,10 @@ void VulkanApplicationBase::ReCreateVulkanResource()
 void VulkanApplicationBase::ReCreateVulkanResource_Child()
 {
     
+}
+void VulkanApplicationBase::WaitDeviceIdle()
+{
+    CheckVulkanResult(vkDeviceWaitIdle(device));
 }
 
 void VulkanApplicationBase::GetEnabledExtensions()
@@ -793,6 +787,33 @@ void VulkanApplicationBase::PrepareRenderPass(VkCommandBuffer commandBuffer)
     
 }
 
+bool VulkanApplicationBase::HandleViewportChanged()
+{
+    ImVec2 view = ImGui::GetContentRegionAvail();
+    uint32_t viewX = static_cast<uint32_t>(view.x);
+    uint32_t viewY = static_cast<uint32_t>(view.y);
+    
+    if ( viewX != viewportWidth || viewY != viewportHeight)
+    {
+        if ( viewX == 0 || viewY == 0 )
+        {
+            // The window is too small or collapsed.
+            return false;
+        }
+
+        viewportWidth = viewX;
+        viewportHeight = viewY;
+
+        ReCreateVulkanResource();
+
+        // The window state has been successfully changed.
+        return true;
+    }
+
+    // The window state has not changed.
+    return true;   
+}
+
 void VulkanApplicationBase::PrepareFrame()
 {
     //wait pre-frame
@@ -812,7 +833,7 @@ void VulkanApplicationBase::PrepareFrame()
     VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
 
     renderPassBeginInfo.renderArea.offset = {0, 0};
-    renderPassBeginInfo.renderArea.extent = {width, height};
+    renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
     std::array<VkClearValue, 2> clearValues{};
     clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
     clearValues[1].depthStencil = {1.0f, 0};
