@@ -25,7 +25,7 @@ protected:
 
 private:
     void UpdateUniformBuffers();
-    void SetupDescriptors();
+    void SetupDescriptorSets();
     void PrepareMrtPipeline();
     void PrepareLightingPipeline();
     void SetupMrtRenderPass();
@@ -40,16 +40,17 @@ private:
         } values;
     } shaderData;
 
+
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
 
-    VkDescriptorSetLayout MVPDescriptorSetLayout;
-
+    VkDescriptorSetLayout MVPDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout;
-    VkDescriptorSet descriptorSet;
+    std::vector<VkDescriptorSet> descriptorSets;
 
-    VkDescriptorSetLayout DescriptorSetLayoutLighting;
-    VkPipelineLayout pipelineLayoutLighting;
+    VkDescriptorSetLayout lightingDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout lightingPipelineLayout;
+    std::vector<VkDescriptorSet> lightingDescriptorSets;
 
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;

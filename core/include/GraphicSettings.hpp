@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+constexpr int LightCount = 2;
+
 class GraphicSettings
 {
 public:

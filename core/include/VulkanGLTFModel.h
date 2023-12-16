@@ -2,11 +2,14 @@
 
 #include <VulkanDevice.h>
 #include <iostream>
+#include <map>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <VulkanTexture.h>
+
+#include <GraphicSettings.hpp>
 
 namespace tinygltf
 {
@@ -124,6 +127,22 @@ namespace vks
 				void CreateDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, uint32_t descriptorBindingFlags);
 			};
 
+			struct Light
+			{
+				float intensity;
+				glm::mat4 transform;
+				glm::vec3 color;
+			};
+
+			struct LightingUBO
+			{
+				vks::Buffer buffer;
+				struct Values
+				{
+					Light lights[LightCount];
+				} values;
+			} lightingUbo;
+
 			/*
 				glTF primitive
 			*/
@@ -209,7 +228,9 @@ namespace vks
 			*/
 			std::vector<Texture> textures;
 			std::vector<Material> materials;
+			std::vector<Light> lights;
 			std::vector<Node*> nodes;
+			std::map<std::string, Node*> nodeName2LinearNodeMap;
 			std::vector<Node*> linearNodes;
 			std::vector<Skin*> skins;
 
@@ -235,6 +256,7 @@ namespace vks
 			*/
 			void LoadImages(tinygltf::Model& input);
 			void LoadMaterials(tinygltf::Model& input);
+			void LoadLights(tinygltf::Model& input);
 			void LoadNode(Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalScale);
 
 			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, uint32_t descriptorBindingFlags = DescriptorBindingFlags::ImageBaseColor, float scale = 1.0f);
@@ -247,12 +269,15 @@ namespace vks
 			// Draw the glTF scene starting at the top-level-nodes
 			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, bool pushConstant,  VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
 
+			void UpdateLightUbo();
+
 		private:
 			void CreateEmptyTexture(VkQueue transferQueue);
 			Texture* GetTexture(uint32_t index);
 			void GetSceneDimensions();
 			void GetNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);
 			void PrepareNodeDescriptor(Node* node, VkDescriptorSetLayout descriptorSetLayout);
+			void PrepareLightDescriptor();
 			// void LoadAnimations(tinygltf::Model &gltfModel);
 			// void LoadSkins(tinygltf::Model& gltfModel);
 		};

@@ -53,7 +53,7 @@ void LoadGLFT::InitFondation()
 	camera->SetLookAt(glm::vec3(0.0f, -0.1f, 1.0f),glm::vec3(0.0f,0.0f,0.0f));
 	camera->SetPosition(glm::vec3(0.0f, -0.1f, -1.0f));
 	camera->SetRotation(glm::vec3(0.0f, 45.0f, 0.0f));
-	camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);	
+	camera->SetPerspective(60.0f, (float)windowsWidth / (float)windowsHeight, 0.1f, 256.0f);	
 }
 
 void LoadGLFT::Prepare()
@@ -435,8 +435,8 @@ void LoadGLFT::PreparePipelines()
 
 void LoadGLFT::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
-	const VkViewport viewport = vks::initializers::Viewport((float)width, (float)height, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(width, height, 0, 0);
+	const VkViewport viewport = vks::initializers::Viewport((float)windowsWidth, (float)windowsHeight, 0.0f, 1.0f);
+	const VkRect2D scissor = vks::initializers::Rect2D(windowsWidth, windowsHeight, 0, 0);
 
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -454,7 +454,7 @@ void LoadGLFT::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.framebuffer = offscreenPass->frameBuffer[currentFrame];
 
 	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {width, height};
+	renderPassBeginInfo.renderArea.extent = {windowsWidth, windowsHeight};
 
 	std::array<VkClearValue, 2> clearValues{};
 	clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};

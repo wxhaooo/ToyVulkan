@@ -554,6 +554,9 @@ namespace vks
 				descriptorSetLayoutImage = VK_NULL_HANDLE;
 			}
 			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, descriptorPool, nullptr);
+
+			lightingUbo.buffer.Destroy();
+			
 			emptyTexture.Destroy();
 		}
 
@@ -622,6 +625,26 @@ namespace vks
 
 			// Push a default material at the end of the list for meshes with no material assigned
 			materials.push_back(Material(vulkanDevice));
+		}
+
+		void VulkanGLTFModel::LoadLights(tinygltf::Model& input)
+		{
+			for(size_t i = 0; i < input.lights.size(); i++)
+			{
+				tinygltf::Light& gltfLight = input.lights[i];
+				if(nodeName2LinearNodeMap.find(gltfLight.name) == nodeName2LinearNodeMap.end()) continue;
+				
+				Light light;
+				Node* lightNode = nodeName2LinearNodeMap[gltfLight.name];
+				std::vector<double> lightColor = gltfLight.color;
+				if(lightColor.size() > 0)
+					light.color = glm::vec3(gltfLight.color[0],gltfLight.color[1],gltfLight.color[2]);
+				else
+					light.color = glm::vec3(1.0f,1.0f,1.0f);
+				light.intensity = static_cast<float>(gltfLight.intensity);
+				light.transform = lightNode->GetMatrix();
+				lights.push_back(light);
+			}
 		}
 	
 		void VulkanGLTFModel::LoadNode(Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalScale)
@@ -823,6 +846,7 @@ namespace vks
 				nodes.push_back(newNode);
 			}
 			linearNodes.push_back(newNode);
+			nodeName2LinearNodeMap.insert({newNode->name,newNode});
 		}
 
 		void VulkanGLTFModel::LoadGLTFFile(std::string fileName, VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags, uint32_t descriptorBindingFlags, float scale)
@@ -864,6 +888,8 @@ namespace vks
 				// LoadAnimations(glTFInput);
 			}
 			// LoadSkins(glTFInput);
+
+			LoadLights(glTFInput);
 			
 			for (auto node : linearNodes) {
 				// Assign skins
@@ -1039,6 +1065,9 @@ namespace vks
 					PrepareNodeDescriptor(node, descriptorSetLayoutUbo);
 				}
 			}
+
+			// descriptor for lights
+			PrepareLightDescriptor();
 
 			// Descriptors for per-material images
 			{
@@ -1292,6 +1321,30 @@ namespace vks
 			}
 			for (auto& child : node->children) {
 				PrepareNodeDescriptor(child, descriptorSetLayout);
+			}
+		}
+
+		void VulkanGLTFModel::PrepareLightDescriptor()
+		{
+			CheckVulkanResult(vulkanDevice->CreateBuffer(
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&lightingUbo.buffer,
+				sizeof(lightingUbo.values)));
+
+			// Map persistent
+			CheckVulkanResult(lightingUbo.buffer.Map());
+		}
+
+		void VulkanGLTFModel::UpdateLightUbo()
+		{
+			for(uint32_t i = 0; i<lights.size();i++)
+			{
+				Light light = lights[i];
+				lightingUbo.values.lights[i].color = light.color;
+				lightingUbo.values.lights[i].intensity = light.intensity;
+				lightingUbo.values.lights[i].transform = light.transform;
+				memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
 			}
 		}
 	};

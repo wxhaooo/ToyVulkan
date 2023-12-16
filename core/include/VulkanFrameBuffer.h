@@ -79,11 +79,6 @@ namespace vks
         VkDescriptorSetLayout attachmentDescriptorSetLayout;
         VkDescriptorPool attachmentDescriptorPool;
 
-        VkDescriptorSetLayout frameBufferDescriptorSetLayout;
-        VkDescriptorPool frameBufferDescriptorPool;
-
-        VkDescriptorSet frameBufferDescriptorSet;
-        
         /**
        * Default constructor
        *
@@ -107,7 +102,7 @@ namespace vks
 
         void CreateAttachmentDescriptorSet(VkSampler sampler);
 
-        void CreateFrameBufferDescriptorSet(VkSampler sampler);
+        // void CreateFrameBufferDescriptorSet(VkSampler sampler);
     };
 
    

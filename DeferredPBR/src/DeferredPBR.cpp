@@ -37,8 +37,8 @@ DeferredPBR::~DeferredPBR()
 	// lighting
 	if(pipelines.lighting != VK_NULL_HANDLE)
 		vkDestroyPipeline(device,pipelines.lighting,nullptr);
-	vkDestroyPipelineLayout(device,pipelineLayoutLighting,nullptr);
-	vkDestroyDescriptorSetLayout(device,DescriptorSetLayoutLighting,nullptr);
+	vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
+	vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
 
 	shaderData.buffer.Destroy();
 }
@@ -146,7 +146,7 @@ void DeferredPBR::Prepare()
 	
     LoadAsset();
 	PrepareUniformBuffers();
-	SetupDescriptors();
+	SetupDescriptorSets();
 
 	// prepare pipelines
 	PrepareMrtPipeline();
@@ -189,15 +189,31 @@ void DeferredPBR::UpdateUniformBuffers()
     shaderData.values.projection = camera->matrices.perspective;
     shaderData.values.view = camera->matrices.view;
     memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
+
+	gltfModel->UpdateLightUbo();
 }
 
-void DeferredPBR::SetupDescriptors()
+void DeferredPBR::SetupDescriptorSets()
 {
+	if(MVPDescriptorSetLayout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device,MVPDescriptorSetLayout,nullptr);
+
+	if(lightingDescriptorSetLayout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
+
+	if(descriptorPool != VK_NULL_HANDLE)
+		vkDestroyDescriptorPool(device,descriptorPool,nullptr);
+		
+	// for mrt pass
 	std::vector<VkDescriptorPoolSize> poolSizes = {
-		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+		// 1 for mrt pass => vertex shader, 1 for lighting fragment shader
+		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
+		// 3 for lighting pass => fragment shader
+		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3),
+
 	};
-	// One set for matrices and one per model image/texture
-	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 1);
+	// 1 for mrt pass, 1 for lighting pass
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 2 * maxFrameInFlight);
 	CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
 	// Descriptor set layout for passing matrices
@@ -207,9 +223,42 @@ void DeferredPBR::SetupDescriptors()
 
 	// Descriptor set for scene matrices
 	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &MVPDescriptorSetLayout, 1);
-	CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
-	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	descriptorSets.resize(maxFrameInFlight);
+	for(uint32_t i=0; i < maxFrameInFlight; i++)
+	{
+		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets[i]));
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(descriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	}
+	// for lighting pass
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+	{
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+	};
+
+	descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
+	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &lightingDescriptorSetLayout));
+	allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &lightingDescriptorSetLayout, 1);
+	lightingDescriptorSets.resize(maxFrameInFlight);
+	for(uint32_t i=0; i < maxFrameInFlight; i++)
+	{
+		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &lightingDescriptorSets[i]));
+		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(i);
+		// attachment
+		for(uint32_t s = 0; s < frameBuffer->attachments.size(); s++)
+		{
+			if(frameBuffer->attachments[s].IsDepthStencil()) continue;
+			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s, &frameBuffer->attachments[s].descriptor);
+			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+		}
+		// lighting uniform buffer
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			frameBuffer->attachments.size() - 1, &gltfModel->lightingUbo.buffer.descriptor);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	}
 }
 
 void DeferredPBR::PrepareMrtPipeline()
@@ -292,27 +341,14 @@ void DeferredPBR::PrepareMrtPipeline()
 
 void DeferredPBR::PrepareLightingPipeline()
 {
-	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings
-	{
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2)
-	};
-
-	VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
-	descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
-	descriptorLayoutCI.pBindings = setLayoutBindings.data();
-	CheckVulkanResult(vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorLayoutCI, nullptr, &DescriptorSetLayoutLighting));
-	
 	// create pipeline layout
-	std::vector<VkDescriptorSetLayout> setLayouts = {DescriptorSetLayoutLighting};
+	std::vector<VkDescriptorSetLayout> setLayouts = {lightingDescriptorSetLayout};
 	VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::PipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
 	// We will use push constants to push the local matrices of a primitive to the vertex shader
 	// VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
 	// Push constant ranges are part of the pipeline layout
 	pipelineLayoutCI.pushConstantRangeCount = 0;
-	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayoutLighting));
+	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &lightingPipelineLayout));
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
@@ -335,7 +371,7 @@ void DeferredPBR::PrepareLightingPipeline()
 	};
 
 	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
-	pipelineCI.layout = pipelineLayoutLighting;
+	pipelineCI.layout = lightingPipelineLayout;
 	pipelineCI.renderPass = lightingRenderPass->renderPass;
 	pipelineCI.pVertexInputState = &vertexInputStateCI;
 	pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
@@ -359,7 +395,7 @@ void DeferredPBR::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	// Bind scene matrices descriptor to set 0
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
 	gltfModel->Draw(commandBuffer,vks::geometry::RenderFlags::BindImages, true, pipelineLayout,1);
 }
@@ -388,7 +424,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	BuildCommandBuffers(commandBuffer);
 	vkCmdEndRenderPass(commandBuffer);
 
-	// lighting renderpass
+	// lighting renderPass
 	vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
 	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
 	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
@@ -408,7 +444,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutLighting, 0, 1, &mrtFrameBuffer->frameBufferDescriptorSet, 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
 	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
@@ -421,6 +457,8 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 
 	lightingRenderPass.reset();
 	SetupLightingRenderPass();
+
+	SetupDescriptorSets();
 }
 
 void DeferredPBR::NewGUIFrame()
@@ -443,7 +481,7 @@ void DeferredPBR::NewGUIFrame()
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		ImGui::Image((ImTextureID)frameBuffer->frameBufferDescriptorSet,ImVec2(viewportPanelSize.x,viewportPanelSize.y));
+		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,ImVec2(viewportPanelSize.x,viewportPanelSize.y));
 		
 		ImGui::End();
 	}
@@ -460,6 +498,7 @@ void DeferredPBR::Render()
 {
 	RenderFrame();
 	Camera* camera = Singleton<Camera>::Instance();
+
     if(camera->updated)
 	    UpdateUniformBuffers();
 }
