@@ -129,9 +129,9 @@ namespace vks
 
 			struct Light
 			{
-				float intensity;
-				glm::mat4 transform;
-				glm::vec3 color;
+				alignas(4)float intensity;
+				alignas(16)glm::mat4 transform;
+				alignas(16)glm::vec4 color;
 			};
 
 			struct LightingUBO
@@ -139,7 +139,7 @@ namespace vks
 				vks::Buffer buffer;
 				struct Values
 				{
-					Light lights[LightCount];
+					alignas(16)Light lights[LightCount];
 				} values;
 			} lightingUbo;
 

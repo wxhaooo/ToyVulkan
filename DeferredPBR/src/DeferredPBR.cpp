@@ -498,7 +498,7 @@ void DeferredPBR::Render()
 {
 	RenderFrame();
 	Camera* camera = Singleton<Camera>::Instance();
-
+	
     if(camera->updated)
 	    UpdateUniformBuffers();
 }

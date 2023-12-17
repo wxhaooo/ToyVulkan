@@ -9,14 +9,14 @@ layout (binding = 2) uniform sampler2D samplerAlbedo;
 struct Light
 {
 	float intensity;
-	vec3 color;
 	mat4 transform;
+	vec4 color;
 };
 
 layout (binding = 3) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
-} Ubo;
+} ubo;
 
 layout (location = 0) in vec2 inUV;
 
@@ -31,5 +31,5 @@ void main()
 
 	// Ambient part
 	vec3 fragcolor  = albedo.rgb;
-	outFragColor = vec4(fragcolor, 1.0);
+	outFragColor = vec4(ubo.lights[1].color.xyz, 1.0);
 }

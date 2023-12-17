@@ -638,9 +638,9 @@ namespace vks
 				Node* lightNode = nodeName2LinearNodeMap[gltfLight.name];
 				std::vector<double> lightColor = gltfLight.color;
 				if(lightColor.size() > 0)
-					light.color = glm::vec3(gltfLight.color[0],gltfLight.color[1],gltfLight.color[2]);
+					light.color = glm::vec4(gltfLight.color[0],gltfLight.color[1],gltfLight.color[2],0.0f);
 				else
-					light.color = glm::vec3(1.0f,1.0f,1.0f);
+					light.color = glm::vec4(1.0f,1.0f,1.0f,0.0f);
 				light.intensity = static_cast<float>(gltfLight.intensity);
 				light.transform = lightNode->GetMatrix();
 				lights.push_back(light);
