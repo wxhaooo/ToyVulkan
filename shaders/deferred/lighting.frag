@@ -9,13 +9,14 @@ layout (binding = 2) uniform sampler2D samplerAlbedo;
 struct Light
 {
 	float intensity;
-	mat4 transform;
+	vec4 position;
 	vec4 color;
 };
 
 layout (binding = 3) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
+	vec4 viewPos;
 } ubo;
 
 layout (location = 0) in vec2 inUV;
@@ -30,6 +31,30 @@ void main()
 	vec4 albedo = texture(samplerAlbedo, inUV);
 
 	// Ambient part
-	vec3 fragcolor  = albedo.rgb;
-	outFragColor = vec4(ubo.lights[1].color.xyz, 1.0);
+	vec3 fragcolor  = vec3(0.0,0.0,0.0);
+
+	vec3 N = normalize(normal);
+
+	for(int i=0; i < LIGHT_COUNT; i++)
+	{
+		vec3 L = ubo.lights[i].position.xyz - fragPos;
+		float dist = length(L);
+		L = normalize(L);
+
+		vec3 V = ubo.viewPos.xyz - fragPos;
+		V = normalize(V);
+
+		// Diffuse lighting
+		float NdotL = max(0.0, dot(N, L));
+		vec3 diff = vec3(NdotL);
+
+		// Specular lighting
+		// vec3 R = reflect(-L, N);
+		// float NdotR = max(0.0, dot(R, V));
+		// vec3 spec = vec3(pow(NdotR, 16.0) * albedo.a * 2.5);
+	
+		fragcolor += vec3(diff) * albedo.xyz * ubo.lights[i].color.rgb;
+	}
+
+	outFragColor = vec4(fragcolor,1.0f);
 }

@@ -41,6 +41,7 @@ DeferredPBR::~DeferredPBR()
 	vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
 
 	shaderData.buffer.Destroy();
+	lightingUbo.buffer.Destroy();
 }
 
 void DeferredPBR::InitFondation()
@@ -180,6 +181,16 @@ void DeferredPBR::PrepareUniformBuffers()
     // Map persistent
     CheckVulkanResult(shaderData.buffer.Map());
 
+	// lighting uniform buffer
+	CheckVulkanResult(vulkanDevice->CreateBuffer(
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&lightingUbo.buffer,
+				sizeof(lightingUbo.values)));
+
+	// Map persistent
+	CheckVulkanResult(lightingUbo.buffer.Map());
+
     UpdateUniformBuffers();
 }
 
@@ -190,7 +201,18 @@ void DeferredPBR::UpdateUniformBuffers()
     shaderData.values.view = camera->matrices.view;
     memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
 
-	gltfModel->UpdateLightUbo();
+	
+	for(uint32_t i = 0; i<gltfModel->lights.size();i++)
+	{
+		vks::geometry::Light light = gltfModel->lights[i];
+		lightingUbo.values.lights[i].color = light.color;
+		lightingUbo.values.lights[i].intensity = light.intensity;
+		lightingUbo.values.lights[i].position = light.position;
+	}
+
+	lightingUbo.values.viewPos = camera->viewPos;
+	memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
+
 }
 
 void DeferredPBR::SetupDescriptorSets()
@@ -256,7 +278,7 @@ void DeferredPBR::SetupDescriptorSets()
 		}
 		// lighting uniform buffer
 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			frameBuffer->attachments.size() - 1, &gltfModel->lightingUbo.buffer.descriptor);
+			frameBuffer->attachments.size() - 1, &lightingUbo.buffer.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 	}
 }

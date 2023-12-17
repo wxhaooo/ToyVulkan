@@ -10,7 +10,9 @@ namespace math
     float Degree2Radius(float degree);
 
     //ref:http://eecs.qmul.ac.uk/~gslabaugh/publications/euler.pdf
-   glm::vec3 GetEulerAngleFromRotationMatrix(glm::mat3 mat);
+    glm::vec3 GetEulerAngleFromRotationMatrix(glm::mat3 mat);
+
+    glm::vec4 GetTranslateFromTransformMatrix(glm::mat4 mat);
 }
 
 

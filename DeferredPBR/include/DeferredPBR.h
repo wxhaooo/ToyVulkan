@@ -40,6 +40,15 @@ private:
         } values;
     } shaderData;
 
+    struct LightingUBO
+    {
+        vks::Buffer buffer;
+        struct Values
+        {
+            alignas(16)vks::geometry::Light lights[LightCount];
+            alignas(16) glm::vec4 viewPos;
+        } values;
+    } lightingUbo;
 
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;

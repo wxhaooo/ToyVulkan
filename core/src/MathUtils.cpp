@@ -62,6 +62,11 @@ namespace math
 
         return ret;
     }
+
+    glm::vec4 GetTranslateFromTransformMatrix(glm::mat4 mat)
+    {
+        return mat[3];
+    }
 }
 
 

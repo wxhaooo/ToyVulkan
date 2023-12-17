@@ -4,6 +4,8 @@
 #include <VulkanUtils.h>
 #include <tiny_gltf.h>
 
+#include <MathUtils.h>
+
 #ifdef WIN32
 #undef min
 #undef max
@@ -554,8 +556,6 @@ namespace vks
 				descriptorSetLayoutImage = VK_NULL_HANDLE;
 			}
 			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, descriptorPool, nullptr);
-
-			lightingUbo.buffer.Destroy();
 			
 			emptyTexture.Destroy();
 		}
@@ -627,7 +627,7 @@ namespace vks
 			materials.push_back(Material(vulkanDevice));
 		}
 
-		void VulkanGLTFModel::LoadLights(tinygltf::Model& input)
+		void VulkanGLTFModel::LoadLights(tinygltf::Model& input, uint32_t fileLoadingFlags)
 		{
 			for(size_t i = 0; i < input.lights.size(); i++)
 			{
@@ -642,7 +642,9 @@ namespace vks
 				else
 					light.color = glm::vec4(1.0f,1.0f,1.0f,0.0f);
 				light.intensity = static_cast<float>(gltfLight.intensity);
-				light.transform = lightNode->GetMatrix();
+				light.position = math::GetTranslateFromTransformMatrix(lightNode->GetMatrix());
+				if(fileLoadingFlags & FileLoadingFlags::FlipY)
+					light.position.y *= -1;
 				lights.push_back(light);
 			}
 		}
@@ -889,7 +891,7 @@ namespace vks
 			}
 			// LoadSkins(glTFInput);
 
-			LoadLights(glTFInput);
+			LoadLights(glTFInput,fileLoadingFlags);
 			
 			for (auto node : linearNodes) {
 				// Assign skins
@@ -1065,9 +1067,6 @@ namespace vks
 					PrepareNodeDescriptor(node, descriptorSetLayoutUbo);
 				}
 			}
-
-			// descriptor for lights
-			PrepareLightDescriptor();
 
 			// Descriptors for per-material images
 			{
@@ -1321,30 +1320,6 @@ namespace vks
 			}
 			for (auto& child : node->children) {
 				PrepareNodeDescriptor(child, descriptorSetLayout);
-			}
-		}
-
-		void VulkanGLTFModel::PrepareLightDescriptor()
-		{
-			CheckVulkanResult(vulkanDevice->CreateBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				&lightingUbo.buffer,
-				sizeof(lightingUbo.values)));
-
-			// Map persistent
-			CheckVulkanResult(lightingUbo.buffer.Map());
-		}
-
-		void VulkanGLTFModel::UpdateLightUbo()
-		{
-			for(uint32_t i = 0; i<lights.size();i++)
-			{
-				Light light = lights[i];
-				lightingUbo.values.lights[i].color = light.color;
-				lightingUbo.values.lights[i].intensity = light.intensity;
-				lightingUbo.values.lights[i].transform = light.transform;
-				memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
 			}
 		}
 	};
