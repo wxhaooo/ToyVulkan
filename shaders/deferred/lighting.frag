@@ -31,7 +31,7 @@ void main()
 	vec4 albedo = texture(samplerAlbedo, inUV);
 
 	// Ambient part
-	vec3 fragcolor  = vec3(0.0,0.0,0.0);
+	vec3 fragcolor  = vec3(albedo);
 
 	vec3 N = normalize(normal);
 

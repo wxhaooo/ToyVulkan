@@ -163,7 +163,7 @@ void DeferredPBR::LoadAsset()
 			vks::geometry::DescriptorBindingFlags::ImageNormalMap;
 	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
 	// | vks::geometry::PreTransformVertices;
-	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/rubbertoy/rubbertoy.gltf",
+	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
 		vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
 	// gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
 	// 	vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);

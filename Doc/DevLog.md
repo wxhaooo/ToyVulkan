@@ -82,3 +82,17 @@ tinygltf本来就是支持嵌入的jpg和png等格式的，不支持的只有ktx
 存在的bug:
 
 * 缩放窗口时也会导致glfw响应鼠标事件，造成相机视角问题
+
+## 2023-12-18
+
+待做备忘：
+
+* 系统向
+> 从shader生成部分C++代码，目测会有Descriptorset，pipeline，renderPass等
+> shader的自动编译
+> 载入任意格式的gltf (PBR等等)
+
+* 算法向
+> PBR的实现
+> IBL的实现
+> 阴影的实现
