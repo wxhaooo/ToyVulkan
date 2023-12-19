@@ -56,8 +56,9 @@ void DeferredPBR::InitFondation()
 	// camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 
 	// toy
-	camera->SetPosition(glm::vec3(0.0f,0.4f,-2.0f));
-	camera->SetRotation(glm::vec3(0.0f, -45.0f, 0.0f));
+	camera->type = Camera::lookat;
+	camera->SetPosition(glm::vec3(0.065f,-0.03f,-2.7f));
+	camera->SetRotation(glm::vec3(187.0f, 40.0f, 0.0f));
 	camera->SetPerspective(60.0f, (float)viewportWidth / (float)viewportHeight, 0.1f, 256.0f);	
 }
 
@@ -503,11 +504,33 @@ void DeferredPBR::NewGUIFrame()
 	{
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,ImVec2(viewportPanelSize.x,viewportPanelSize.y));
-		
+		float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight);
+		ImVec2 windowSize = ImGui::GetWindowSize();
+		ImVec2 imageSize = ImVec2(viewportWidth * scale, viewportHeight * scale);
+		ImGui::SetCursorPos(ImVec2((windowSize.x - imageSize.x) * 0.5f,(windowSize.y - imageSize.y) * 0.5f));
+		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,imageSize);
 		ImGui::End();
 	}
-	
+
+	if(ImGui::Begin("UI_Status"))
+	{
+		if (ImGui::CollapsingHeader("Camera"))
+		{
+			Camera* camera = Singleton<Camera>::Instance();
+			ImGui::Text("Camera Position: (%g, %g, %g)",
+				camera->position.x,camera->position.y,camera->position.z);
+			ImGui::Text("Camera Rotation: (%g, %g, %g)",
+				camera->rotation.x,camera->rotation.y,camera->rotation.z);
+		}
+
+		if(ImGui::CollapsingHeader("Performance"))
+		{
+			
+		}
+
+		ImGui::End();
+	}
+
 	ImGui::ShowDemoWindow();
 }
 
