@@ -53,9 +53,10 @@ private:
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
 
-    VkDescriptorSetLayout MVPDescriptorSetLayout = VK_NULL_HANDLE;
-    VkPipelineLayout pipelineLayout;
-    std::vector<VkDescriptorSet> descriptorSets;
+    VkDescriptorSetLayout mrtDescriptorSetLayout_Vertex = VK_NULL_HANDLE;
+    VkDescriptorSetLayout mrtDescriptorSetLayout_Fragment = VK_NULL_HANDLE;
+    VkPipelineLayout mrtPipelineLayout;
+    std::vector<VkDescriptorSet> mrtDescriptorSets_Vertex;
 
     VkDescriptorSetLayout lightingDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout lightingPipelineLayout;

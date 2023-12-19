@@ -31,8 +31,8 @@ DeferredPBR::~DeferredPBR()
 	if(pipelines.offscreenWireframe != VK_NULL_HANDLE)
 		vkDestroyPipeline(device,pipelines.offscreenWireframe,nullptr);
 	
-	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device, MVPDescriptorSetLayout, nullptr);
+	vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
 	// lighting
 	if(pipelines.lighting != VK_NULL_HANDLE)
@@ -78,25 +78,43 @@ void DeferredPBR::SetupMrtRenderPass()
 	// Color attachments
 	// Attachment 0: (World space) Positions
 	attachmentInfo.binding = 0;
-	attachmentInfo.name ="G_worldPosition";
+	attachmentInfo.name ="G_WorldPosition";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 1: (World space) Normals
 	attachmentInfo.binding = 1;
-	attachmentInfo.name ="G_worldNormal";
+	attachmentInfo.name ="G_WorldNormal";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 2: Albedo (color)
 	attachmentInfo.binding = 2;
-	attachmentInfo.name ="G_vertexColor";
+	attachmentInfo.name ="G_Color";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
-	// Attachment 3: Depth
-	attachmentInfo.name ="depth";
-	attachmentInfo.binding = 3;
+	// Attachment 3: Roughness
+	attachmentInfo.binding = 2;
+	attachmentInfo.name ="G_Roughness";
+	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	mrtRenderPass->AddAttachment(attachmentInfo);
+
+	// Attachment 4: Emissive
+	attachmentInfo.binding = 2;
+	attachmentInfo.name ="G_Emissive";
+	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	mrtRenderPass->AddAttachment(attachmentInfo);
+
+	// Attachment 5: Occlusion
+	attachmentInfo.binding = 2;
+	attachmentInfo.name ="G_Occlusion";
+	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	mrtRenderPass->AddAttachment(attachmentInfo);
+
+	// Attachment 6: Depth
+	attachmentInfo.name ="Depth";
+	attachmentInfo.binding = 6;
 	attachmentInfo.format = depthFormat;
 	attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
@@ -218,8 +236,8 @@ void DeferredPBR::UpdateUniformBuffers()
 
 void DeferredPBR::SetupDescriptorSets()
 {
-	if(MVPDescriptorSetLayout != VK_NULL_HANDLE)
-		vkDestroyDescriptorSetLayout(device,MVPDescriptorSetLayout,nullptr);
+	if(mrtDescriptorSetLayout_Vertex != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device,mrtDescriptorSetLayout_Vertex,nullptr);
 
 	if(lightingDescriptorSetLayout != VK_NULL_HANDLE)
 		vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
@@ -230,27 +248,27 @@ void DeferredPBR::SetupDescriptorSets()
 	// for mrt pass
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		// 1 for mrt pass => vertex shader, 1 for lighting fragment shader
-		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
+		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100),
 		// 3 for lighting pass => fragment shader
-		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3),
+		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100),
 
 	};
 	// 1 for mrt pass, 1 for lighting pass
-	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 2 * maxFrameInFlight);
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(poolSizes, 100 * maxFrameInFlight);
 	CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
 	// Descriptor set layout for passing matrices
 	VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(&setLayoutBinding, 1);
-	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &MVPDescriptorSetLayout));
+	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &mrtDescriptorSetLayout_Vertex));
 
 	// Descriptor set for scene matrices
-	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &MVPDescriptorSetLayout, 1);
-	descriptorSets.resize(maxFrameInFlight);
+	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &mrtDescriptorSetLayout_Vertex, 1);
+	mrtDescriptorSets_Vertex.resize(maxFrameInFlight);
 	for(uint32_t i=0; i < maxFrameInFlight; i++)
 	{
-		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets[i]));
-		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(descriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
+		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &mrtDescriptorSets_Vertex[i]));
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(mrtDescriptorSets_Vertex[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 	}
 	// for lighting pass
@@ -289,7 +307,7 @@ void DeferredPBR::PrepareMrtPipeline()
 	// create pipeline layout
 	// Pipeline layout using both descriptor sets (set 0 = matrices, set 1 = material)
 	std::vector<VkDescriptorSetLayout> setLayouts;
-	setLayouts.push_back(MVPDescriptorSetLayout);
+	setLayouts.push_back(mrtDescriptorSetLayout_Vertex);
 	setLayouts.push_back(vks::geometry::descriptorSetLayoutImage);
 	VkPipelineLayoutCreateInfo pipelineLayoutCI= vks::initializers::PipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
 	// We will use push constants to push the local matrices of a primitive to the vertex shader
@@ -297,15 +315,18 @@ void DeferredPBR::PrepareMrtPipeline()
 	// Push constant ranges are part of the pipeline layout
 	pipelineLayoutCI.pushConstantRangeCount = 1;
 	pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
-	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
+	CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &mrtPipelineLayout));
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
-	std::array<VkPipelineColorBlendAttachmentState, 3> blendAttachmentStates =
+	std::array<VkPipelineColorBlendAttachmentState, 6> blendAttachmentStates =
 	{
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
-		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE)
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 	};
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(blendAttachmentStates.size(), blendAttachmentStates.data());
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -336,7 +357,7 @@ void DeferredPBR::PrepareMrtPipeline()
 	};
 
 	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
-	pipelineCI.layout = pipelineLayout;
+	pipelineCI.layout = mrtPipelineLayout;
 	pipelineCI.renderPass = renderPass;
 	pipelineCI.pVertexInputState = &vertexInputStateCI;
 	pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
@@ -418,9 +439,9 @@ void DeferredPBR::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	// Bind scene matrices descriptor to set 0
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mrtPipelineLayout, 0, 1, &mrtDescriptorSets_Vertex[currentFrame], 0, nullptr);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
-	gltfModel->Draw(commandBuffer,vks::geometry::RenderFlags::BindImages, true, pipelineLayout,1);
+	gltfModel->Draw(commandBuffer,vks::geometry::RenderFlags::BindImages, true, mrtPipelineLayout,1);
 }
 
 void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
@@ -522,15 +543,15 @@ void DeferredPBR::NewGUIFrame()
 			ImGui::Text("Camera Rotation: (%g, %g, %g)",
 				camera->rotation.x,camera->rotation.y,camera->rotation.z);
 		}
-
+	
 		if(ImGui::CollapsingHeader("Performance"))
 		{
 			
 		}
-
+	
 		ImGui::End();
 	}
-
+	
 	ImGui::ShowDemoWindow();
 }
 
