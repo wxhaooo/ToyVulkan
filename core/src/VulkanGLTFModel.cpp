@@ -426,7 +426,9 @@ namespace vks
 			CheckVulkanResult(vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &descriptorSet));
 			std::vector<VkDescriptorImageInfo> imageDescriptors{};
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
-			if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
+			
+			if (baseColorTexture != nullptr)
+			{
 				imageDescriptors.push_back(baseColorTexture->descriptor);
 				VkWriteDescriptorSet writeDescriptorSet{};
 				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -437,7 +439,9 @@ namespace vks
 				writeDescriptorSet.pImageInfo = &baseColorTexture->descriptor;
 				writeDescriptorSets.push_back(writeDescriptorSet);
 			}
-			if (normalTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
+			
+			if (normalTexture != nullptr)
+			{
 				imageDescriptors.push_back(normalTexture->descriptor);
 				VkWriteDescriptorSet writeDescriptorSet{};
 				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -448,6 +452,46 @@ namespace vks
 				writeDescriptorSet.pImageInfo = &normalTexture->descriptor;
 				writeDescriptorSets.push_back(writeDescriptorSet);
 			}
+
+			if(metallicRoughnessTexture != nullptr)
+			{
+				imageDescriptors.push_back(metallicRoughnessTexture->descriptor);
+				VkWriteDescriptorSet writeDescriptorSet{};
+				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				writeDescriptorSet.descriptorCount = 1;
+				writeDescriptorSet.dstSet = descriptorSet;
+				writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
+				writeDescriptorSet.pImageInfo = &metallicRoughnessTexture->descriptor;
+				writeDescriptorSets.push_back(writeDescriptorSet);
+			}
+
+			if(emissiveTexture != nullptr)
+			{
+				imageDescriptors.push_back(emissiveTexture->descriptor);
+				VkWriteDescriptorSet writeDescriptorSet{};
+				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				writeDescriptorSet.descriptorCount = 1;
+				writeDescriptorSet.dstSet = descriptorSet;
+				writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
+				writeDescriptorSet.pImageInfo = &emissiveTexture->descriptor;
+				writeDescriptorSets.push_back(writeDescriptorSet);
+			}
+
+			if(occlusionTexture != nullptr)
+			{
+				imageDescriptors.push_back(occlusionTexture->descriptor);
+				VkWriteDescriptorSet writeDescriptorSet{};
+				writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				writeDescriptorSet.descriptorCount = 1;
+				writeDescriptorSet.dstSet = descriptorSet;
+				writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
+				writeDescriptorSet.pImageInfo = &occlusionTexture->descriptor;
+				writeDescriptorSets.push_back(writeDescriptorSet);
+			}
+			
 			vkUpdateDescriptorSets(device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 		}
 		
@@ -1033,21 +1077,15 @@ namespace vks
 				}
 			}
 			std::vector<VkDescriptorPoolSize> poolSizes = {
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uboCount },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+				{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000}
 			};
-			if (imageCount > 0) {
-				if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-					poolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageCount });
-				}
-				if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-					poolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageCount });
-				}
-			}
+			
 			VkDescriptorPoolCreateInfo descriptorPoolCI{};
 			descriptorPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 			descriptorPoolCI.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 			descriptorPoolCI.pPoolSizes = poolSizes.data();
-			descriptorPoolCI.maxSets = uboCount + imageCount;
+			descriptorPoolCI.maxSets = 100000;
 			CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
 
 			// Descriptors for per-node uniform buffers
@@ -1072,13 +1110,15 @@ namespace vks
 			{
 				// Layout is global, so only create if it hasn't already been created before
 				if (descriptorSetLayoutImage == VK_NULL_HANDLE) {
-					std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
-					if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-						setLayoutBindings.push_back(vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
-					}
-					if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-						setLayoutBindings.push_back(vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
-					}
+					std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings
+					{
+						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+					};
+					
 					VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
 					descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 					descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());

@@ -95,19 +95,19 @@ void DeferredPBR::SetupMrtRenderPass()
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 3: Roughness
-	attachmentInfo.binding = 2;
+	attachmentInfo.binding = 3;
 	attachmentInfo.name ="G_Roughness";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 4: Emissive
-	attachmentInfo.binding = 2;
+	attachmentInfo.binding = 4;
 	attachmentInfo.name ="G_Emissive";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 5: Occlusion
-	attachmentInfo.binding = 2;
+	attachmentInfo.binding = 5;
 	attachmentInfo.name ="G_Occlusion";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
@@ -277,7 +277,10 @@ void DeferredPBR::SetupDescriptorSets()
 		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
 		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 6),
 	};
 
 	descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
@@ -455,11 +458,16 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.renderArea.offset = {0, 0};
 	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
 
-	std::array<VkClearValue, 4> clearValues{};
+	std::array<VkClearValue, 8> clearValues{};
 	clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
 	clearValues[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
 	clearValues[2].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[3].depthStencil = {1.0f, 0};
+	clearValues[3].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	clearValues[4].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	clearValues[5].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	clearValues[6].color = {0.0f, 0.0f, 0.0f, 1.0f};
+
+	clearValues[7].depthStencil = {1.0f, 0};
 
 	renderPassBeginInfo.clearValueCount = clearValues.size();
 	renderPassBeginInfo.pClearValues = clearValues.data();
@@ -468,30 +476,30 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	BuildCommandBuffers(commandBuffer);
 	vkCmdEndRenderPass(commandBuffer);
 
-	// lighting renderPass
-	vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
-	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
-	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
-	
-	std::array<VkClearValue, 2> clearValues1{};
-	clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	
-	renderPassBeginInfo.clearValueCount = clearValues.size();
-	renderPassBeginInfo.pClearValues = clearValues.data();
-	
-	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
-	
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-	vkCmdEndRenderPass(commandBuffer);
+	// // lighting renderPass
+	// vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+	// renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+	// renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
+	// renderPassBeginInfo.renderArea.offset = {0, 0};
+	// renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
+	//
+	// std::array<VkClearValue, 2> clearValues1{};
+	// clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	// clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	//
+	// renderPassBeginInfo.clearValueCount = clearValues.size();
+	// renderPassBeginInfo.pClearValues = clearValues.data();
+	//
+	// vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+	// const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
+	//
+	// vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	// vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	// vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
+	// vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
+	// vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	// vkCmdEndRenderPass(commandBuffer);
 }
 
 void DeferredPBR::ReCreateVulkanResource_Child()
@@ -521,17 +529,17 @@ void DeferredPBR::NewGUIFrame()
 		ImGui::End();
 	}
 
-	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
-	{
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-		float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight);
-		ImVec2 windowSize = ImGui::GetWindowSize();
-		ImVec2 imageSize = ImVec2(viewportWidth * scale, viewportHeight * scale);
-		ImGui::SetCursorPos(ImVec2((windowSize.x - imageSize.x) * 0.5f,(windowSize.y - imageSize.y) * 0.5f));
-		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,imageSize);
-		ImGui::End();
-	}
+	// if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
+	// {
+	// 	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+	// 	vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+	// 	float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight);
+	// 	ImVec2 windowSize = ImGui::GetWindowSize();
+	// 	ImVec2 imageSize = ImVec2(viewportWidth * scale, viewportHeight * scale);
+	// 	ImGui::SetCursorPos(ImVec2((windowSize.x - imageSize.x) * 0.5f,(windowSize.y - imageSize.y) * 0.5f));
+	// 	ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,imageSize);
+	// 	ImGui::End();
+	// }
 
 	if(ImGui::Begin("UI_Status"))
 	{

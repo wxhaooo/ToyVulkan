@@ -17,7 +17,7 @@ struct Light
 	vec4 color;
 };
 
-layout (binding = 3) uniform UBO
+layout (binding = 6) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
 	vec4 viewPos;
