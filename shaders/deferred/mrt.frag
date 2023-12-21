@@ -16,8 +16,8 @@ layout (location = 0) out vec4 outPosition;
 layout (location = 1) out vec4 outNormal;
 layout (location = 2) out vec4 outAlbedo;
 layout (location = 3) out vec4 outRoughness;
-layout (location = 4) out vec4 outEmissive;
-layout (location = 5) out vec4 outOcclusion;
+// layout (location = 4) out vec4 outEmissive;
+// layout (location = 5) out vec4 outOcclusion;
 
 
 void main() 
@@ -36,6 +36,6 @@ void main()
 	outNormal = vec4(tnorm, 1.0);
 
 	outRoughness = texture(samplerRoughness, inUV);
-	outEmissive = texture(samplerEmissive, inUV);
-	outOcclusion = texture(samplerOcclusion,inUV);
+	// outEmissive = texture(samplerEmissive, inUV);
+	// outOcclusion = texture(samplerOcclusion,inUV);
 }

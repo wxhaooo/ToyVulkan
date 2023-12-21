@@ -34,14 +34,14 @@ DeferredPBR::~DeferredPBR()
 	vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
-	// lighting
-	if(pipelines.lighting != VK_NULL_HANDLE)
-		vkDestroyPipeline(device,pipelines.lighting,nullptr);
-	vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
-	vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
+	// // lighting
+	// if(pipelines.lighting != VK_NULL_HANDLE)
+	// 	vkDestroyPipeline(device,pipelines.lighting,nullptr);
+	// vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
+	// vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
 
 	shaderData.buffer.Destroy();
-	lightingUbo.buffer.Destroy();
+	// lightingUbo.buffer.Destroy();
 }
 
 void DeferredPBR::InitFondation()
@@ -100,21 +100,21 @@ void DeferredPBR::SetupMrtRenderPass()
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
-	// Attachment 4: Emissive
-	attachmentInfo.binding = 4;
-	attachmentInfo.name ="G_Emissive";
-	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-	mrtRenderPass->AddAttachment(attachmentInfo);
+	// // Attachment 4: Emissive
+	// attachmentInfo.binding = 4;
+	// attachmentInfo.name ="G_Emissive";
+	// attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	// mrtRenderPass->AddAttachment(attachmentInfo);
 
-	// Attachment 5: Occlusion
-	attachmentInfo.binding = 5;
-	attachmentInfo.name ="G_Occlusion";
-	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-	mrtRenderPass->AddAttachment(attachmentInfo);
+	// // Attachment 5: Occlusion
+	// attachmentInfo.binding = 5;
+	// attachmentInfo.name ="G_Occlusion";
+	// attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	// mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 6: Depth
 	attachmentInfo.name ="Depth";
-	attachmentInfo.binding = 6;
+	attachmentInfo.binding = 4;
 	attachmentInfo.format = depthFormat;
 	attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
@@ -162,7 +162,7 @@ void DeferredPBR::Prepare()
 
 	// render pass
 	SetupMrtRenderPass();
-	SetupLightingRenderPass();
+	// SetupLightingRenderPass();
 	
     LoadAsset();
 	PrepareUniformBuffers();
@@ -170,7 +170,7 @@ void DeferredPBR::Prepare()
 
 	// prepare pipelines
 	PrepareMrtPipeline();
-	PrepareLightingPipeline();
+	// PrepareLightingPipeline();
 	prepared = true;
 }
 
@@ -200,15 +200,15 @@ void DeferredPBR::PrepareUniformBuffers()
     // Map persistent
     CheckVulkanResult(shaderData.buffer.Map());
 
-	// lighting uniform buffer
-	CheckVulkanResult(vulkanDevice->CreateBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				&lightingUbo.buffer,
-				sizeof(lightingUbo.values)));
-
-	// Map persistent
-	CheckVulkanResult(lightingUbo.buffer.Map());
+	// // lighting uniform buffer
+	// CheckVulkanResult(vulkanDevice->CreateBuffer(
+	// 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+	// 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	// 			&lightingUbo.buffer,
+	// 			sizeof(lightingUbo.values)));
+	//
+	// // Map persistent
+	// CheckVulkanResult(lightingUbo.buffer.Map());
 
     UpdateUniformBuffers();
 }
@@ -221,16 +221,16 @@ void DeferredPBR::UpdateUniformBuffers()
     memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
 
 	
-	for(uint32_t i = 0; i<gltfModel->lights.size();i++)
-	{
-		vks::geometry::Light light = gltfModel->lights[i];
-		lightingUbo.values.lights[i].color = light.color;
-		lightingUbo.values.lights[i].intensity = light.intensity;
-		lightingUbo.values.lights[i].position = light.position;
-	}
-
-	lightingUbo.values.viewPos = camera->viewPos;
-	memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
+	// for(uint32_t i = 0; i<gltfModel->lights.size();i++)
+	// {
+	// 	vks::geometry::Light light = gltfModel->lights[i];
+	// 	lightingUbo.values.lights[i].color = light.color;
+	// 	lightingUbo.values.lights[i].intensity = light.intensity;
+	// 	lightingUbo.values.lights[i].position = light.position;
+	// }
+	//
+	// lightingUbo.values.viewPos = camera->viewPos;
+	// memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
 
 }
 
@@ -271,38 +271,38 @@ void DeferredPBR::SetupDescriptorSets()
 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(mrtDescriptorSets_Vertex[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 	}
-	// for lighting pass
-	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
-	{
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
-		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 6),
-	};
-
-	descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
-	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &lightingDescriptorSetLayout));
-	allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &lightingDescriptorSetLayout, 1);
-	lightingDescriptorSets.resize(maxFrameInFlight);
-	for(uint32_t i=0; i < maxFrameInFlight; i++)
-	{
-		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &lightingDescriptorSets[i]));
-		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(i);
-		// attachment
-		for(uint32_t s = 0; s < frameBuffer->attachments.size(); s++)
-		{
-			if(frameBuffer->attachments[s].IsDepthStencil()) continue;
-			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s, &frameBuffer->attachments[s].descriptor);
-			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-		}
-		// lighting uniform buffer
-		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			frameBuffer->attachments.size() - 1, &lightingUbo.buffer.descriptor);
-		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-	}
+	// // for lighting pass
+	// std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+	// {
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
+	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 6),
+	// };
+	//
+	// descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
+	// CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &lightingDescriptorSetLayout));
+	// allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &lightingDescriptorSetLayout, 1);
+	// lightingDescriptorSets.resize(maxFrameInFlight);
+	// for(uint32_t i=0; i < maxFrameInFlight; i++)
+	// {
+	// 	CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &lightingDescriptorSets[i]));
+	// 	vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(i);
+	// 	// attachment
+	// 	for(uint32_t s = 0; s < frameBuffer->attachments.size(); s++)
+	// 	{
+	// 		if(frameBuffer->attachments[s].IsDepthStencil()) continue;
+	// 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s, &frameBuffer->attachments[s].descriptor);
+	// 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	// 	}
+	// 	// lighting uniform buffer
+	// 	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+	// 		frameBuffer->attachments.size() - 1, &lightingUbo.buffer.descriptor);
+	// 	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	// }
 }
 
 void DeferredPBR::PrepareMrtPipeline()
@@ -322,14 +322,14 @@ void DeferredPBR::PrepareMrtPipeline()
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
-	std::array<VkPipelineColorBlendAttachmentState, 6> blendAttachmentStates =
+	std::vector<VkPipelineColorBlendAttachmentState> blendAttachmentStates =
 	{
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
-		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
-		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		// vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		// vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 	};
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(blendAttachmentStates.size(), blendAttachmentStates.data());
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -458,16 +458,19 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	renderPassBeginInfo.renderArea.offset = {0, 0};
 	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
 
-	std::array<VkClearValue, 8> clearValues{};
-	clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[2].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[3].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[4].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[5].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues[6].color = {0.0f, 0.0f, 0.0f, 1.0f};
-
-	clearValues[7].depthStencil = {1.0f, 0};
+	std::vector<VkClearValue> clearValues
+	{
+		{0.0f, 0.0f, 0.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f, 1.0f},
+		// {0.0f, 0.0f, 0.0f, 1.0f},
+		// {0.0f, 0.0f, 0.0f, 1.0f},
+	};
+	
+	VkClearValue depthClearValue;
+	depthClearValue.depthStencil = {0.0f,1};
+	clearValues.push_back(depthClearValue);
 
 	renderPassBeginInfo.clearValueCount = clearValues.size();
 	renderPassBeginInfo.pClearValues = clearValues.data();
@@ -507,8 +510,8 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 	mrtRenderPass.reset();
 	SetupMrtRenderPass();
 
-	lightingRenderPass.reset();
-	SetupLightingRenderPass();
+	// lightingRenderPass.reset();
+	// SetupLightingRenderPass();
 
 	SetupDescriptorSets();
 }
@@ -525,7 +528,7 @@ void DeferredPBR::NewGUIFrame()
 			if(!frameBuffer->attachments[i].HasDepth() && !frameBuffer->attachments[i].HasStencil())
 				ImGui::Image((ImTextureID)frameBuffer->attachments[i].descriptorSet,ImVec2(viewportWidth * scale, viewportHeight * scale));
 		}
-
+	
 		ImGui::End();
 	}
 

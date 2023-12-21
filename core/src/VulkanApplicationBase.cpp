@@ -118,6 +118,8 @@ bool VulkanApplicationBase::InitVulkan()
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
 
+    std::cout<<"maxColorAttachments:"<<deviceProperties.limits.maxColorAttachments<<"\n";
+
     // derived class can override this to set actual features (based on above readings) to enable for logical device creation
     GetEnabledFeatures();
 
