@@ -6,7 +6,7 @@ layout (binding = 1) uniform sampler2D samplerNormal;
 layout (binding = 2) uniform sampler2D samplerAlbedo;
 layout (binding = 3) uniform sampler2D samplerRoughness;
 layout (binding = 4) uniform sampler2D samplerEmissive;
-layout (binding = 5) uniform sampler2D samplerOcclusion;
+// layout (binding = 5) uniform sampler2D samplerOcclusion;
 
 #define LIGHT_COUNT 2
 
@@ -17,7 +17,7 @@ struct Light
 	vec4 color;
 };
 
-layout (binding = 6) uniform UBO
+layout (binding = 5) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
 	vec4 viewPos;

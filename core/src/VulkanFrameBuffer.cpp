@@ -4,33 +4,17 @@ namespace vks
 {
 	bool FramebufferAttachment::HasDepth()
 	{
-		std::vector<VkFormat> formats = 
-		{
-			VK_FORMAT_D16_UNORM,
-			VK_FORMAT_X8_D24_UNORM_PACK32,
-			VK_FORMAT_D32_SFLOAT,
-			VK_FORMAT_D16_UNORM_S8_UINT,
-			VK_FORMAT_D24_UNORM_S8_UINT,
-			VK_FORMAT_D32_SFLOAT_S8_UINT,
-		};
-		return std::find(formats.begin(), formats.end(), format) != std::end(formats);
+		return utils::HasDepth(format);
 	}
 
 	bool FramebufferAttachment::HasStencil()
 	{
-		std::vector<VkFormat> formats = 
-		{
-			VK_FORMAT_S8_UINT,
-			VK_FORMAT_D16_UNORM_S8_UINT,
-			VK_FORMAT_D24_UNORM_S8_UINT,
-			VK_FORMAT_D32_SFLOAT_S8_UINT,
-		};
-		return std::find(formats.begin(), formats.end(), format) != std::end(formats);
+		return utils::HasStencil(format);
 	}
 
 	bool FramebufferAttachment::IsDepthStencil()
 	{
-		return(HasDepth() || HasStencil());
+		return(utils::HasDepth(format) || utils::HasStencil(format));
 	}
 
 	FrameBuffer::FrameBuffer(VulkanDevice* device):vulkanDevice(device)

@@ -16,7 +16,7 @@ layout (location = 0) out vec4 outPosition;
 layout (location = 1) out vec4 outNormal;
 layout (location = 2) out vec4 outAlbedo;
 layout (location = 3) out vec4 outRoughness;
-// layout (location = 4) out vec4 outEmissive;
+layout (location = 4) out vec4 outEmissive;
 // layout (location = 5) out vec4 outOcclusion;
 
 
@@ -32,10 +32,10 @@ void main()
 	vec3 B = cross(N, T);
 	mat3 TBN = mat3(T, B, N);
 	outNormal = vec4(N,1.0);
-	vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
-	outNormal = vec4(tnorm, 1.0);
+	// vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
+	// outNormal = vec4(tnorm, 1.0);
 
 	outRoughness = texture(samplerRoughness, inUV);
-	// outEmissive = texture(samplerEmissive, inUV);
+	outEmissive = texture(samplerEmissive, inUV);
 	// outOcclusion = texture(samplerOcclusion,inUV);
 }

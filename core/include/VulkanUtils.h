@@ -26,5 +26,11 @@ namespace vks
 			VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
     	VkShaderModule LoadShader(const char *fileName, VkDevice device);
+
+    	bool HasDepth(VkFormat format);
+
+    	bool HasStencil(VkFormat format);
+
+    	bool IsDepthStencil(VkFormat format);
     }    
 }

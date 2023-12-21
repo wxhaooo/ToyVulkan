@@ -43,7 +43,8 @@ namespace vks
 	VulkanRenderPass::VulkanRenderPass(const std::string& renderPassName, VulkanDevice* device)
 	:name(renderPassName),vulkanDevice(device)
 	{
-		
+		attachmentCount = 0;
+		colorAttachmentCount = 0;
 	}
 
 	VulkanRenderPass::~VulkanRenderPass()
@@ -171,9 +172,22 @@ namespace vks
 			vulkanFrameBuffer->CrateDescriptorSet();
 	}
 
+	int VulkanRenderPass::AttachmentCount()
+	{
+		return attachmentCount;
+	}
+
+	int VulkanRenderPass::ColorAttachmentCount()
+	{
+		return colorAttachmentCount;	
+	}
+
 	void VulkanRenderPass::AddAttachment(vks::AttachmentCreateInfo attachmentInfo)
 	{
 		vulkanFrameBuffer->AddAttachment(attachmentInfo);
+		attachmentCount++;
+		if(!utils::IsDepthStencil(attachmentInfo.format))
+			colorAttachmentCount++;
 	}
 
 	void VulkanRenderPass::AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)

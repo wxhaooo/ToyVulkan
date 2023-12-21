@@ -56,9 +56,15 @@ namespace vks
         void CreateRenderPass();
 
         void CreateDescriptorSet();
+
+        int AttachmentCount();
+
+        int ColorAttachmentCount();
     
     private:
         std::string name;
+        int attachmentCount = 0;
+        int colorAttachmentCount = 0;
         VulkanDevice* vulkanDevice = nullptr;
 
     };

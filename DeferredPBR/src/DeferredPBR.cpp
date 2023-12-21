@@ -34,14 +34,14 @@ DeferredPBR::~DeferredPBR()
 	vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
-	// // lighting
-	// if(pipelines.lighting != VK_NULL_HANDLE)
-	// 	vkDestroyPipeline(device,pipelines.lighting,nullptr);
-	// vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
-	// vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
+	// lighting
+	if(pipelines.lighting != VK_NULL_HANDLE)
+		vkDestroyPipeline(device,pipelines.lighting,nullptr);
+	vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
+	vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
 
 	shaderData.buffer.Destroy();
-	// lightingUbo.buffer.Destroy();
+	lightingUbo.buffer.Destroy();
 }
 
 void DeferredPBR::InitFondation()
@@ -77,34 +77,34 @@ void DeferredPBR::SetupMrtRenderPass()
 	attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	// Color attachments
 	// Attachment 0: (World space) Positions
-	attachmentInfo.binding = 0;
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
 	attachmentInfo.name ="G_WorldPosition";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 1: (World space) Normals
-	attachmentInfo.binding = 1;
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
 	attachmentInfo.name ="G_WorldNormal";
 	attachmentInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 2: Albedo (color)
-	attachmentInfo.binding = 2;
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
 	attachmentInfo.name ="G_Color";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// Attachment 3: Roughness
-	attachmentInfo.binding = 3;
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
 	attachmentInfo.name ="G_Roughness";
 	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 	mrtRenderPass->AddAttachment(attachmentInfo);
 
-	// // Attachment 4: Emissive
-	// attachmentInfo.binding = 4;
-	// attachmentInfo.name ="G_Emissive";
-	// attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-	// mrtRenderPass->AddAttachment(attachmentInfo);
+	// Attachment 4: Emissive
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
+	attachmentInfo.name ="G_Emissive";
+	attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+	mrtRenderPass->AddAttachment(attachmentInfo);
 
 	// // Attachment 5: Occlusion
 	// attachmentInfo.binding = 5;
@@ -114,7 +114,7 @@ void DeferredPBR::SetupMrtRenderPass()
 
 	// Attachment 6: Depth
 	attachmentInfo.name ="Depth";
-	attachmentInfo.binding = 4;
+	attachmentInfo.binding = mrtRenderPass->AttachmentCount();
 	attachmentInfo.format = depthFormat;
 	attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	mrtRenderPass->AddAttachment(attachmentInfo);
@@ -162,7 +162,7 @@ void DeferredPBR::Prepare()
 
 	// render pass
 	SetupMrtRenderPass();
-	// SetupLightingRenderPass();
+	SetupLightingRenderPass();
 	
     LoadAsset();
 	PrepareUniformBuffers();
@@ -170,7 +170,7 @@ void DeferredPBR::Prepare()
 
 	// prepare pipelines
 	PrepareMrtPipeline();
-	// PrepareLightingPipeline();
+	PrepareLightingPipeline();
 	prepared = true;
 }
 
@@ -200,15 +200,15 @@ void DeferredPBR::PrepareUniformBuffers()
     // Map persistent
     CheckVulkanResult(shaderData.buffer.Map());
 
-	// // lighting uniform buffer
-	// CheckVulkanResult(vulkanDevice->CreateBuffer(
-	// 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-	// 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-	// 			&lightingUbo.buffer,
-	// 			sizeof(lightingUbo.values)));
-	//
-	// // Map persistent
-	// CheckVulkanResult(lightingUbo.buffer.Map());
+	// lighting uniform buffer
+	CheckVulkanResult(vulkanDevice->CreateBuffer(
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&lightingUbo.buffer,
+				sizeof(lightingUbo.values)));
+	
+	// Map persistent
+	CheckVulkanResult(lightingUbo.buffer.Map());
 
     UpdateUniformBuffers();
 }
@@ -221,16 +221,16 @@ void DeferredPBR::UpdateUniformBuffers()
     memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
 
 	
-	// for(uint32_t i = 0; i<gltfModel->lights.size();i++)
-	// {
-	// 	vks::geometry::Light light = gltfModel->lights[i];
-	// 	lightingUbo.values.lights[i].color = light.color;
-	// 	lightingUbo.values.lights[i].intensity = light.intensity;
-	// 	lightingUbo.values.lights[i].position = light.position;
-	// }
-	//
-	// lightingUbo.values.viewPos = camera->viewPos;
-	// memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
+	for(uint32_t i = 0; i<gltfModel->lights.size();i++)
+	{
+		vks::geometry::Light light = gltfModel->lights[i];
+		lightingUbo.values.lights[i].color = light.color;
+		lightingUbo.values.lights[i].intensity = light.intensity;
+		lightingUbo.values.lights[i].position = light.position;
+	}
+	
+	lightingUbo.values.viewPos = camera->viewPos;
+	memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
 
 }
 
@@ -271,38 +271,38 @@ void DeferredPBR::SetupDescriptorSets()
 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(mrtDescriptorSets_Vertex[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 	}
-	// // for lighting pass
-	// std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
-	// {
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
-	// 	vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 6),
-	// };
-	//
-	// descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
-	// CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &lightingDescriptorSetLayout));
-	// allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &lightingDescriptorSetLayout, 1);
-	// lightingDescriptorSets.resize(maxFrameInFlight);
-	// for(uint32_t i=0; i < maxFrameInFlight; i++)
-	// {
-	// 	CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &lightingDescriptorSets[i]));
-	// 	vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(i);
-	// 	// attachment
-	// 	for(uint32_t s = 0; s < frameBuffer->attachments.size(); s++)
-	// 	{
-	// 		if(frameBuffer->attachments[s].IsDepthStencil()) continue;
-	// 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s, &frameBuffer->attachments[s].descriptor);
-	// 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-	// 	}
-	// 	// lighting uniform buffer
-	// 	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	// 		frameBuffer->attachments.size() - 1, &lightingUbo.buffer.descriptor);
-	// 	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-	// }
+	// for lighting pass
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+	{
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+		// vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
+		vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
+	};
+	
+	descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(setLayoutBindings);
+	CheckVulkanResult(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &lightingDescriptorSetLayout));
+	allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool, &lightingDescriptorSetLayout, 1);
+	lightingDescriptorSets.resize(maxFrameInFlight);
+	for(uint32_t i=0; i < maxFrameInFlight; i++)
+	{
+		CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &lightingDescriptorSets[i]));
+		vks::FrameBuffer* frameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(i);
+		// attachment
+		for(uint32_t s = 0; s < frameBuffer->attachments.size(); s++)
+		{
+			if(frameBuffer->attachments[s].IsDepthStencil()) continue;
+			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s, &frameBuffer->attachments[s].descriptor);
+			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+		}
+		// lighting uniform buffer
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			mrtRenderPass->ColorAttachmentCount(), &lightingUbo.buffer.descriptor);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	}
 }
 
 void DeferredPBR::PrepareMrtPipeline()
@@ -328,7 +328,7 @@ void DeferredPBR::PrepareMrtPipeline()
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
-		// vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+		vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 		// vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
 	};
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(blendAttachmentStates.size(), blendAttachmentStates.data());
@@ -464,12 +464,12 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 		{0.0f, 0.0f, 0.0f, 1.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
-		// {0.0f, 0.0f, 0.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f, 1.0f},
 		// {0.0f, 0.0f, 0.0f, 1.0f},
 	};
 	
 	VkClearValue depthClearValue;
-	depthClearValue.depthStencil = {0.0f,1};
+	depthClearValue.depthStencil = {1.0f,0};
 	clearValues.push_back(depthClearValue);
 
 	renderPassBeginInfo.clearValueCount = clearValues.size();
@@ -479,30 +479,30 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 	BuildCommandBuffers(commandBuffer);
 	vkCmdEndRenderPass(commandBuffer);
 
-	// // lighting renderPass
-	// vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-	// renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
-	// renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
-	// renderPassBeginInfo.renderArea.offset = {0, 0};
-	// renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
-	//
-	// std::array<VkClearValue, 2> clearValues1{};
-	// clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	// clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	//
-	// renderPassBeginInfo.clearValueCount = clearValues.size();
-	// renderPassBeginInfo.pClearValues = clearValues.data();
-	//
-	// vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-	// const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
-	// const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
-	//
-	// vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	// vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	// vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
-	// vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
-	// vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-	// vkCmdEndRenderPass(commandBuffer);
+	// lighting renderPass
+	vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
+	renderPassBeginInfo.renderArea.offset = {0, 0};
+	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
+	
+	std::array<VkClearValue, 2> clearValues1{};
+	clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
+	
+	renderPassBeginInfo.clearValueCount = clearValues.size();
+	renderPassBeginInfo.pClearValues = clearValues.data();
+	
+	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
+	
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	vkCmdEndRenderPass(commandBuffer);
 }
 
 void DeferredPBR::ReCreateVulkanResource_Child()
@@ -510,8 +510,8 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 	mrtRenderPass.reset();
 	SetupMrtRenderPass();
 
-	// lightingRenderPass.reset();
-	// SetupLightingRenderPass();
+	lightingRenderPass.reset();
+	SetupLightingRenderPass();
 
 	SetupDescriptorSets();
 }
@@ -532,17 +532,17 @@ void DeferredPBR::NewGUIFrame()
 		ImGui::End();
 	}
 
-	// if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
-	// {
-	// 	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-	// 	vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-	// 	float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight);
-	// 	ImVec2 windowSize = ImGui::GetWindowSize();
-	// 	ImVec2 imageSize = ImVec2(viewportWidth * scale, viewportHeight * scale);
-	// 	ImGui::SetCursorPos(ImVec2((windowSize.x - imageSize.x) * 0.5f,(windowSize.y - imageSize.y) * 0.5f));
-	// 	ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,imageSize);
-	// 	ImGui::End();
-	// }
+	if(ImGui::Begin("UI_View",nullptr, ImGuiWindowFlags_ForwardBackend))
+	{
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		vks::FrameBuffer* frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		float scale = std::min(viewportPanelSize.x / (float)viewportWidth, viewportPanelSize.y / (float)viewportHeight);
+		ImVec2 windowSize = ImGui::GetWindowSize();
+		ImVec2 imageSize = ImVec2(viewportWidth * scale, viewportHeight * scale);
+		ImGui::SetCursorPos(ImVec2((windowSize.x - imageSize.x) * 0.5f,(windowSize.y - imageSize.y) * 0.5f));
+		ImGui::Image((ImTextureID)frameBuffer->attachments[0].descriptorSet,imageSize);
+		ImGui::End();
+	}
 
 	if(ImGui::Begin("UI_Status"))
 	{
