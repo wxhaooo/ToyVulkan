@@ -6,6 +6,20 @@ layout (set = 1, binding = 2) uniform sampler2D samplerRoughness;
 layout (set = 1, binding = 3) uniform sampler2D samplerEmissive;
 layout (set = 1, binding = 4) uniform sampler2D samplerOcclusion;
 
+// struct HasSampler
+// {
+// 	bool hasBaseColor;
+// 	bool hasNormal;
+// 	bool hasRoughness;
+// 	bool hasEmissive;
+// 	bool hasOcclusion;
+// };
+
+// layout(set = 1, binding = 8) uniform HasSamplerUBO
+// {
+// 	HasSampler hasSampler[];
+// }hasSamperUbo;
+
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec2 inUV;
 layout (location = 2) in vec3 inColor;

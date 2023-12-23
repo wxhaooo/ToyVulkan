@@ -108,8 +108,27 @@ namespace vks
 			// To keep things simple, they only contain those properties that are required for this sample
 			struct Node;
 
+			struct HasSampler
+			{
+				alignas(4) bool hasBaseColor;
+				alignas(4) bool hasNormal;
+				alignas(4) bool hasRoughness;
+				alignas(4) bool hasEmissive;
+				alignas(4) bool hasOcclusion;
+			};
+
+			struct HasSamplerUBO
+			{
+				vks::Buffer buffer;
+				struct Values
+				{
+					HasSampler* hasSampler;
+				} values;
+			} samplerUbo;
+
 			// A glTF material stores information in e.g. the texture that is attached to it and colors
 			struct Material {
+				int index = 0;
 				VulkanDevice* device = nullptr;
 				enum AlphaMode { ALPHAMODE_OPAQUE, ALPHAMODE_MASK, ALPHAMODE_BLEND };
 				AlphaMode alphaMode = ALPHAMODE_OPAQUE;

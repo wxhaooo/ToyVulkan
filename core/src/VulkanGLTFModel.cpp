@@ -5,6 +5,9 @@
 #include <tiny_gltf.h>
 
 #include <MathUtils.h>
+#include <cstdlib>
+#include <cstdio>
+#include <malloc.h>
 
 #ifdef WIN32
 #undef min
@@ -664,6 +667,7 @@ namespace vks
 				if (mat.additionalValues.find("alphaCutoff") != mat.additionalValues.end())
 					material.alphaCutoff = static_cast<float>(mat.additionalValues["alphaCutoff"].Factor());
 
+				material.index = materials.size();
 				materials.push_back(material);
 			}
 
@@ -1117,6 +1121,8 @@ namespace vks
 						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
 						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
 						initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+
+						// initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_FRAGMENT_BIT, 8),
 					};
 					
 					VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
@@ -1125,11 +1131,30 @@ namespace vks
 					descriptorLayoutCI.pBindings = setLayoutBindings.data();
 					CheckVulkanResult(vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorLayoutCI, nullptr, &descriptorSetLayoutImage));
 				}
+            	
 				for (auto& material : materials) {
 					if (material.baseColorTexture != nullptr) {
 						material.CreateDescriptorSet(descriptorPool, descriptorSetLayoutImage, descriptorBindingFlags);
 					}
 				}
+
+  //           	// create sampler uniform buffer
+  //           	// Calculate required alignment based on minimum device offset alignment
+		// 		size_t minUboAlignment = vulkanDevice->properties.limits.minUniformBufferOffsetAlignment;
+  //           	size_t dynamicAlignment = sizeof(HasSampler);
+  //           	if (minUboAlignment > 0)
+  //           		dynamicAlignment = (dynamicAlignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
+  //           	size_t bufferSize = materials.size() * dynamicAlignment;
+  //           	samplerUbo.values.hasSampler = static_cast<HasSampler*>(_aligned_malloc(bufferSize, dynamicAlignment));
+  //           	
+  //           	vulkanDevice->CreateBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		// 				&samplerUbo.buffer,sizeof(samplerUbo.values));
+	 //
+  //           	// map persistent
+  //           	CheckVulkanResult(samplerUbo.buffer.Map());
+  //           	
+  //           	memcpy(samplerUbo.buffer.mapped, &samplerUbo.values, sizeof(samplerUbo.values));
 			}
         }
 
