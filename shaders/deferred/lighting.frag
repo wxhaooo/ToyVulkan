@@ -105,6 +105,10 @@ void main()
 	vec3 N = normalize(normal);
 	vec3 V = normalize(ubo.viewPos.xyz - fragPos);
 
+	// vec3 color = albedo;
+	// color += emissive;
+	// outColor = vec4(color, 1.0);
+
 	// Specular contribution
 	vec3 Lo = vec3(0.0);
 	for(int i=0; i < LIGHT_COUNT; i++)
@@ -113,12 +117,15 @@ void main()
 		Lo += BRDF(L, V, N, metallic, roughness, albedo);
 	}
 
-	vec3 color = albedo * 0.02;
+	vec3 color = albedo * 0.4;
 	color += Lo;
 
-	color = pow(color, vec3(0.4545));
+	color += emissive;
+
+	// color = pow(color, vec3(0.4545));
 	outColor = vec4(color, 1.0);
 
+	// vec3 Lo = vec3(0.0);
 	// for(int i=0; i < LIGHT_COUNT; i++)
 	// {
 	// 	vec3 L = ubo.lights[i].position.xyz - fragPos;

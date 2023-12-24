@@ -122,6 +122,10 @@ void DeferredPBR::SetupMrtRenderPass()
 	VkFilter magFiler = VK_FILTER_NEAREST;
 	VkFilter minFiler = VK_FILTER_NEAREST;
 	VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+	// VkFilter magFiler = VK_FILTER_LINEAR;
+	// VkFilter minFiler = VK_FILTER_LINEAR;
+	// VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
 	mrtRenderPass->AddSampler(magFiler,minFiler,addressMode);
 	
 	mrtRenderPass->CreateRenderPass();
@@ -236,7 +240,7 @@ void DeferredPBR::UpdateUniformBuffers()
 		lightingUbo.values.lights[0].intensity = 1.0f;
 		lightingUbo.values.lights[0].position = glm::vec4(lightPos,1.0f);
 
-		lightPos = glm::vec3(0.149955f,0.3774542f,-1.68973f);
+		lightPos = glm::vec3(0.149955f,0.3774542f,2.68973f);
 		lightingUbo.values.lights[1].color = glm::vec4(1.0f);
 		lightingUbo.values.lights[1].intensity = 1.0f;
 		lightingUbo.values.lights[1].position = glm::vec4(lightPos,1.0f);
@@ -356,10 +360,10 @@ void DeferredPBR::PrepareMrtPipeline()
 	};
 	const std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
 		vks::initializers::VertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, pos)),	// Location 0: Position
-		vks::initializers::VertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, uv)),	// Location 1: Texture coordinates
-		vks::initializers::VertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, color)),	// Location 2: Color
+		vks::initializers::VertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, uv)),	// Location 1: Texture coordinates
+		vks::initializers::VertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, color)),	// Location 2: Color
 		vks::initializers::VertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, normal)),// Location 3: Normal
-		vks::initializers::VertexInputAttributeDescription(0, 4, VK_FORMAT_R32G32B32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, tangent)),	// Location 4: Tangent
+		vks::initializers::VertexInputAttributeDescription(0, 4, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(vks::geometry::VulkanGLTFModel::Vertex, tangent)),	// Location 4: Tangent
 	};
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
 	vertexInputStateCI.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size());

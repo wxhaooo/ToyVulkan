@@ -952,6 +952,14 @@ namespace vks
 				}
 			}
 
+			// change uv to vulkan style
+			for(uint32_t i=0; i < vertexBuffer.size(); i++)
+			{
+				glm::vec2 uv = vertexBuffer[i].uv;
+				vertexBuffer[i].uv.x = uv.x - static_cast<int>(uv.x);
+				vertexBuffer[i].uv.y = uv.y - static_cast<int>(uv.y);
+			}
+
 			// Pre-Calculations for requested features
 			if ((fileLoadingFlags & FileLoadingFlags::PreTransformVertices) || (fileLoadingFlags & FileLoadingFlags::PreMultiplyVertexColors) || (fileLoadingFlags & FileLoadingFlags::FlipY)) {
 				const bool preTransform = fileLoadingFlags & FileLoadingFlags::PreTransformVertices;
