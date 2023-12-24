@@ -235,12 +235,12 @@ void DeferredPBR::UpdateUniformBuffers()
 	// add default lights
 	if(gltfModel->lights.size() == 0)
 	{
-		glm::vec3 lightPos = glm::vec3(0.0f,1.85776f,0.0f);
+		glm::vec3 lightPos = glm::vec3(0.0f,-1.85776f,0.0f);
 		lightingUbo.values.lights[0].color = glm::vec4(1.0f);
 		lightingUbo.values.lights[0].intensity = 1.0f;
 		lightingUbo.values.lights[0].position = glm::vec4(lightPos,1.0f);
 
-		lightPos = glm::vec3(0.149955f,0.3774542f,2.68973f);
+		lightPos = glm::vec3(0.149955f,-0.3774542f,2.68973f);
 		lightingUbo.values.lights[1].color = glm::vec4(1.0f);
 		lightingUbo.values.lights[1].intensity = 1.0f;
 		lightingUbo.values.lights[1].position = glm::vec4(lightPos,1.0f);

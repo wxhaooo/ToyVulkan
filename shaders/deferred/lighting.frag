@@ -98,8 +98,8 @@ void main()
 	vec3 fragPos = texture(samplerposition, inUV).rgb;
 	vec3 normal = texture(samplerNormal, inUV).rgb;
 	vec3 albedo = texture(samplerAlbedo, inUV).rgb;
-	float metallic = texture(samplerMetallicRoughness, inUV).g;
-	float roughness = texture(samplerMetallicRoughness, inUV).b;
+	float metallic = texture(samplerMetallicRoughness, inUV).b;
+	float roughness = texture(samplerMetallicRoughness, inUV).g;
 	vec3 emissive = texture(samplerEmissive,inUV).rgb;
 
 	vec3 N = normalize(normal);
