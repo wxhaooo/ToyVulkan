@@ -4,7 +4,7 @@ layout (set = 1, binding = 0) uniform sampler2D samplerBaseColor;
 layout (set = 1, binding = 1) uniform sampler2D samplerNormal;
 layout (set = 1, binding = 2) uniform sampler2D samplerRoughness;
 layout (set = 1, binding = 3) uniform sampler2D samplerEmissive;
-layout (set = 1, binding = 4) uniform sampler2D samplerOcclusion;
+// layout (set = 1, binding = 4) uniform sampler2D samplerOcclusion;
 
 // struct HasSampler
 // {

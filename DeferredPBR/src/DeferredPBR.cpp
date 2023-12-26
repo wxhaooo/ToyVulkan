@@ -235,6 +235,7 @@ void DeferredPBR::UpdateUniformBuffers()
 	// add default lights
 	if(gltfModel->lights.size() == 0)
 	{
+		// y轴与Houdini y轴相反
 		glm::vec3 lightPos = glm::vec3(0.0f,-1.85776f,0.0f);
 		lightingUbo.values.lights[0].color = glm::vec4(1.0f);
 		lightingUbo.values.lights[0].intensity = 1.0f;
