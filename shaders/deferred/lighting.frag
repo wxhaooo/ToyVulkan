@@ -1,12 +1,16 @@
 #version 450
 
-layout (binding = 0) uniform sampler2D samplerposition;
+layout (binding = 0) uniform sampler2D samplerPosition;
 layout (binding = 1) uniform sampler2D samplerNormal;
 
 layout (binding = 2) uniform sampler2D samplerAlbedo;
 layout (binding = 3) uniform sampler2D samplerMetallicRoughness;
 layout (binding = 4) uniform sampler2D samplerEmissive;
-// layout (binding = 5) uniform sampler2D samplerOcclusion;
+layout (binding = 5) uniform sampler2D samplerOcclusion;
+
+layout (binding = 6) uniform samplerCube samplerIrradianceCube;
+layout (binding = 7) uniform samplerCube samplerPreFilteringCube;
+layout (binding = 8) uniform samplerCube samplerSpecularBRDFCube;
 
 #define LIGHT_COUNT 2
 
@@ -17,7 +21,7 @@ struct Light
 	vec4 color;
 };
 
-layout (binding = 5) uniform UBO
+layout (binding = 9) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
 	vec4 viewPos;
@@ -28,6 +32,18 @@ layout (location = 0) in vec2 inUV;
 layout (location = 0) out vec4 outColor;
 
 const float PI = 3.14159265359;
+
+// From http://filmicgames.com/archives/75
+vec3 Uncharted2Tonemap(vec3 x)
+{
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E = 0.02;
+	float F = 0.30;
+	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
 
 // Normal Distribution function --------------------------------------
 float D_GGX(float NH, float roughness)
@@ -58,12 +74,13 @@ vec3 F_Schlick(float cosTheta, float metallic, vec3 albedo, vec3 F0)
 void main() 
 {
 	// Get G-Buffer values
-	vec3 fragPos = texture(samplerposition, inUV).rgb;
+	vec3 fragPos = texture(samplerPosition, inUV).rgb;
 	vec3 normal = texture(samplerNormal, inUV).rgb;
 	vec3 albedo = texture(samplerAlbedo, inUV).rgb;
 	float metallic = texture(samplerMetallicRoughness, inUV).b;
 	float roughness = texture(samplerMetallicRoughness, inUV).g;
-	vec3 emissive = texture(samplerEmissive,inUV).rgb;
+	vec3 emissive = texture(samplerEmissive, inUV).rgb;
+	vec3 ao = texture(samplerOcclusion, inUV).rrr;
 
 	vec3 N = normalize(normal);
 	vec3 V = normalize(ubo.viewPos.xyz - fragPos);
@@ -71,6 +88,7 @@ void main()
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metallic);
 
+	// direct lighting
 	// Precalculate vectors and dot products
 	float NV = clamp(dot(N, V), 0.0, 1.0);
 
@@ -102,21 +120,38 @@ void main()
 		// F = Fresnel factor (Reflectance depending on angle of incidence)
 		vec3 F = F_Schlick(HV, metallic, albedo, F0);
 
-		vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+		vec3 ks = F;
+        vec3 kd = vec3(1.0) - ks;
+        kd *= 1.0 - metallic;
 
 		vec3 spec = D * F * G / (4.0 * NV * NL + 1e-4);
-		Lo += (kD * albedo / PI + spec) * radiance * NL; 
+		Lo += (kd * albedo / PI + spec) * radiance * NL; 
 	}
 
-	vec3 ambient = vec3(0.03) * albedo * 0;
+	// ambient lighting
+	vec3 F = F_Schlick(NV, metallic, albedo, F0);
+	vec3 ks = F;
+	vec3 kd = 1.0 - ks;
+	kd *= 1.0 - metallic;	  
+  
+	vec3 irradiance = texture(samplerIrradianceCube, N).rgb;
+	vec3 diffuse = irradiance * albedo;
+
+	vec3 specular = vec3(0.0);
+	vec3 ambient = (kd * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
-	
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0/2.2));  
-   
-    outColor = vec4(color, 1.0);
+	color += emissive;
+
+
+	// Tone mapping
+	color = Uncharted2Tonemap(color * 1.5);
+	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+    // // HDR tonemapping
+    // color = color / (color + vec3(1.0));
+    // gamma correct
+    color = pow(color, vec3(1.0/4.2)); 
+
+    outColor = vec4(color , 1.0);
 
 	// vec3 Lo = vec3(0.0);
 	// for(int i=0; i < LIGHT_COUNT; i++)

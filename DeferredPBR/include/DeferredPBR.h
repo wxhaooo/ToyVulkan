@@ -15,7 +15,7 @@ public:
     void LoadAsset();
     void PrepareUniformBuffers();
     void Render() override;
-    void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
+    // void BuildCommandBuffers(VkCommandBuffer commandBuffer) override;
     void NewGUIFrame() override;
     void PrepareRenderPass(VkCommandBuffer commandBuffer) override;
     void ReCreateVulkanResource_Child() override;
