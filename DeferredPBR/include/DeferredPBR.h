@@ -28,6 +28,8 @@ private:
     void SetupDescriptorSets();
 
     void BakingIrradianceCubeMap();
+    void BakingPreFilteringCubeMap();
+    void BakingSpecularBRDFCubeMap();
 
     // void PrepareSkyboxPipeline();
     void PrepareMrtPipeline();
@@ -70,7 +72,12 @@ private:
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> lightingDescriptorSets;
 
+    // irradiance cube map
     std::unique_ptr<vks::TextureCubeMap> irradianceCubeMap = nullptr;
+    // baking specular cube map
+    std::unique_ptr<vks::TextureCubeMap> preFilteringCubeMap = nullptr;
+    std::unique_ptr<vks::Texture2D> specularBRDFLut = nullptr;
+    // environment cube map
     std::unique_ptr<vks::TextureCubeMap> environmentCubeMap = nullptr;
 
     // VkDescriptorSetLayout skyboxDescriptorSetLayout = VK_NULL_HANDLE;
