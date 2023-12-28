@@ -21,24 +21,36 @@ DeferredPBR::~DeferredPBR()
 	// Clean up used Vulkan resources
 	// Note : Inherited destructor cleans up resources stored in base class
 	gltfModel.reset();
+	skybox.reset();
 
 	// mrt pass resource
 	mrtRenderPass.reset();
 
 	if(pipelines.offscreen != VK_NULL_HANDLE)
 		vkDestroyPipeline(device,pipelines.offscreen,nullptr);
-
 	if(pipelines.offscreenWireframe != VK_NULL_HANDLE)
 		vkDestroyPipeline(device,pipelines.offscreenWireframe,nullptr);
-	
-	vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
+
+	if(mrtPipelineLayout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
+	if(mrtDescriptorSetLayout_Vertex != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
 	// lighting
 	if(pipelines.lighting != VK_NULL_HANDLE)
 		vkDestroyPipeline(device,pipelines.lighting,nullptr);
-	vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
-	vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
+	if(lightingPipelineLayout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(device,lightingPipelineLayout,nullptr);
+	if(lightingDescriptorSetLayout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device,lightingDescriptorSetLayout,nullptr);
+
+	// skybox
+	if(pipelines.skybox != VK_NULL_HANDLE)
+		vkDestroyPipeline(device, pipelines.skybox, nullptr);
+	if(skyboxPipelineLayout != VK_NULL_HANDLE)
+		vkDestroyPipelineLayout(device, skyboxPipelineLayout, nullptr);
+	if(skyboxDescriptorSetLayout != VK_NULL_HANDLE)
+		vkDestroyDescriptorSetLayout(device,skyboxDescriptorSetLayout,nullptr);
 
 	shaderData.buffer.Destroy();
 	lightingUbo.buffer.Destroy();
@@ -165,6 +177,7 @@ void DeferredPBR::Prepare()
     VulkanApplicationBase::Prepare();
 
 	// render pass
+	// SetupSkyboxRenderPass();
 	SetupMrtRenderPass();
 	SetupLightingRenderPass();
 	
@@ -173,6 +186,7 @@ void DeferredPBR::Prepare()
 	SetupDescriptorSets();
 
 	// prepare pipelines
+	// PrepareSkyboxPipeline();
 	PrepareMrtPipeline();
 	PrepareLightingPipeline();
 	prepared = true;
@@ -180,14 +194,21 @@ void DeferredPBR::Prepare()
 
 void DeferredPBR::LoadAsset()
 {
+	// skybox
+	uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY | vks::geometry::FileLoadingFlags::PreTransformVertices ;
+	uint32_t descriptorBindingFlags = vks::geometry::DescriptorBindingFlags::ImageBaseColor | vks::geometry::DescriptorBindingFlags::ImageNormalMap;
+	
+	skybox = std::make_unique<vks::geometry::VulkanGLTFModel>();
+	skybox->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Cube/Cube.gltf",vulkanDevice.get(),
+		queue,gltfLoadingFlags);
+
+	// model
+	gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
+	
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
-	const uint32_t descriptorBindingFlags  =
-		vks::geometry::DescriptorBindingFlags::ImageBaseColor |
-			vks::geometry::DescriptorBindingFlags::ImageNormalMap;
-	const uint32_t gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
-	// | vks::geometry::PreTransformVertices;
 	gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
 		vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
+	
 	// gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
 	// 	vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
 }
@@ -454,73 +475,80 @@ void DeferredPBR::PrepareLightingPipeline()
 
 void DeferredPBR::BuildCommandBuffers(VkCommandBuffer commandBuffer)
 {
-	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
-
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	// Bind scene matrices descriptor to set 0
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mrtPipelineLayout, 0, 1, &mrtDescriptorSets_Vertex[currentFrame], 0, nullptr);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
-	gltfModel->Draw(commandBuffer,vks::geometry::RenderFlags::BindImages, true, mrtPipelineLayout,1);
+	
 }
 
 void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 {
-	VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
-
-	vks::FrameBuffer* mrtFrameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-	renderPassBeginInfo.renderPass = mrtRenderPass->renderPass;
-	renderPassBeginInfo.framebuffer = mrtFrameBuffer->frameBuffer;
-
-	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
-
-	std::vector<VkClearValue> clearValues
+	// mrt render pass
 	{
-		{0.0f, 0.0f, 0.0f, 1.0f},
-		{0.0f, 0.0f, 0.0f, 1.0f},
-		{0.0f, 0.0f, 0.0f, 1.0f},
-		{0.0f, 0.0f, 0.0f, 1.0f},
-		{0.0f, 0.0f, 0.0f, 1.0f},
-		// {0.0f, 0.0f, 0.0f, 1.0f},
-	};
-	
-	VkClearValue depthClearValue;
-	depthClearValue.depthStencil = {1.0f,0};
-	clearValues.push_back(depthClearValue);
+		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
 
-	renderPassBeginInfo.clearValueCount = clearValues.size();
-	renderPassBeginInfo.pClearValues = clearValues.data();
+		vks::FrameBuffer* mrtFrameBuffer = mrtRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		renderPassBeginInfo.renderPass = mrtRenderPass->renderPass;
+		renderPassBeginInfo.framebuffer = mrtFrameBuffer->frameBuffer;
 
-	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-	BuildCommandBuffers(commandBuffer);
-	vkCmdEndRenderPass(commandBuffer);
+		renderPassBeginInfo.renderArea.offset = {0, 0};
+		renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
+
+		std::vector<VkClearValue> clearValues
+		{
+			{0.0f, 0.0f, 0.0f, 1.0f},
+			{0.0f, 0.0f, 0.0f, 1.0f},
+			{0.0f, 0.0f, 0.0f, 1.0f},
+			{0.0f, 0.0f, 0.0f, 1.0f},
+			{0.0f, 0.0f, 0.0f, 1.0f},
+			// {0.0f, 0.0f, 0.0f, 1.0f},
+		};
+		
+		VkClearValue depthClearValue;
+		depthClearValue.depthStencil = {1.0f,0};
+		clearValues.push_back(depthClearValue);
+
+		renderPassBeginInfo.clearValueCount = clearValues.size();
+		renderPassBeginInfo.pClearValues = clearValues.data();
+
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+		const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
+
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+		// Bind scene matrices descriptor to set 0
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mrtPipelineLayout, 0, 1, &mrtDescriptorSets_Vertex[currentFrame], 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? pipelines.offscreenWireframe : pipelines.offscreen);
+		gltfModel->Draw(commandBuffer,vks::geometry::RenderFlags::BindImages, true, mrtPipelineLayout,1);
+		vkCmdEndRenderPass(commandBuffer);
+	}
 
 	// lighting renderPass
-	vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-	renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
-	renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
-	renderPassBeginInfo.renderArea.offset = {0, 0};
-	renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
+	{
+		vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
+
+		renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+		renderPassBeginInfo.framebuffer = lightingFrameBuffer->frameBuffer;
+		renderPassBeginInfo.renderArea.offset = {0, 0};
+		renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
 	
-	std::array<VkClearValue, 2> clearValues1{};
-	clearValues1[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-	clearValues1[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
+		std::array<VkClearValue, 2> clearValues{};
+		clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+		clearValues[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
 	
-	renderPassBeginInfo.clearValueCount = clearValues.size();
-	renderPassBeginInfo.pClearValues = clearValues.data();
+		renderPassBeginInfo.clearValueCount = clearValues.size();
+		renderPassBeginInfo.pClearValues = clearValues.data();
 	
-	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-	const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
-	const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		const VkViewport viewport = vks::initializers::Viewport((float)viewportWidth, (float)viewportHeight, 0.0f, 1.0f);
+		const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
 	
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-	vkCmdEndRenderPass(commandBuffer);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1, &lightingDescriptorSets[currentFrame], 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
+		vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+		vkCmdEndRenderPass(commandBuffer);
+	}
 }
 
 void DeferredPBR::ReCreateVulkanResource_Child()
