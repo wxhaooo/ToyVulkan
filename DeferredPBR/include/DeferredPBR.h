@@ -27,6 +27,8 @@ private:
     void UpdateUniformBuffers();
     void SetupDescriptorSets();
 
+    void BakingIrradianceCubeMap();
+
     // void PrepareSkyboxPipeline();
     void PrepareMrtPipeline();
     void PrepareLightingPipeline();
@@ -68,13 +70,16 @@ private:
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> lightingDescriptorSets;
 
-    VkDescriptorSetLayout skyboxDescriptorSetLayout = VK_NULL_HANDLE;
-    VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
+    std::unique_ptr<vks::TextureCubeMap> irradianceCubeMap = nullptr;
+    std::unique_ptr<vks::TextureCubeMap> environmentCubeMap = nullptr;
+
+    // VkDescriptorSetLayout skyboxDescriptorSetLayout = VK_NULL_HANDLE;
+    // VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
 
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
-        VkPipeline skybox = VK_NULL_HANDLE;
+        // VkPipeline skybox = VK_NULL_HANDLE;
     } pipelines;
 };
