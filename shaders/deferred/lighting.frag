@@ -65,10 +65,16 @@ float G_SchlicksmithGGX(float NL, float NV, float roughness)
 }
 
 // Fresnel function ----------------------------------------------------
-vec3 F_Schlick(float cosTheta, float roughness, vec3 F0)
+vec3 fresnelSchlickRoughness(float cosTheta, float roughness, vec3 F0)
 {
 	vec3 F = F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 	return F;    
+}
+
+// ----------------------------------------------------------------------------
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 void main() 
@@ -80,7 +86,7 @@ void main()
 	float metallic = texture(samplerMetallicRoughness, inUV).g;
 	float roughness = texture(samplerMetallicRoughness, inUV).b;
 	vec3 emissive = texture(samplerEmissive, inUV).rgb;
-	vec3 ao = texture(samplerOcclusion, inUV).rrr;
+	float ao = texture(samplerOcclusion, inUV).r;
 
 	vec3 N = normalize(normal);
 	vec3 V = normalize(ubo.viewPos.xyz - fragPos);
@@ -118,7 +124,7 @@ void main()
 		// G = Geometric shadowing term (Microfacets shadowing)
 		float G = G_SchlicksmithGGX(NL, NV, roughness);
 		// F = Fresnel factor (Reflectance depending on angle of incidence)
-		vec3 F = F_Schlick(HV, roughness, F0);
+		vec3 F = fresnelSchlick(HV, F0);
 
 		vec3 ks = F;
         vec3 kd = vec3(1.0) - ks;
@@ -129,7 +135,7 @@ void main()
 	}
 
 	// ambient lighting
-	vec3 F = F_Schlick(NV, roughness, F0);
+	vec3 F = fresnelSchlickRoughness(NV, roughness, F0);
 	vec3 ks = F;
 	vec3 kd = 1.0 - ks;
 	kd *= (1.0 - metallic);	
@@ -138,10 +144,11 @@ void main()
 	vec3 diffuse = irradiance * albedo;
 	// diffuse = vec3(0.0);
 
-	const float MAX_REFLECTION_LOD = 4.0;
-	vec3 prefilteredColor = textureLod(samplerPreFilteringCube, R,  roughness * MAX_REFLECTION_LOD).rgb;   
-	vec2 envBRDF  = texture(samplerSpecularBRDFLut, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * metallic;
+	const float MAX_REFLECTION_LOD = 9.0;
+	vec3 prefilteredColor = textureLod(samplerPreFilteringCube, R, roughness * MAX_REFLECTION_LOD).rgb;   
+	vec2 envBRDF  = texture(samplerSpecularBRDFLut, vec2(NV, roughness)).rg;
+	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+	// vec3 specular = vec3(0.0);
 	vec3 ambient = (kd * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下

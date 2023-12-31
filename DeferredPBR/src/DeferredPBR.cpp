@@ -190,11 +190,11 @@ void DeferredPBR::BakingIrradianceCubeMap()
 {
     irradianceCubeMap = std::make_unique<vks::TextureCubeMap>();
     environmentCubeMap = std::make_unique<vks::TextureCubeMap>();
-    environmentCubeMap->LoadFromFile(vks::helper::GetAssetPath() + "/textures/hdr/gcanyon_cube.ktx",
+    environmentCubeMap->LoadFromFile(vks::helper::GetAssetPath() + "/textures/hdr/uffizi_cube.ktx",
                                      VK_FORMAT_R16G16B16A16_SFLOAT, vulkanDevice.get(), queue);
 
     auto tStart = std::chrono::high_resolution_clock::now();
-    const VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    const VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
     const int32_t dim = 64;
     const uint32_t numMips = static_cast<uint32_t>(floor(log2(dim))) + 1;
 
@@ -534,6 +534,7 @@ void DeferredPBR::BakingIrradianceCubeMap()
 
             // Update shader push constant block
             pushBlock.mvp = glm::perspective((float)(math::pi / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+            pushBlock.mvp = glm::perspective(math::pi / 2.0f, 1.0f, 0.1f, 512.0f) * matrices[f];
 
             vkCmdPushConstants(cmdBuf, pipelinelayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                sizeof(PushBlock), &pushBlock);

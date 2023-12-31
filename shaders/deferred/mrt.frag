@@ -33,6 +33,28 @@ layout (location = 3) out vec4 outRoughness;
 layout (location = 4) out vec4 outEmissive;
 layout (location = 5) out vec4 outOcclusion;
 
+// ----------------------------------------------------------------------------
+// Easy trick to get tangent-normals to world-space to keep PBR code simplified.
+// Don't worry if you don't get what's going on; you generally want to do normal 
+// mapping the usual way for performance anyways; I do plan make a note of this 
+// technique somewhere later in the normal mapping tutorial.
+vec3 getNormalFromMap()
+{
+    vec3 tangentNormal = texture(samplerNormal, inUV).xyz * 2.0 - 1.0;
+
+    vec3 Q1  = dFdx(inWorldPos);
+    vec3 Q2  = dFdy(inWorldPos);
+    vec2 st1 = dFdx(inUV);
+    vec2 st2 = dFdy(inUV);
+
+    vec3 N   = normalize(inNormal);
+    vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
+    vec3 B  = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
+
 
 void main() 
 {
@@ -46,7 +68,8 @@ void main()
 	vec3 B = cross(N, T);
 	mat3 TBN = mat3(T, B, N);
 	// outNormal = vec4(N, 1.0);
-	outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
+	outNormal = vec4(getNormalFromMap(),0.0);
+	// outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
 	// vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
 	// outNormal = vec4(texture(samplerNormal, inUV).xyz, 1.0);
 
