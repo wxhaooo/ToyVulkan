@@ -533,7 +533,6 @@ void DeferredPBR::BakingIrradianceCubeMap()
             vkCmdBeginRenderPass(cmdBuf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
             // Update shader push constant block
-            pushBlock.mvp = glm::perspective((float)(math::pi / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
             pushBlock.mvp = glm::perspective(math::pi / 2.0f, 1.0f, 0.1f, 512.0f) * matrices[f];
 
             vkCmdPushConstants(cmdBuf, pipelinelayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
@@ -962,7 +961,7 @@ void DeferredPBR::BakingPreFilteringCubeMap()
             vkCmdBeginRenderPass(cmdBuf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
             // Update shader push constant block
-            pushBlock.mvp = glm::perspective((float)(math::pi / 2.0), 1.0f, 0.1f, 512.0f) * matrices[f];
+            pushBlock.mvp = glm::perspective(math::pi / 2.0f, 1.0f, 0.1f, 512.0f) * matrices[f];
 
             vkCmdPushConstants(cmdBuf, pipelinelayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                sizeof(PushBlock), &pushBlock);
