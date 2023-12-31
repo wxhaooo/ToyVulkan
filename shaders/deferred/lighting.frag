@@ -141,7 +141,7 @@ void main()
 	const float MAX_REFLECTION_LOD = 4.0;
 	vec3 prefilteredColor = textureLod(samplerPreFilteringCube, R,  roughness * MAX_REFLECTION_LOD).rgb;   
 	vec2 envBRDF  = texture(samplerSpecularBRDFLut, vec2(max(dot(N, V), 0.0), roughness)).rg;
-	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * metallic;
 	vec3 ambient = (kd * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下
@@ -151,10 +151,10 @@ void main()
 	// Tone mapping
 	color = Uncharted2Tonemap(color * 2.5);
 	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
-    // // HDR tonemapping
+    // HDR tonemapping
     // color = color / (color + vec3(1.0));
     // gamma correct
-    color = pow(color, vec3(1.0/4.2)); 
+    color = pow(color, vec3(1.0/2.2)); 
 
     outColor = vec4(color , 1.0);
 
