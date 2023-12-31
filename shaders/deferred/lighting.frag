@@ -82,7 +82,7 @@ void main()
 	// Get G-Buffer values
 	vec3 fragPos = texture(samplerPosition, inUV).rgb;
 	vec3 normal = texture(samplerNormal, inUV).rgb;
-	vec3 albedo = texture(samplerAlbedo, inUV).rgb;
+	vec3 albedo = pow(texture(samplerAlbedo, inUV).rgb, vec3(2.2));
 	float metallic = texture(samplerMetallicRoughness, inUV).g;
 	float roughness = texture(samplerMetallicRoughness, inUV).b;
 	vec3 emissive = texture(samplerEmissive, inUV).rgb;
@@ -142,18 +142,20 @@ void main()
   
 	vec3 irradiance = texture(samplerIrradianceCube, N).rgb;
 	vec3 diffuse = irradiance * albedo;
-	// diffuse = vec3(0.0);
+	// vec3 diffuse = vec3(0.0);
 
-	const float MAX_REFLECTION_LOD = 9.0;
+	const float MAX_REFLECTION_LOD = 4.0;
 	vec3 prefilteredColor = textureLod(samplerPreFilteringCube, R, roughness * MAX_REFLECTION_LOD).rgb;   
-	vec2 envBRDF  = texture(samplerSpecularBRDFLut, vec2(NV, roughness)).rg;
-	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+	vec2 envBRDF = texture(samplerSpecularBRDFLut, vec2(NV, roughness)).rg;
+	// raw implementation
+	// vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * metallic;
+	// 这个实现存疑，但是原来的实现没有考虑到反射的颜色和物体本身颜色的关系以及是否是金属，所以改成这样了
+	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
 	// vec3 specular = vec3(0.0);
 	vec3 ambient = (kd * diffuse + specular) * ao;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下
-	// color += emissive * F;
-
+	color += emissive;
 
 	// Tone mapping
 	color = Uncharted2Tonemap(color * 2.5);

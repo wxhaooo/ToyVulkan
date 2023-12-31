@@ -68,7 +68,7 @@ void main()
 	vec3 B = cross(N, T);
 	mat3 TBN = mat3(T, B, N);
 	// outNormal = vec4(N, 1.0);
-	outNormal = vec4(getNormalFromMap(),0.0);
+	outNormal = vec4(getNormalFromMap(), 1.0);
 	// outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
 	// vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
 	// outNormal = vec4(texture(samplerNormal, inUV).xyz, 1.0);
