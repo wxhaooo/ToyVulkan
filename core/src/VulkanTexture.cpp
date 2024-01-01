@@ -510,7 +510,7 @@ namespace vks
 	* @param imageLayout (Optional) Usage layout for the texture (defaults VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 	*
 	*/
-	void Texture2DArray::LoadFromFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
+	void Texture2DArray::LoadFromKtxFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
 	{
 		ktxTexture* ktxTexture;
 		ktxResult result = LoadKTXFile(filename, &ktxTexture);
@@ -694,7 +694,7 @@ namespace vks
 	* @param imageLayout (Optional) Usage layout for the texture (defaults VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 	*
 	*/
-	void TextureCubeMap::LoadFromFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
+	void TextureCubeMap::LoadFromKtxFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
 	{
 		ktxTexture* ktxTexture;
 		ktxResult result = LoadKTXFile(filename, &ktxTexture);

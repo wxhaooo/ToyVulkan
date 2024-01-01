@@ -77,14 +77,25 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+vec3 prefilteredReflection(vec3 R, float roughness)
+{
+	const float MAX_REFLECTION_LOD = 9.0; // todo: param/const
+	float lod = roughness * MAX_REFLECTION_LOD;
+	float lodf = floor(lod);
+	float lodc = ceil(lod);
+	vec3 a = textureLod(samplerPreFilteringCube, R, lodf).rgb;
+	vec3 b = textureLod(samplerPreFilteringCube, R, lodc).rgb;
+	return mix(a, b, lod - lodf);
+}
+
 void main() 
 {
 	// Get G-Buffer values
 	vec3 fragPos = texture(samplerPosition, inUV).rgb;
 	vec3 normal = texture(samplerNormal, inUV).rgb;
 	vec3 albedo = pow(texture(samplerAlbedo, inUV).rgb, vec3(2.2));
-	float metallic = texture(samplerMetallicRoughness, inUV).g;
-	float roughness = texture(samplerMetallicRoughness, inUV).b;
+	float metallic = texture(samplerMetallicRoughness, inUV).b;
+	float roughness = texture(samplerMetallicRoughness, inUV).g;
 	vec3 emissive = texture(samplerEmissive, inUV).rgb;
 	float ao = texture(samplerOcclusion, inUV).r;
 
@@ -144,15 +155,19 @@ void main()
 	vec3 diffuse = irradiance * albedo;
 	// vec3 diffuse = vec3(0.0);
 
-	const float MAX_REFLECTION_LOD = 4.0;
-	vec3 prefilteredColor = textureLod(samplerPreFilteringCube, R, roughness * MAX_REFLECTION_LOD).rgb;   
+	vec3 reflectionColor = prefilteredReflection(R, roughness).rgb; 
+	// const float MAX_REFLECTION_LOD = 7.0;
+	// vec3 reflectionColor = textureLod(samplerPreFilteringCube, R, roughness * MAX_REFLECTION_LOD).rgb;   
 	vec2 envBRDF = texture(samplerSpecularBRDFLut, vec2(NV, roughness)).rg;
 	// raw implementation
-	// vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * metallic;
+	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y);
+	// multi albedo
+	vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo;
+	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo;
 	// 这个实现存疑，但是原来的实现没有考虑到反射的颜色和物体本身颜色的关系以及是否是金属，所以改成这样了
-	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
+	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
 	// vec3 specular = vec3(0.0);
-	vec3 ambient = (kd * diffuse + specular) * ao;
+	vec3 ambient = (kd * diffuse + specular) * ao.rrr;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下
 	color += emissive;

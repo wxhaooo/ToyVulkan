@@ -190,7 +190,7 @@ void DeferredPBR::BakingIrradianceCubeMap()
 {
     irradianceCubeMap = std::make_unique<vks::TextureCubeMap>();
     environmentCubeMap = std::make_unique<vks::TextureCubeMap>();
-    environmentCubeMap->LoadFromFile(vks::helper::GetAssetPath() + "/textures/hdr/uffizi_cube.ktx",
+    environmentCubeMap->LoadFromKtxFile(vks::helper::GetAssetPath() + "/textures/hdr/uffizi_cube.ktx",
                                      VK_FORMAT_R16G16B16A16_SFLOAT, vulkanDevice.get(), queue);
 
     auto tStart = std::chrono::high_resolution_clock::now();
@@ -819,7 +819,7 @@ void DeferredPBR::BakingPreFilteringCubeMap()
     {
         glm::mat4 mvp;
         float roughness;
-        uint32_t numSamples = 32u;
+        uint32_t numSamples = 1024u;
     } pushBlock;
 
     VkPipelineLayout pipelinelayout;
@@ -1787,7 +1787,7 @@ void DeferredPBR::NewGUIFrame()
         ImGui::End();
     }
 
-    ImGui::ShowDemoWindow();
+    // ImGui::ShowDemoWindow();
 }
 
 void DeferredPBR::ViewChanged()

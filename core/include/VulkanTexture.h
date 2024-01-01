@@ -64,7 +64,7 @@ namespace vks
 	class Texture2DArray : public Texture
 	{
 	public:
-		void LoadFromFile(
+		void LoadFromKtxFile(
 			std::string        filename,
 			VkFormat           format,
 			vks::VulkanDevice *device,
@@ -76,7 +76,7 @@ namespace vks
 	class TextureCubeMap : public Texture
 	{
 	public:
-		void LoadFromFile(
+		void LoadFromKtxFile(
 			std::string        filename,
 			VkFormat           format,
 			vks::VulkanDevice *device,
