@@ -117,6 +117,9 @@ namespace vks
 		const std::string GetAssetPath();
 		
 		const std::string GetShaderBasePath();
+
+		const std::string GetFileExtension(std::string filename);
+
 	}
 }
 

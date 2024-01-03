@@ -34,11 +34,15 @@ namespace vks
 		void      UpdateDescriptor();
 		void      Destroy();
 		ktxResult LoadKTXFile(std::string filename, ktxTexture **target);
+		bool LoadFromHDRFile(std::string fileName);
 	};
 
 	class Texture2D : public Texture
 	{
 	public:
+		
+		bool LoadFromHDRFile(std::string fileName);
+		
 		void LoadFromKtxFile(
 			std::string        filename,
 			VkFormat           format,

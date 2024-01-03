@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <set>
 
+#define STB_IMAGE_IMPLEMENTATION
 #include "Camera.h"
 #include "Image.h"
 #include "Mesh.h"

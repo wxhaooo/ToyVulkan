@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(VCPKG_DIR "E:/Code/")
+set(VCPKG_DIR "D:/Utility/")
 
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 
@@ -14,8 +14,10 @@ add_compile_definitions(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
 add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
 add_compile_definitions(USE_FRONTEND_GLFW)
 add_compile_definitions(TINYGLTF_IMPLEMENTATION)
-add_compile_definitions(STB_IMAGE_IMPLEMENTATION)
+#add_compile_definitions(STB_IMAGE_IMPLEMENTATION)
 add_compile_definitions(TINYGLTF_NO_STB_IMAGE_WRITE)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)

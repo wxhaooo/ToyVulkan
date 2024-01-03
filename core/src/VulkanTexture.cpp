@@ -1,9 +1,12 @@
-﻿#include <VulkanTexture.h>
+﻿#include <filesystem>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#include <VulkanTexture.h>
 #include <VulkanInitializers.h>
 #include <VulkanUtils.h>
 #include <VulkanHelper.h>
 
-#include "VulkanGLTFModel.h"
+// #include "VulkanGLTFModel.h"
 // #include <tiny_gltf.h>
 
 #ifdef WIN32
@@ -56,6 +59,32 @@ namespace vks
 		return result;
 	}
 
+	bool Texture::LoadFromHDRFile(std::string fileName)
+	{
+		return false;	
+	}
+
+	bool Texture2D::LoadFromHDRFile(std::string fileName)
+	{
+		std::string fileExtension = vks::helper::GetFileExtension(fileName);
+		if(fileExtension != ".hdr")
+		{
+			std::cerr<<"load hdr file but file format is not hdr"<<"\n";
+			return false;
+		}
+
+		// if(!vks::helper::FileExists(fileName))
+		// {
+		// 	return false;
+		// }
+		
+		stbi_set_flip_vertically_on_load(true);
+		int width, height, nrComponents;
+		float *data = stbi_loadf(fileName.c_str(), &width, &height, &nrComponents, 0);
+
+		return true;
+	}
+	
 	/**
 	* Load a 2D texture including all mip levels
 	*
