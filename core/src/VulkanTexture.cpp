@@ -6,9 +6,6 @@
 #include <VulkanUtils.h>
 #include <VulkanHelper.h>
 
-// #include "VulkanGLTFModel.h"
-// #include <tiny_gltf.h>
-
 #ifdef WIN32
 #undef min
 #undef max
@@ -59,12 +56,12 @@ namespace vks
 		return result;
 	}
 
-	bool Texture::LoadFromHDRFile(std::string fileName)
+	bool Texture::LoadFromHDRFile(const std::string& fileName)
 	{
 		return false;	
 	}
 
-	bool Texture2D::LoadFromHDRFile(std::string fileName)
+	bool Texture2D::LoadFromHDRFile(const std::string& fileName)
 	{
 		std::string fileExtension = vks::helper::GetFileExtension(fileName);
 		if(fileExtension != ".hdr")
@@ -73,10 +70,11 @@ namespace vks
 			return false;
 		}
 
-		// if(!vks::helper::FileExists(fileName))
-		// {
-		// 	return false;
-		// }
+		 if(!vks::helper::FileExists(fileName))
+		 {
+             std::cerr<<fileName<<" is not existed\n";
+		 	return false;
+		 }
 		
 		stbi_set_flip_vertically_on_load(true);
 		int width, height, nrComponents;

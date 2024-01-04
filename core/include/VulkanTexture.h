@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <fstream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -34,14 +34,14 @@ namespace vks
 		void      UpdateDescriptor();
 		void      Destroy();
 		ktxResult LoadKTXFile(std::string filename, ktxTexture **target);
-		bool LoadFromHDRFile(std::string fileName);
+		virtual bool LoadFromHDRFile(const std::string& fileName);
 	};
 
 	class Texture2D : public Texture
 	{
 	public:
 		
-		bool LoadFromHDRFile(std::string fileName);
+		bool LoadFromHDRFile(const std::string& fileName) override;
 		
 		void LoadFromKtxFile(
 			std::string        filename,
