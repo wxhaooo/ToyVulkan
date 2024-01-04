@@ -190,7 +190,7 @@ void DeferredPBR::BakingIrradianceCubeMap()
 {
     irradianceCubeMap = std::make_unique<vks::TextureCubeMap>();
     environmentCubeMap = std::make_unique<vks::TextureCubeMap>();
-    environmentCubeMap->LoadFromKtxFile(vks::helper::GetAssetPath() + "/textures/hdr/uffizi_cube.ktx",
+    environmentCubeMap->LoadFromKtxFile(vks::helper::GetAssetPath() + "/textures/hdr/dark_room_cube.ktx",
                                      VK_FORMAT_R16G16B16A16_SFLOAT, vulkanDevice.get(), queue);
 
     auto tStart = std::chrono::high_resolution_clock::now();
