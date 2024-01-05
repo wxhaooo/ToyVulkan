@@ -162,7 +162,7 @@ void main()
 	// raw implementation
 	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y);
 	// multi albedo
-	vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo;
+	vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y);
 	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo;
 	// 这个实现存疑，但是原来的实现没有考虑到反射的颜色和物体本身颜色的关系以及是否是金属，所以改成这样了
 	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
@@ -171,6 +171,9 @@ void main()
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下
 	color += emissive;
+
+	// color = vec3(NV, NV, NV);
+	// color = V;
 
 	// Tone mapping
 	color = Uncharted2Tonemap(color * 2.5);

@@ -1299,7 +1299,7 @@ void DeferredPBR::LoadAsset()
 
     skybox = std::make_unique<vks::geometry::VulkanGLTFModel>();
     skybox->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Cube/Cube.gltf", vulkanDevice.get(),
-                         queue, gltfLoadingFlags);
+                         queue, gltfLoadingFlags,0,1);
 
     // model
     gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
@@ -1369,7 +1369,7 @@ void DeferredPBR::UpdateUniformBuffers()
         lightingUbo.values.lights[1].position = glm::vec4(lightPos, 1.0f);
     }
 
-    lightingUbo.values.viewPos = camera->viewPos;
+    lightingUbo.values.viewPos = glm::vec4(camera->position, 1.0f);
     memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
 }
 
