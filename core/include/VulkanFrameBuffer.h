@@ -50,6 +50,8 @@ namespace vks
         * @brief Returns true if the attachment is a depth and/or stencil attachment
         */
         bool IsDepthStencil();
+
+        bool IsGBuffer();
     };
 
     /**

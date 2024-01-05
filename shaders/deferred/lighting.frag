@@ -7,10 +7,11 @@ layout (binding = 2) uniform sampler2D samplerAlbedo;
 layout (binding = 3) uniform sampler2D samplerMetallicRoughness;
 layout (binding = 4) uniform sampler2D samplerEmissive;
 layout (binding = 5) uniform sampler2D samplerOcclusion;
+layout (binding = 6) uniform sampler2D samplerDepth;
 
-layout (binding = 6) uniform samplerCube samplerIrradianceCube;
-layout (binding = 7) uniform samplerCube samplerPreFilteringCube;
-layout (binding = 8) uniform sampler2D samplerSpecularBRDFLut;
+layout (binding = 7) uniform samplerCube samplerIrradianceCube;
+layout (binding = 8) uniform samplerCube samplerPreFilteringCube;
+layout (binding = 9) uniform sampler2D samplerSpecularBRDFLut;
 
 #define LIGHT_COUNT 2
 
@@ -21,10 +22,11 @@ struct Light
 	vec4 color;
 };
 
-layout (binding = 9) uniform UBO
+layout (binding = 10) uniform UBO
 {
 	Light lights[LIGHT_COUNT];
 	vec4 viewPos;
+	mat4 viewMat;
 } ubo;
 
 layout (location = 0) in vec2 inUV;
@@ -91,8 +93,11 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 void main() 
 {
 	// Get G-Buffer values
+	// lighting in view space
 	vec3 fragPos = texture(samplerPosition, inUV).rgb;
-	vec3 normal = texture(samplerNormal, inUV).rgb;
+	fragPos = (ubo.viewMat * vec4(fragPos, 1.0)).rgb;
+	mat3 mNormal = transpose(inverse(mat3(ubo.viewMat)));
+	vec3 normal = mNormal * texture(samplerNormal, inUV).rgb;
 	vec3 albedo = pow(texture(samplerAlbedo, inUV).rgb, vec3(2.2));
 	float metallic = texture(samplerMetallicRoughness, inUV).b;
 	float roughness = texture(samplerMetallicRoughness, inUV).g;
@@ -100,7 +105,8 @@ void main()
 	float ao = texture(samplerOcclusion, inUV).r;
 
 	vec3 N = normalize(normal);
-	vec3 V = normalize(ubo.viewPos.xyz - fragPos);
+	// in view space, viewPos is origin point
+	vec3 V = normalize(-fragPos);
 	vec3 R = reflect(-V, N);
 
 	vec3 F0 = vec3(0.04);

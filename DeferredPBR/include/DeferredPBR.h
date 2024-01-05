@@ -31,13 +31,13 @@ private:
     void BakingPreFilteringCubeMap();
     void BakingSpecularBRDFCubeMap();
 
-    // void PrepareSkyboxPipeline();
     void PrepareMrtPipeline();
     void PrepareLightingPipeline();
+    void PreparePostprocessPipeline();
 
-    // void SetupSkyboxRenderPass();
     void SetupMrtRenderPass();
     void SetupLightingRenderPass();
+    void SetupPostprocessRenderPass();
 
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     std::unique_ptr<vks::geometry::VulkanGLTFModel> skybox;
@@ -56,12 +56,13 @@ private:
         {
             alignas(16)vks::geometry::Light lights[LightCount];
             alignas(16) glm::vec4 viewPos;
+            alignas(16) glm::mat4 viewMat;
         } values;
     } lightingUbo;
 
-    std::unique_ptr<vks::VulkanRenderPass> skyboxRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
+    std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;
 
     VkDescriptorSetLayout mrtDescriptorSetLayout_Vertex = VK_NULL_HANDLE;
     VkDescriptorSetLayout mrtDescriptorSetLayout_Fragment = VK_NULL_HANDLE;
@@ -72,6 +73,10 @@ private:
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> lightingDescriptorSets;
 
+    VkDescriptorSetLayout skyboxDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> skyboxDescriptorSets;
+
     // irradiance cube map
     std::unique_ptr<vks::TextureCubeMap> irradianceCubeMap = nullptr;
     // baking specular cube map
@@ -80,13 +85,10 @@ private:
     // environment cube map
     std::unique_ptr<vks::TextureCubeMap> environmentCubeMap = nullptr;
 
-    // VkDescriptorSetLayout skyboxDescriptorSetLayout = VK_NULL_HANDLE;
-    // VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
-
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
-        // VkPipeline skybox = VK_NULL_HANDLE;
+        VkPipeline skybox = VK_NULL_HANDLE;
     } pipelines;
 };

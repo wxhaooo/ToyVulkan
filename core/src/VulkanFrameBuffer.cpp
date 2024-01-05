@@ -17,6 +17,11 @@ namespace vks
 		return(utils::HasDepth(format) || utils::HasStencil(format));
 	}
 
+    bool FramebufferAttachment::IsGBuffer()
+    {
+        return name.find("G_") != std::string::npos;
+    }
+
 	FrameBuffer::FrameBuffer(VulkanDevice* device):vulkanDevice(device)
 	{
 		

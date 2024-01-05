@@ -33,7 +33,7 @@ namespace vks
                 app->WaitDeviceIdle();
                 app->windowsWidth = windowsWidth;
                 app->windowsHeight = windowsHeight;
-                
+
                 app->ReCreateVulkanResource();
             }
 
@@ -65,7 +65,7 @@ namespace vks
                 int leftMouseButtonState = glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT);
                 int rightMouseButtonState = glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_RIGHT);
                 int middleMouseButtonState = glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_MIDDLE);
-                
+
                 InputManager* inputManager = Singleton<InputManager>::Instance();
                 Camera* camera = Singleton<Camera>::Instance();
 
@@ -74,7 +74,7 @@ namespace vks
                 float dy = cachedMousePos.y - static_cast<float>(yPos);
                 // int32_t dx = static_cast<int32_t>(cachedMousePos.x - xPos);
                 // int32_t dy = static_cast<int32_t>(cachedMousePos.y - yPos);
-                
+
                 if(leftMouseButtonState == GLFW_PRESS)
                 {
                     camera->Rotate(glm::vec3(dy * camera->rotationSpeed, -dx * camera->rotationSpeed, 0.0f));
@@ -105,10 +105,10 @@ namespace vks
                 ImGuiContext* currentContext  = ImGui::GetCurrentContext();
                 ImGuiWindow* hoveredWindow =  currentContext->HoveredWindow;
                 if(hoveredWindow == nullptr || !hoveredWindow->ForwardBackend) return;
-                
+
                 // auto app = reinterpret_cast<VulkanApplicationBase*>(glfwGetWindowUserPointer(window));
                 // if (app == nullptr) return;
-                
+
                 Camera* camera = Singleton<Camera>::Instance();
                 if(camera->type == Camera::firstperson)
                 {
@@ -124,5 +124,5 @@ namespace vks
                 }
             }
         }
-    }    
+    }
 }

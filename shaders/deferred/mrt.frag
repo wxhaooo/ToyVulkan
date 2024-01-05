@@ -32,6 +32,7 @@ layout (location = 2) out vec4 outAlbedo;
 layout (location = 3) out vec4 outRoughness;
 layout (location = 4) out vec4 outEmissive;
 layout (location = 5) out vec4 outOcclusion;
+layout (location = 6) out vec4 outDepth;
 
 // ----------------------------------------------------------------------------
 // Easy trick to get tangent-normals to world-space to keep PBR code simplified.
@@ -76,4 +77,6 @@ void main()
 	outRoughness = texture(samplerRoughness, inUV);
 	outEmissive = texture(samplerEmissive, inUV);
 	outOcclusion = texture(samplerOcclusion,inUV);
+    float depth = 1.0 - gl_FragCoord.z / gl_FragCoord.w;
+    outDepth = vec4(depth, depth, depth, 1.0);
 }
