@@ -94,6 +94,7 @@ void main()
 {
 	// Get G-Buffer values
 	// lighting in view space
+	// 需要在viewspace中做光照，否则传入的viewPos本来就是有问题的，缺少相机的方向，导致N和L的计算都有问题
 	vec3 fragPos = texture(samplerPosition, inUV).rgb;
 	fragPos = (ubo.viewMat * vec4(fragPos, 1.0)).rgb;
 	mat3 mNormal = transpose(inverse(mat3(ubo.viewMat)));
