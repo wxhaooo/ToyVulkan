@@ -60,6 +60,15 @@ private:
         } values;
     } lightingUbo;
 
+    struct PostprocessUBO
+    {
+        vks::Buffer buffer;
+        struct Values
+        {
+            alignas(16) glm::mat4 invProjViewMat;
+        } values;
+    } postprocessUbo;
+
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;

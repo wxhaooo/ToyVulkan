@@ -56,6 +56,7 @@ DeferredPBR::~DeferredPBR() {
 
     shaderData.buffer.Destroy();
     lightingUbo.buffer.Destroy();
+    postprocessUbo.buffer.Destroy();
 
     if (irradianceCubeMap != nullptr)
         irradianceCubeMap->Destroy();
@@ -1366,6 +1367,16 @@ void DeferredPBR::PrepareUniformBuffers() {
     // Map persistent
     CheckVulkanResult(lightingUbo.buffer.Map());
 
+    // postprocess uniform buffer
+    CheckVulkanResult(vulkanDevice->CreateBuffer(
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            &postprocessUbo.buffer,
+            sizeof(postprocessUbo.values)));
+
+    // Map persistent
+    CheckVulkanResult(postprocessUbo.buffer.Map());
+
     UpdateUniformBuffers();
 }
 
@@ -1399,6 +1410,14 @@ void DeferredPBR::UpdateUniformBuffers() {
     lightingUbo.values.viewPos = glm::vec4(camera->position, 1.0f);
     lightingUbo.values.viewMat = camera->matrices.view;
     memcpy(lightingUbo.buffer.mapped, &lightingUbo.values, sizeof(lightingUbo.values));
+
+    // postprocess uniform buffer
+    glm::mat4 perp = camera->matrices.perspective;
+    glm::mat4 invPerp = glm::inverse(perp);
+    glm::mat4 view = camera->matrices.view;
+    view[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    postprocessUbo.values.invProjViewMat = glm::inverse(view) * invPerp;
+    memcpy(postprocessUbo.buffer.mapped, &postprocessUbo.values, sizeof(postprocessUbo.values));
 }
 
 void DeferredPBR::SetupDescriptorSets() {
@@ -1766,6 +1785,7 @@ void DeferredPBR::PreparePostprocessPipeline() {
             vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
                                                                     VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
     rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
+//    rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
     std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates =
             {
                     vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
@@ -1781,37 +1801,37 @@ void DeferredPBR::PreparePostprocessPipeline() {
     VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::PipelineDynamicStateCreateInfo(
             dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
 
-    // Vertex input bindings and attributes
-    const std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
-            vks::initializers::VertexInputBindingDescription(0, sizeof(vks::geometry::VulkanGLTFModel::Vertex),
-                                                             VK_VERTEX_INPUT_RATE_VERTEX),
-    };
-    const std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
-            // Location 0: Position
-            vks::initializers::VertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT,
-                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, pos)),
-            // Location 1: Texture coordinates
-            vks::initializers::VertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT,
-                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, uv)),
-            // Location 2: Color
-            vks::initializers::VertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32A32_SFLOAT,
-                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, color)),
-            // Location 3: Normal
-            vks::initializers::VertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT,
-                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex,
-                                                                        normal)),
-            // Location 4: Tangent
-            vks::initializers::VertexInputAttributeDescription(0, 4, VK_FORMAT_R32G32B32A32_SFLOAT,
-                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex,
-                                                                        tangent)),
-    };
+//    // Vertex input bindings and attributes
+//    const std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
+//            vks::initializers::VertexInputBindingDescription(0, sizeof(vks::geometry::VulkanGLTFModel::Vertex),
+//                                                             VK_VERTEX_INPUT_RATE_VERTEX),
+//    };
+//    const std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
+//            // Location 0: Position
+//            vks::initializers::VertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT,
+//                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, pos)),
+//            // Location 1: Texture coordinates
+//            vks::initializers::VertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT,
+//                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, uv)),
+//            // Location 2: Color
+//            vks::initializers::VertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32A32_SFLOAT,
+//                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex, color)),
+//            // Location 3: Normal
+//            vks::initializers::VertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT,
+//                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex,
+//                                                                        normal)),
+//            // Location 4: Tangent
+//            vks::initializers::VertexInputAttributeDescription(0, 4, VK_FORMAT_R32G32B32A32_SFLOAT,
+//                                                               offsetof(vks::geometry::VulkanGLTFModel::Vertex,
+//                                                                        tangent)),
+//    };
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
 
-    vertexInputStateCI.pVertexBindingDescriptions = vertexInputBindings.data();
-    vertexInputStateCI.vertexBindingDescriptionCount = vertexInputBindings.size();
-    vertexInputStateCI.pVertexAttributeDescriptions = vertexInputAttributes.data();
-    vertexInputStateCI.vertexAttributeDescriptionCount = vertexInputAttributes.size();
+//    vertexInputStateCI.pVertexBindingDescriptions = vertexInputBindings.data();
+//    vertexInputStateCI.vertexBindingDescriptionCount = vertexInputBindings.size();
+//    vertexInputStateCI.pVertexAttributeDescriptions = vertexInputAttributes.data();
+//    vertexInputStateCI.vertexAttributeDescriptionCount = vertexInputAttributes.size();
 
     const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
             LoadShader(vks::helper::GetShaderBasePath() + "deferred/skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
@@ -1940,7 +1960,8 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer) {
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipelineLayout, 0, 1,
                                 &skyboxDescriptorSets[currentFrame], 0, nullptr);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
-        skybox->Draw(commandBuffer, 0, false, skyboxPipelineLayout, 0);
+        vkCmdDraw(commandBuffer,3,1,0,0);
+//        skybox->Draw(commandBuffer, 0, false, skyboxPipelineLayout, 0);
         vkCmdEndRenderPass(commandBuffer);
     }
 }
@@ -1975,8 +1996,8 @@ void DeferredPBR::NewGUIFrame() {
 
     if (ImGui::Begin("UI_View", nullptr, ImGuiWindowFlags_ForwardBackend)) {
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-//        vks::FrameBuffer* frameBuffer = postprocessRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-        vks::FrameBuffer *frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+        vks::FrameBuffer* frameBuffer = postprocessRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
+//        vks::FrameBuffer *frameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
         float scale = std::min(viewportPanelSize.x / (float) viewportWidth,
                                viewportPanelSize.y / (float) viewportHeight);
         ImVec2 windowSize = ImGui::GetWindowSize();

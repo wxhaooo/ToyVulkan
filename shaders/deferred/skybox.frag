@@ -4,7 +4,8 @@ layout (binding = 1) uniform sampler2D samplerLighting;
 layout (binding = 2) uniform samplerCube samplerEnv;
 
 layout (location = 0) in vec3 inUVW;
-layout (location = 1) out vec2 inUV;
+layout (location = 1) in vec2 inUV;
+layout (location = 2) in vec3 inViewPos;
 
 layout (location = 0) out vec4 outColor;
 
@@ -23,15 +24,16 @@ vec3 Uncharted2Tonemap(vec3 color)
 
 void main() 
 {
-	vec3 color = texture(samplerEnv, inUVW).rgb;
-//	float sceneDepth = texture(samplerDepth,inUV).r;
-//	vec3 sceneColor = texture(samplerLighting,inUV).rgb;
+	vec3 color = texture(samplerEnv, inViewPos).rgb;
+	float sceneDepth = texture(samplerDepth, inUV).r;
+	vec3 sceneColor = texture(samplerLighting, inUV).rgb;
 
-//	color = sceneColor;
+	if(sceneDepth < 1)
+		color = sceneColor;
 
 	// Tone mapping
 	color = Uncharted2Tonemap(color * 2.5);
-	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));	
+	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 	// Gamma correction
 	color = pow(color, vec3(1.0f / 2.2));
 

@@ -183,12 +183,12 @@ void main()
 	// color = V;
 
 	// Tone mapping
-	color = Uncharted2Tonemap(color * 2.5);
-	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+//	color = Uncharted2Tonemap(color * 2.5);
+//	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
     // HDR tonemapping
     // color = color / (color + vec3(1.0));
     // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+//    color = pow(color, vec3(1.0/2.2));
 
     outColor = vec4(color , 1.0);
 
