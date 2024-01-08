@@ -33,14 +33,17 @@ private:
 
     void PrepareMrtPipeline();
     void PrepareLightingPipeline();
+    void PrepareSkyboxPipeline();
     void PreparePostprocessPipeline();
 
     void SetupMrtRenderPass();
     void SetupLightingRenderPass();
+    void SetupSkyboxRenderPass();
     void SetupPostprocessRenderPass();
 
     std::unique_ptr<vks::geometry::VulkanGLTFModel> gltfModel;
     std::unique_ptr<vks::geometry::VulkanGLTFModel> skybox;
+
     struct ShaderData {
         vks::Buffer buffer;
         struct Values {
@@ -60,17 +63,19 @@ private:
         } values;
     } lightingUbo;
 
-    struct PostprocessUBO
+    struct SkyboxUBO
     {
         vks::Buffer buffer;
-        struct Values
-        {
-            alignas(16) glm::mat4 invProjViewMat;
+        struct Values {
+            alignas(16) glm::mat4 model;
+            alignas(16) glm::mat4 view;
+            alignas(16) glm::mat4 projection;
         } values;
-    } postprocessUbo;
+    } skyboxUbo;
 
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
+    std::unique_ptr<vks::VulkanRenderPass> skyboxRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;
 
     VkDescriptorSetLayout mrtDescriptorSetLayout_Vertex = VK_NULL_HANDLE;
@@ -86,6 +91,10 @@ private:
     VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> skyboxDescriptorSets;
 
+    VkDescriptorSetLayout postprocessDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout postprocessPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> postprocessDescriptorSets;
+
     // irradiance cube map
     std::unique_ptr<vks::TextureCubeMap> irradianceCubeMap = nullptr;
     // baking specular cube map
@@ -99,5 +108,6 @@ private:
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
         VkPipeline skybox = VK_NULL_HANDLE;
+        VkPipeline postprocess = VK_NULL_HANDLE;
     } pipelines;
 };
