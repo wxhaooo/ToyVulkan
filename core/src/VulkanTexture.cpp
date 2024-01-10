@@ -22,14 +22,22 @@ namespace vks
 
 	void Texture::Destroy()
 	{
-		if(view)
-			vkDestroyImageView(device->logicalDevice, view, nullptr);
-		if(image)
-			vkDestroyImage(device->logicalDevice, image, nullptr);
-		if (sampler)
-			vkDestroySampler(device->logicalDevice, sampler, nullptr);
-		if(deviceMemory)
-			vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
+		if(view != VK_NULL_HANDLE) {
+            vkDestroyImageView(device->logicalDevice, view, nullptr);
+            view = VK_NULL_HANDLE;
+        }
+		if(image != VK_NULL_HANDLE) {
+            vkDestroyImage(device->logicalDevice, image, nullptr);
+            image = VK_NULL_HANDLE;
+        }
+		if (sampler != VK_NULL_HANDLE) {
+            vkDestroySampler(device->logicalDevice, sampler, nullptr);
+            sampler = VK_NULL_HANDLE;
+        }
+		if(deviceMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
+            deviceMemory = VK_NULL_HANDLE;
+        }
 	}
 
 	ktxResult Texture::LoadKTXFile(std::string filename, ktxTexture **target)

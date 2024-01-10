@@ -89,10 +89,16 @@ void DeferredPBR::InitFondation() {
     // camera->SetRotation(glm::vec3(0.0f, 90.0f, 0.0f));
     // camera->SetPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 
-    // toy
+    // Damaged Helmet
+//    camera->type = Camera::lookat;
+//    camera->SetPosition(glm::vec3(0.065f, -0.03f, -2.7f));
+//    camera->SetRotation(glm::vec3(187.0f, 40.0f, 0.0f));
+//    camera->SetPerspective(60.0f, (float) viewportWidth / (float) viewportHeight, 0.1f, 256.0f);
+
+    // buster drone
     camera->type = Camera::lookat;
-    camera->SetPosition(glm::vec3(0.065f, -0.03f, -2.7f));
-    camera->SetRotation(glm::vec3(187.0f, 40.0f, 0.0f));
+    camera->SetPosition(glm::vec3(0.12f, -0.67f, -1.84498f));
+    camera->SetRotation(glm::vec3(164.0f, 206.0f, 0.0f));
     camera->SetPerspective(60.0f, (float) viewportWidth / (float) viewportHeight, 0.1f, 256.0f);
 }
 
@@ -1365,13 +1371,17 @@ void DeferredPBR::LoadAsset() {
     gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
 
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
-    // gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/cerberus/cerberus.gltf",
-    // vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
-    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
+//     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/cerberus/cerberus.gltf",
+//     vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
+
+//    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
+//                            vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
+
+    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/buster_drone/scene.gltf",
                             vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
 
-    // gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
-    // 	vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
+//     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Sponza/glTF/sponza.gltf",
+//     	vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags,1);
 }
 
 void DeferredPBR::PrepareUniformBuffers() {

@@ -142,13 +142,12 @@ namespace vks
 				Texture* occlusionTexture = nullptr;
 				Texture* emissiveTexture = nullptr;
 
-				Texture* specularGlossinessTexture;
-				Texture* diffuseTexture;
+				Texture* specularGlossinessTexture = nullptr;
+				Texture* diffuseTexture = nullptr;
 
 				VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
 				Material(vks::VulkanDevice* device) : device(device) {}
-
 				void Destory();
 				void CreateDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, uint32_t descriptorBindingFlags);
 			};
@@ -252,7 +251,7 @@ namespace vks
 				float radius;
 			} dimensions;
 
-			Texture emptyTexture;
+			Texture* emptyTexture;
 
 			bool metallicRoughnessWorkflow = true;
 			bool buffersBound = false;
@@ -280,7 +279,6 @@ namespace vks
 			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, bool pushConstant,  VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
 
 		private:
-			void CreateEmptyTexture(VkQueue transferQueue);
 			Texture* GetTexture(uint32_t index);
 			void GetSceneDimensions();
 			void GetNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);

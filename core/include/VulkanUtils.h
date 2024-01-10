@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <vulkan/vulkan_core.h>
+#include <VulkanTexture.h>
+#include <glm/vec4.hpp>
 
 #define VK_KHR_WIN32_SURFACE_EXTENSION_NAME "VK_KHR_win32_surface"
 // Custom define for better code readability
@@ -32,5 +34,7 @@ namespace vks
     	bool HasStencil(VkFormat format);
 
     	bool IsDepthStencil(VkFormat format);
+
+        Texture2D* CreateDefaultTexture2D(VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t width, uint32_t height, glm::vec4 clearColor = glm::vec4(1.0f));
     }    
 }

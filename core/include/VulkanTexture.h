@@ -20,16 +20,16 @@ namespace vks
 	class Texture
 	{
 	public:
-		vks::VulkanDevice *   device;
-		VkImage               image;
+		vks::VulkanDevice *   device = nullptr;
+		VkImage               image = VK_NULL_HANDLE;
 		VkImageLayout         imageLayout;
-		VkDeviceMemory        deviceMemory;
-		VkImageView           view;
+		VkDeviceMemory        deviceMemory = VK_NULL_HANDLE;
+		VkImageView           view = VK_NULL_HANDLE;
 		uint32_t              width, height;
 		uint32_t              mipLevels;
 		uint32_t              layerCount;
 		VkDescriptorImageInfo descriptor;
-		VkSampler             sampler;
+		VkSampler             sampler = VK_NULL_HANDLE;
 
 		void      UpdateDescriptor();
 		void      Destroy();
