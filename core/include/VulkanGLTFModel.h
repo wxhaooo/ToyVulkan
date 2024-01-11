@@ -8,6 +8,15 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <VulkanTexture.h>
+#include <limits>
+
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
 
 #include <GraphicSettings.hpp>
 
@@ -38,7 +47,8 @@ namespace vks
 			PreTransformVertices = 0x00000001,
 			PreMultiplyVertexColors = 0x00000002,
 			FlipY = 0x00000004,
-			DontLoadImages = 0x00000008
+			DontLoadImages = 0x00000008,
+            ConvertToCounterClockwise = 0x00000010,
 		};
 
 		enum RenderFlags {
@@ -104,9 +114,9 @@ namespace vks
 				VkDeviceMemory memory;
 			} indices;
 
-			// The following structures roughly represent the glTF scene structure
-			// To keep things simple, they only contain those properties that are required for this sample
-			struct Node;
+            // The following structures roughly represent the glTF scene structure
+            // To keep things simple, they only contain those properties that are required for this sample
+            struct Node;
 
 			struct HasSampler
 			{
@@ -209,7 +219,7 @@ namespace vks
 				Node* skeletonRoot = nullptr;
 				std::vector<glm::mat4> inverseBindMatrices;
 				std::vector<Node*> joints;
-			};
+            };
 
 			/*
 				glTF node
@@ -232,6 +242,37 @@ namespace vks
 				~Node();
 			};
 
+            /*
+		        glTF animation channel
+	        */
+            struct AnimationChannel {
+                enum PathType { TRANSLATION, ROTATION, SCALE };
+                PathType path;
+                Node* node;
+                uint32_t samplerIndex;
+            };
+
+            /*
+                glTF animation sampler
+            */
+            struct AnimationSampler {
+                enum InterpolationType { LINEAR, STEP, CUBICSPLINE };
+                InterpolationType interpolation;
+                std::vector<float> inputs;
+                std::vector<glm::vec4> outputsVec4;
+            };
+
+            /*
+                glTF animation
+            */
+            struct Animation {
+                std::string name;
+                std::vector<AnimationSampler> samplers;
+                std::vector<AnimationChannel> channels;
+                float start = std::numeric_limits<float>::max();
+                float end = std::numeric_limits<float>::min();
+            };
+
 			/*
 				Model data
 			*/
@@ -242,8 +283,9 @@ namespace vks
 			std::map<std::string, Node*> nodeName2LinearNodeMap;
 			std::vector<Node*> linearNodes;
 			std::vector<Skin*> skins;
+            std::vector<Animation> animations;
 
-			struct Dimensions {
+            struct Dimensions {
 				glm::vec3 min = glm::vec3(FLT_MAX);
 				glm::vec3 max = glm::vec3(-FLT_MAX);
 				glm::vec3 size;
@@ -267,24 +309,26 @@ namespace vks
 			void LoadMaterials(tinygltf::Model& input);
 			void LoadLights(tinygltf::Model& input, uint32_t fileLoadingFlags);
 			void LoadNode(Node *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t>& indexBuffer, std::vector<Vertex>& vertexBuffer, float globalScale);
-
+            Node* FindNode(Node *parent, uint32_t index);
+            Node* NodeFromIndex(uint32_t index);
 			void LoadGLTFFile(std::string fileName,VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t fileLoadingFlags = FileLoadingFlags::None, uint32_t descriptorBindingFlags = DescriptorBindingFlags::ImageBaseColor, float scale = 1.0f);
 			/*
 				glTF rendering functions
 			*/
 			void BindBuffers(VkCommandBuffer commandBuffer);
-			// Draw a single node including child nodes (if present)
+            void UpdateAnimation(uint32_t index, float time);
+            // Draw a single node including child nodes (if present)
 			void DrawNode(Node* node, VkCommandBuffer commandBuffer, bool pushConstant, uint32_t renderFlags = 0, VkPipelineLayout pipelineLayout = VK_NULL_HANDLE, uint32_t bindImageSet = 1);
 			// Draw the glTF scene starting at the top-level-nodes
 			void Draw(VkCommandBuffer commandBuffer, uint32_t renderFlags, bool pushConstant,  VkPipelineLayout pipelineLayout, uint32_t bindImageSet);
 
 		private:
-			Texture* GetTexture(uint32_t index);
-			void GetSceneDimensions();
-			void GetNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);
-			void PrepareNodeDescriptor(Node* node, VkDescriptorSetLayout descriptorSetLayout);
-			// void LoadAnimations(tinygltf::Model &gltfModel);
-			// void LoadSkins(tinygltf::Model& gltfModel);
+            Texture* GetTexture(uint32_t index);
+            void GetSceneDimensions();
+            void GetNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);
+            void PrepareNodeDescriptor(Node* node, VkDescriptorSetLayout descriptorSetLayout);
+            void LoadAnimations(tinygltf::Model &gltfModel);
+            void LoadSkins(tinygltf::Model& gltfModel);
 		};
 	}
 }

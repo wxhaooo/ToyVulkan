@@ -1371,12 +1371,13 @@ void DeferredPBR::LoadAsset() {
     gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
 
     gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
+
 //     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/cerberus/cerberus.gltf",
 //     vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
 
 //    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
 //                            vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
-
+    gltfLoadingFlags = vks::geometry::FileLoadingFlags::ConvertToCounterClockwise;
     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/buster_drone/scene.gltf",
                             vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
 
@@ -2194,4 +2195,7 @@ void DeferredPBR::Render() {
 
     if (camera->updated)
         UpdateUniformBuffers();
+
+//    if(!gltfModel->animations.empty() && !paused)
+//        gltfModel->UpdateAnimation(0, 2);
 }
