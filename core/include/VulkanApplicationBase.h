@@ -61,7 +61,7 @@ public:
     // For use in animations, rotations, etc.
     float timer = 0.0f;
     // Multiplier for speeding up (or slowing down) the global timer
-    float timerSpeed = 0.25f;
+    float timerSpeed = 1.0f;
     bool paused = false;
     uint32_t currentFrame = 0;
     uint32_t maxFrameInFlight = 0;

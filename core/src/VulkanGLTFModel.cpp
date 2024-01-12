@@ -1473,6 +1473,8 @@ namespace vks {
             }
             Animation &animation = animations[index];
 
+            time = fmod(time, animation.end);
+
             bool updated = false;
             for (auto& channel : animation.channels) {
                 AnimationSampler &sampler = animation.samplers[channel.samplerIndex];
@@ -1486,13 +1488,13 @@ namespace vks {
                         if (u <= 1.0f) {
                             switch (channel.path) {
                                 case AnimationChannel::PathType::TRANSLATION: {
-                                    glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
-                                    channel.node->translation = glm::vec3(trans);
+//                                    glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
+//                                    channel.node->translation = glm::vec3(trans);
                                     break;
                                 }
                                 case AnimationChannel::PathType::SCALE: {
-                                    glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
-                                    channel.node->scale = glm::vec3(trans);
+//                                    glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
+//                                    channel.node->scale = glm::vec3(trans);
                                     break;
                                 }
                                 case AnimationChannel::PathType::ROTATION: {

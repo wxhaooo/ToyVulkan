@@ -598,8 +598,8 @@ void VulkanApplicationBase::NextFrame()
     if (!paused)
     {
         timer += timerSpeed * frameTimer;
-        if (timer > 1.0f)
-            timer -= 1.0f;
+//        if (timer > 1.0f)
+//            timer -= 1.0f;
     }
     float fpsTimer = (float)(std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count());
     if (fpsTimer > 1000.0f)

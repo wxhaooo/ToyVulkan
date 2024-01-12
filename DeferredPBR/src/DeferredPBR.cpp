@@ -2196,6 +2196,6 @@ void DeferredPBR::Render() {
     if (camera->updated)
         UpdateUniformBuffers();
 
-//    if(!gltfModel->animations.empty() && !paused)
-//        gltfModel->UpdateAnimation(0, 2);
+    if(!gltfModel->animations.empty() && !paused)
+        gltfModel->UpdateAnimation(0, timer);
 }
