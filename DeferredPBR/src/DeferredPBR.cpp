@@ -97,8 +97,9 @@ void DeferredPBR::InitFondation() {
 
     // buster drone
     camera->type = Camera::lookat;
-    camera->SetPosition(glm::vec3(0.12f, -0.67f, -1.84498f));
-    camera->SetRotation(glm::vec3(164.0f, 206.0f, 0.0f));
+    camera->flipY = true;
+    camera->SetPosition(glm::vec3(0.12f, -0.67f, -1.6998f));
+    camera->SetRotation(glm::vec3(345.f, -44.0f, 0.0f));
     camera->SetPerspective(60.0f, (float) viewportWidth / (float) viewportHeight, 0.1f, 256.0f);
 }
 
@@ -1363,21 +1364,19 @@ void DeferredPBR::LoadAsset() {
     uint32_t descriptorBindingFlags = vks::geometry::DescriptorBindingFlags::ImageBaseColor |
                                       vks::geometry::DescriptorBindingFlags::ImageNormalMap;
 
+    // model
+    gltfLoadingFlags = 0;
     skybox = std::make_unique<vks::geometry::VulkanGLTFModel>();
     skybox->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/Cube/Cube.gltf", vulkanDevice.get(),
                          queue, gltfLoadingFlags, 0, 1);
-
-    // model
-    gltfLoadingFlags = vks::geometry::FileLoadingFlags::FlipY;
-
-    gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
 
 //     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/cerberus/cerberus.gltf",
 //     vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
 
 //    gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/DamagedHelmet/DamagedHelmet.gltf",
 //                            vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
-    gltfLoadingFlags = vks::geometry::FileLoadingFlags::ConvertToCounterClockwise;
+    gltfLoadingFlags = 0;
+    gltfModel = std::make_unique<vks::geometry::VulkanGLTFModel>();
     gltfModel->LoadGLTFFile(vks::helper::GetAssetPath() + "/models/buster_drone/scene.gltf",
                             vulkanDevice.get(), queue, gltfLoadingFlags, descriptorBindingFlags, 1);
 
@@ -2196,6 +2195,6 @@ void DeferredPBR::Render() {
     if (camera->updated)
         UpdateUniformBuffers();
 
-    if(!gltfModel->animations.empty() && !paused)
-        gltfModel->UpdateAnimation(0, timer);
+//    if(!gltfModel->animations.empty() && !paused)
+//        gltfModel->UpdateAnimation(0, timer);
 }
