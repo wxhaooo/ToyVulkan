@@ -10204,13 +10204,18 @@
       ],
       "translation": [
         0.0,
-        -99.0,
+        -149.0,
         6.1232337864698064e-15
       ]
     },
     {
       "mesh": 0,
-      "name": "Scheibe_Boden_0"
+      "name": "Scheibe_Boden_0",
+      "translation": [
+        0.0,
+        0,
+        0
+      ]
     },
     {
       "name": "Himmel"
