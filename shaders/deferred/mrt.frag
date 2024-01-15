@@ -2,8 +2,10 @@
 
 layout (set = 1, binding = 0) uniform sampler2D samplerBaseColor;
 layout (set = 1, binding = 1) uniform sampler2D samplerNormal;
-layout (set = 1, binding = 2) uniform sampler2D samplerRoughness;
+// r = ao (optional), g = roughness, b = metallic
+layout (set = 1, binding = 2) uniform sampler2D samplerOcclusionRoughnessMetallic;
 layout (set = 1, binding = 3) uniform sampler2D samplerEmissive;
+// optional
 layout (set = 1, binding = 4) uniform sampler2D samplerOcclusion;
 
 // struct HasSampler
@@ -29,15 +31,15 @@ layout (location = 4) in vec3 inTangent;
 layout (location = 0) out vec4 outPosition;
 layout (location = 1) out vec4 outNormal;
 layout (location = 2) out vec4 outAlbedo;
-layout (location = 3) out vec4 outRoughness;
+layout (location = 3) out vec4 outRoughnessMetallic;
 layout (location = 4) out vec4 outEmissive;
 layout (location = 5) out vec4 outOcclusion;
 layout (location = 6) out vec4 outDepth;
 
 // ----------------------------------------------------------------------------
 // Easy trick to get tangent-normals to world-space to keep PBR code simplified.
-// Don't worry if you don't get what's going on; you generally want to do normal 
-// mapping the usual way for performance anyways; I do plan make a note of this 
+// Don't worry if you don't get what's going on; you generally want to do normal
+// mapping the usual way for performance anyways; I do plan make a note of this
 // technique somewhere later in the normal mapping tutorial.
 vec3 getNormalFromMap()
 {
@@ -57,26 +59,32 @@ vec3 getNormalFromMap()
 }
 
 
-void main() 
+void main()
 {
-	outPosition = vec4(inWorldPos, 1.0);
+    outPosition = vec4(inWorldPos, 1.0);
 
-	outAlbedo = texture(samplerBaseColor, inUV);
+    outAlbedo = texture(samplerBaseColor, inUV);
 
-	// Calculate normal in tangent space
-	vec3 N = normalize(inNormal);
-	vec3 T = normalize(inTangent);
-	vec3 B = cross(N, T);
-	mat3 TBN = mat3(T, B, N);
-	// outNormal = vec4(N, 1.0);
-	outNormal = vec4(getNormalFromMap(), 1.0);
-	// outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
-	// vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
-	// outNormal = vec4(texture(samplerNormal, inUV).xyz, 1.0);
+    // Calculate normal in tangent space
+    vec3 N = normalize(inNormal);
+    vec3 T = normalize(inTangent);
+    vec3 B = cross(N, T);
+    mat3 TBN = mat3(T, B, N);
+    // outNormal = vec4(N, 1.0);
+    outNormal = vec4(getNormalFromMap(), 1.0);
+    // outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
+    // vec3 tnorm = TBN * normalize(texture(samplerNormal, inUV).xyz * 2.0 - vec3(1.0));
+    // outNormal = vec4(texture(samplerNormal, inUV).xyz, 1.0);
+    outRoughnessMetallic = vec4(0.0, texture(samplerOcclusionRoughnessMetallic, inUV).gb, 1.0);
+    outEmissive = texture(samplerEmissive, inUV);
 
-	outRoughness = texture(samplerRoughness, inUV);
-	outEmissive = texture(samplerEmissive, inUV);
-	outOcclusion = texture(samplerOcclusion,inUV);
+    // ao
+    ivec2 occlusionSize2d = textureSize(samplerOcclusion, 0);
+    if(occlusionSize2d.x != 1)
+        outOcclusion = vec4(texture(samplerOcclusion, inUV).rrr, 1);
+    else
+        outOcclusion = vec4(texture(samplerOcclusionRoughnessMetallic, inUV).rrr, 1);
+
     float depth = 1.0 - gl_FragCoord.z / gl_FragCoord.w;
     outDepth = vec4(depth, depth, depth, 1.0);
 }
