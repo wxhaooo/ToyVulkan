@@ -31,12 +31,16 @@ private:
     void BakingPreFilteringCubeMap();
     void BakingSpecularBRDFCubeMap();
 
+    // SSAO
+    void PrepareSSAOGenData();
+
     void PrepareMrtPipeline();
     void PrepareLightingPipeline();
     void PrepareSkyboxPipeline();
     void PreparePostprocessPipeline();
 
     void SetupMrtRenderPass();
+    void SetupSSAORenderPass();
     void SetupLightingRenderPass();
     void SetupSkyboxRenderPass();
     void SetupPostprocessRenderPass();
@@ -51,6 +55,21 @@ private:
             glm::mat4 view;
         } values;
     } shaderData;
+
+    struct SsaoCreateUBO
+    {
+        vks::Buffer buffer;
+    } ssaoCreateUbo;
+
+    struct SsaoBlurUBO
+    {
+        vks::Buffer buffer;
+        struct Values
+        {
+            glm::mat4 projection;
+            int32_t ssaoBlur = true;
+        }values;
+    } ssaoUbo;
 
     struct LightingUBO
     {
@@ -74,6 +93,7 @@ private:
     } skyboxUbo;
 
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
+    std::unique_ptr<vks::VulkanRenderPass> ssaoRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> skyboxRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;
@@ -102,6 +122,9 @@ private:
     std::unique_ptr<vks::Texture2D> specularBRDFLut = nullptr;
     // environment cube map
     std::unique_ptr<vks::TextureCubeMap> environmentCubeMap = nullptr;
+    // ssao texture
+    std::unique_ptr<vks::Texture2D> ssaoNoiseTexture = nullptr;
+    std::vector<glm::vec3> ssaoKernel;
 
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;

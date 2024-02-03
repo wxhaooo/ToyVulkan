@@ -67,6 +67,11 @@ namespace math
     {
         return mat[3];
     }
+
+    float Lerp(float a, float b, float f)
+    {
+        return a + f * (b-a);
+    }
 }
 
 

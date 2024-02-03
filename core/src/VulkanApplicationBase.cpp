@@ -76,6 +76,7 @@ VulkanApplicationBase::~VulkanApplicationBase()
 void VulkanApplicationBase::InitFondation()
 {
     Singleton<InputManager>::Init();
+    graphicSettings = Singleton<GraphicSettings>::Instance();
 }
 
 bool VulkanApplicationBase::InitVulkan()

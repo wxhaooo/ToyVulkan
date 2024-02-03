@@ -18,6 +18,7 @@ namespace vks
 
 class VulkanGUI;
 class Camera;
+class GraphicSettings;
 
 class VulkanApplicationBase
 {
@@ -140,6 +141,7 @@ protected:
     std::vector<VkFence> waitFences;
 
     VulkanGUI* gui;
+    GraphicSettings* graphicSettings;
 
     // add different front end here,glfw,SDL.etc
     bool SetupWindows();

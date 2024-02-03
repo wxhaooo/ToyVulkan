@@ -1,7 +1,8 @@
-﻿#include <array>
-#include <cassert>
+﻿#include <VulkanHelper.h>
 #include <VulkanRenderPass.h>
-#include <VulkanHelper.h>
+#include <array>
+#include <cassert>
+#include <numeric>
 
 #include "VulkanFrameBuffer.h"
 
@@ -9,191 +10,422 @@ namespace vks
 {
     OffscreenPass::~OffscreenPass()
     {
-        if(renderPass != VK_NULL_HANDLE)
-            vkDestroyRenderPass(device,renderPass,nullptr);
+        if (renderPass != VK_NULL_HANDLE)
+            vkDestroyRenderPass(device, renderPass, nullptr);
 
-        DestroyResource(); 
+        DestroyResource();
     }
 
     void OffscreenPass::DestroyResource()
     {
         {
-            for(uint32_t i = 0;i < frameBuffer.size(); i++)
+            for (uint32_t i = 0; i < frameBuffer.size(); i++)
             {
-                vkDestroySampler(device,sampler[i],nullptr);
-                vkDestroyFramebuffer(device,frameBuffer[i],nullptr);
+                vkDestroySampler(device, sampler[i], nullptr);
+                vkDestroyFramebuffer(device, frameBuffer[i], nullptr);
 
-                vkDestroyImage(device,color[i].image,nullptr);
-                vkDestroyImageView(device,color[i].view,nullptr);
-                vkFreeMemory(device,color[i].mem,nullptr);
-                
-                vkDestroyImage(device,depth[i].image,nullptr);
-                vkDestroyImageView(device,depth[i].view,nullptr);
-                vkFreeMemory(device,depth[i].mem,nullptr);
+                vkDestroyImage(device, color[i].image, nullptr);
+                vkDestroyImageView(device, color[i].view, nullptr);
+                vkFreeMemory(device, color[i].memory, nullptr);
+
+                vkDestroyImage(device, depth[i].image, nullptr);
+                vkDestroyImageView(device, depth[i].view, nullptr);
+                vkFreeMemory(device, depth[i].memory, nullptr);
             }
 
-            vkDestroyDescriptorPool(device,descriptorPool,nullptr);
-            vkDestroyDescriptorSetLayout(device,descriptorSetLayout,nullptr);
+            vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+            vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         }
     }
-}
+} // namespace vks
 
 namespace vks
 {
-	VulkanRenderPass::VulkanRenderPass(const std::string& renderPassName, VulkanDevice* device)
-	:name(renderPassName),vulkanDevice(device)
-	{
-		attachmentCount = 0;
-		colorAttachmentCount = 0;
-	}
+    VulkanSubPass::VulkanSubPass(const std::string& subPassName,
+                                 VkPipelineBindPoint subPassBindPoint,
+                                 vks::VulkanDevice* device)
+        : name(subPassName), bindPoint(subPassBindPoint), vulkanDevice(device)
+    {
+    }
 
-	VulkanRenderPass::~VulkanRenderPass()
-	{
-		Destroy();
-	}
+    void VulkanSubPass::AddAttachments(
+        FrameBuffer* frameBuffer, const std::vector<int32_t>& attachmentIndices)
+    {
+        // Collect attachment references
+        for (uint32_t i = 0; i < attachmentIndices.size(); i++)
+        {
+            uint32_t attachmentIndex = attachmentIndices[i];
+            if (attachmentIndex >= frameBuffer->attachments.size())
+                continue;
+            FramebufferAttachment& attachment =
+                frameBuffer->attachments[attachmentIndex];
+            if (attachment.IsDepthStencil())
+            {
+                // Only one depth attachment allowed
+                assert(!hasDepth);
+                depthReference.attachment = attachmentIndex;
+                depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                hasDepth = true;
+            }
+            else
+            {
+                colorReferences.push_back(
+                    {attachmentIndex, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+                hasColor = true;
+            }
+        }
+    }
 
-	void VulkanRenderPass::Init(uint32_t width, uint32_t height, uint32_t maxFrameInFlight)
-	{
-		vulkanFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice, width, height, maxFrameInFlight);
-	}
+    void VulkanSubPass::CreateDescription()
+    {
+        description = {};
+        // Default render pass setup uses only one subPass
+        description.pipelineBindPoint = bindPoint;
+        if (hasColor)
+        {
+            description.pColorAttachments = colorReferences.data();
+            description.colorAttachmentCount =
+                static_cast<uint32_t>(colorReferences.size());
+        }
+        if (hasDepth)
+            description.pDepthStencilAttachment = &depthReference;
+    }
 
-	void VulkanRenderPass::Destroy()
-	{
-		vulkanFrameBuffer.reset();
-		vkDestroyRenderPass(vulkanDevice->logicalDevice,renderPass,nullptr);
-	}
-	
-	void VulkanRenderPass::CreateRenderPass()
-	{
-		FrameBuffer* firstFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(0);
-		std::vector<VkAttachmentDescription> attachmentDescriptions;
-		for (auto& attachment : firstFrameBuffer->attachments)
-			attachmentDescriptions.push_back(attachment.description);
+    VkSubpassDescription& VulkanSubPass::GetDescription()
+    {
+        return description;
+    }
 
-		// Collect attachment references
-		std::vector<VkAttachmentReference> colorReferences;
-		VkAttachmentReference depthReference = {};
-		bool hasDepth = false; 
-		bool hasColor = false;
+    VulkanRenderPass::VulkanRenderPass(const std::string& renderPassName,
+                                       VulkanDevice* device)
+        : name(renderPassName), vulkanDevice(device)
+    {
+        attachmentCount = 0;
+        colorAttachmentCount = 0;
+    }
 
-		for (auto& attachment : firstFrameBuffer->attachments)
-		{
-			uint32_t attachmentIndex = attachment.binding;
-			if (attachment.IsDepthStencil())
-			{
-				// Only one depth attachment allowed
-				assert(!hasDepth);
-				depthReference.attachment = attachmentIndex;
-				depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				hasDepth = true;
-			}
-			else
-			{
-				colorReferences.push_back({ attachmentIndex, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-				hasColor = true;
-			}
-			// attachmentIndex++;
-		}
+    VulkanRenderPass::~VulkanRenderPass() { Destroy(); }
 
-		// Default render pass setup uses only one subpass
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		if (hasColor)
-		{
-			subpass.pColorAttachments = colorReferences.data();
-			subpass.colorAttachmentCount = static_cast<uint32_t>(colorReferences.size());
-		}
-		if (hasDepth)
-			subpass.pDepthStencilAttachment = &depthReference;
+    void VulkanRenderPass::Init(uint32_t width, uint32_t height,
+                                uint32_t maxFrameInFlight)
+    {
+        vulkanFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(
+            vulkanDevice, width, height, maxFrameInFlight);
+        templateFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(0);
+    }
 
-		// Use subpass dependencies for attachment layout transitions
-		std::array<VkSubpassDependency, 2> dependencies;
+    void VulkanRenderPass::Destroy()
+    {
+        // release subpass resource
+        subPassArray.clear();
+        subPassName2InstMap.clear();
 
-		dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[0].dstSubpass = 0;
-		dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        // release framebuffer
+        vulkanFrameBuffer.reset();
+        vkDestroyRenderPass(vulkanDevice->logicalDevice, renderPass, nullptr);
+    }
 
-		dependencies[1].srcSubpass = 0;
-		dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    void VulkanRenderPass::AddSubPass(
+        const std::string &subPassName,
+        VkPipelineBindPoint subPassBindPoint,
+        const std::vector<std::string>& attachmentNames)
+    {
+        std::vector<int32_t> attachmentIndices;
+        attachmentIndices.resize(attachmentNames.size());
 
-		// Create render pass
-		VkRenderPassCreateInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.pAttachments = attachmentDescriptions.data();
-		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size());
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 2;
-		renderPassInfo.pDependencies = dependencies.data();
-		CheckVulkanResult(vkCreateRenderPass(vulkanDevice->logicalDevice, &renderPassInfo, nullptr, &renderPass));
+        for (int i = 0; i < attachmentNames.size(); i++)
+        {
+            std::string attachmentName = attachmentNames[i];
+            auto attachment = std::find_if(templateFrameBuffer->attachments.begin(), templateFrameBuffer->attachments.end(),
+                                           [&](const FramebufferAttachment& framebufferAttachment)
+                                           {
+                                               return attachmentName == framebufferAttachment.name;
+                                           });
 
-		for(uint32_t i=0;i<vulkanFrameBuffer->frameBufferCount;i++)
-		{
-			FrameBuffer* frameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
+            if (attachment == templateFrameBuffer->attachments.end())
+            {
+                vks::helper::ExitFatal("do not find target attachment name in framebuffer", -1);
+                return;
+            }
 
-			std::vector<VkImageView> attachmentViews;
-			for (auto attachment : frameBuffer->attachments)
-				attachmentViews.push_back(attachment.view);
+            attachmentIndices[i] = attachment->binding;
+        }
 
-			// Find. max number of layers across attachments
-			uint32_t maxLayers = 0;
-			for (auto attachment : frameBuffer->attachments)
-			{
-				if (attachment.subresourceRange.layerCount > maxLayers)
-					maxLayers = attachment.subresourceRange.layerCount;
-			}
+        AddSubPass(subPassName, subPassBindPoint, attachmentIndices);
+    }
 
-			VkFramebufferCreateInfo framebufferInfo = {};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = renderPass;
-			framebufferInfo.pAttachments = attachmentViews.data();
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
-			framebufferInfo.width = vulkanFrameBuffer->Width();
-			framebufferInfo.height = vulkanFrameBuffer->Height();
-			framebufferInfo.layers = maxLayers;
-			
-			FrameBuffer* currentFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
-			CheckVulkanResult(vkCreateFramebuffer(vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &currentFrameBuffer->frameBuffer));
-		}
-	}
+    void VulkanRenderPass::AddSubPass(
+        const std::string& subPassName, VkPipelineBindPoint subPassBindPoint,
+        const std::vector<int32_t>& attachmentIndices)
+    {
+        if (subPassName2InstMap.count(subPassName))
+            return;
 
-	void VulkanRenderPass::CreateDescriptorSet()
-	{
-		if(vulkanFrameBuffer != nullptr)
-			vulkanFrameBuffer->CrateDescriptorSet();
-	}
+        VulkanSubPass* newSubPassInst =
+            new VulkanSubPass(subPassName, subPassBindPoint, vulkanDevice);
+        newSubPassInst->AddAttachments(templateFrameBuffer, attachmentIndices);
+        newSubPassInst->CreateDescription();
 
-	int VulkanRenderPass::AttachmentCount()
-	{
-		return attachmentCount;
-	}
+        // add subPass
+        subPassArray.push_back(newSubPassInst);
+        subPassName2InstMap.emplace(subPassName, newSubPassInst);
+    }
 
-	int VulkanRenderPass::ColorAttachmentCount()
-	{
-		return colorAttachmentCount;	
-	}
+    void VulkanRenderPass::AddSubPassDependency(std::vector<VkSubpassDependency> newSubPassDependencies)
+    {
+        for (auto subPassDependency : newSubPassDependencies)
+            subPassDependencies.push_back(subPassDependency);
+    }
 
-	void VulkanRenderPass::AddAttachment(vks::AttachmentCreateInfo attachmentInfo)
-	{
-		vulkanFrameBuffer->AddAttachment(attachmentInfo);
-		attachmentCount++;
-		if(!utils::IsDepthStencil(attachmentInfo.format))
-			colorAttachmentCount++;
-	}
+    void VulkanRenderPass::CreateRenderPass()
+    {
+        std::vector<VkAttachmentDescription> allAttachmentDescriptions;
+        for (auto& attachment : templateFrameBuffer->attachments)
+            allAttachmentDescriptions.push_back(attachment.description);
 
-	void VulkanRenderPass::AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
-	{
-		// create sampler
-		vulkanFrameBuffer->CreateSampler(magFilter,minFilter,addressMode);
-	}
+        std::vector<VkSubpassDescription> subPasses;
+        for (auto& subPass : subPassArray)
+        {
+            VkSubpassDescription subPassDescription = subPass->GetDescription();
+            subPasses.push_back(subPassDescription);
+        }
 
-}
+        // Create render pass
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.pAttachments = allAttachmentDescriptions.data();
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(allAttachmentDescriptions.size());
+        renderPassInfo.subpassCount = subPasses.size();
+        renderPassInfo.pSubpasses = subPasses.data();
+        renderPassInfo.dependencyCount = subPassDependencies.size();
+        renderPassInfo.pDependencies = subPassDependencies.data();
+        CheckVulkanResult(vkCreateRenderPass(vulkanDevice->logicalDevice, &renderPassInfo, nullptr, &renderPass));
+
+        // create frame buffer
+        for (uint32_t i = 0; i < vulkanFrameBuffer->frameBufferCount; i++)
+        {
+            FrameBuffer* frameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
+
+            std::vector<VkImageView> attachmentViews;
+            for (auto attachment : frameBuffer->attachments)
+                attachmentViews.push_back(attachment.view);
+
+            // Find. max number of layers across attachments
+            uint32_t maxLayers = 0;
+            for (auto attachment : frameBuffer->attachments)
+            {
+                if (attachment.subresourceRange.layerCount > maxLayers)
+                    maxLayers = attachment.subresourceRange.layerCount;
+            }
+
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = renderPass;
+            framebufferInfo.pAttachments = attachmentViews.data();
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
+            framebufferInfo.width = vulkanFrameBuffer->Width();
+            framebufferInfo.height = vulkanFrameBuffer->Height();
+            framebufferInfo.layers = maxLayers;
+
+            FrameBuffer* currentFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
+            CheckVulkanResult(vkCreateFramebuffer(vulkanDevice->logicalDevice,
+                &framebufferInfo, nullptr, &currentFrameBuffer->frameBuffer));
+        }
+    }
+
+    void VulkanRenderPass::CreateDefaultRenderPass()
+    {
+        // subpass
+        int attachmentCount = templateFrameBuffer->attachments.size();
+        std::vector<int32_t> subPassAttachmentIndices(attachmentCount);
+        std::iota(subPassAttachmentIndices.begin(),subPassAttachmentIndices.end(),0);
+        AddSubPass("default", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices);
+        AddSubPassDependency(
+            {
+                {
+                    VK_SUBPASS_EXTERNAL, 0,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_ACCESS_MEMORY_READ_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    VK_DEPENDENCY_BY_REGION_BIT,
+                },
+                {
+                    0,VK_SUBPASS_EXTERNAL,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    VK_ACCESS_MEMORY_READ_BIT,
+                    VK_DEPENDENCY_BY_REGION_BIT,
+                }
+            });
+
+        CreateRenderPass();
+    }
+
+    // void VulkanRenderPass::CreateDefaultRenderPass()
+    // {
+    //     FrameBuffer* templateFrameBuffer = vulkanFrameBuffer->GetFrameBuffer(0);
+    //     std::vector<VkAttachmentDescription> attachmentDescriptions;
+    //     for (auto& attachment : templateFrameBuffer->attachments)
+    //         attachmentDescriptions.push_back(attachment.description);
+    //
+    //     // Collect attachment references
+    //     std::vector<VkAttachmentReference> colorReferences;
+    //     VkAttachmentReference depthReference = {};
+    //     bool hasDepth = false;
+    //     bool hasColor = false;
+    //
+    //     for (auto& attachment : templateFrameBuffer->attachments)
+    //     {
+    //         uint32_t attachmentIndex = attachment.binding;
+    //         if (attachment.IsDepthStencil())
+    //         {
+    //             // Only one depth attachment allowed
+    //             assert(!hasDepth);
+    //             depthReference.attachment = attachmentIndex;
+    //             depthReference.layout =
+    //                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //             hasDepth = true;
+    //         }
+    //         else
+    //         {
+    //             colorReferences.push_back({
+    //                 attachmentIndex,
+    //                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    //             });
+    //             hasColor = true;
+    //         }
+    //         // attachmentIndex++;
+    //     }
+    //
+    //     // Default render pass setup uses only one subpass
+    //     VkSubpassDescription subpass = {};
+    //     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //     if (hasColor)
+    //     {
+    //         subpass.pColorAttachments = colorReferences.data();
+    //         subpass.colorAttachmentCount =
+    //             static_cast<uint32_t>(colorReferences.size());
+    //     }
+    //     if (hasDepth)
+    //         subpass.pDepthStencilAttachment = &depthReference;
+    //
+    //     // Use subpass dependencies for attachment layout transitions
+    //     std::array<VkSubpassDependency, 2> dependencies;
+    //
+    //     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    //     dependencies[0].dstSubpass = 0;
+    //     dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    //     dependencies[0].dstStageMask =
+    //         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //     dependencies[0].srcAccessMask
+    //         = VK_ACCESS_MEMORY_READ_BIT;
+    //     dependencies[0].dstAccessMask =
+    //         VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //
+    //     dependencies[1].srcSubpass = 0;
+    //     dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    //     dependencies[1].srcStageMask =
+    //         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //     dependencies[1].dstStageMask =
+    //         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    //     dependencies[1].srcAccessMask =
+    //         VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //     dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    //     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //
+    //     // Create render pass
+    //     VkRenderPassCreateInfo renderPassInfo = {};
+    //     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    //     renderPassInfo.pAttachments = attachmentDescriptions.data();
+    //     renderPassInfo.attachmentCount =
+    //         static_cast<uint32_t>(attachmentDescriptions.size());
+    //     renderPassInfo.subpassCount = 1;
+    //     renderPassInfo.pSubpasses = &subpass;
+    //     renderPassInfo.dependencyCount = 2;
+    //     renderPassInfo.pDependencies = dependencies.data();
+    //     CheckVulkanResult(vkCreateRenderPass(vulkanDevice->logicalDevice,
+    //         &renderPassInfo, nullptr, &renderPass));
+    //
+    //     for (uint32_t i = 0; i < vulkanFrameBuffer->frameBufferCount; i++)
+    //     {
+    //         FrameBuffer* frameBuffer = vulkanFrameBuffer->GetFrameBuffer(i);
+    //
+    //         std::vector<VkImageView> attachmentViews;
+    //         for (auto attachment : frameBuffer->attachments)
+    //             attachmentViews.push_back(attachment.view);
+    //
+    //         // Find. max number of layers across attachments
+    //         uint32_t maxLayers = 0;
+    //         for (auto attachment : frameBuffer->attachments)
+    //         {
+    //             if (attachment.subresourceRange.layerCount > maxLayers)
+    //                 maxLayers =
+    //                     attachment.subresourceRange.layerCount;
+    //         }
+    //
+    //         VkFramebufferCreateInfo framebufferInfo = {};
+    //         framebufferInfo.sType =
+    //             VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    //         framebufferInfo.renderPass =
+    //             renderPass;
+    //         framebufferInfo.pAttachments = attachmentViews.data();
+    //         framebufferInfo.attachmentCount =
+    //             static_cast<uint32_t>(attachmentViews.size());
+    //         framebufferInfo.width =
+    //             vulkanFrameBuffer->Width();
+    //         framebufferInfo.height =
+    //             vulkanFrameBuffer->Height();
+    //         framebufferInfo.layers = maxLayers;
+    //
+    //         FrameBuffer* currentFrameBuffer =
+    //             vulkanFrameBuffer->GetFrameBuffer(i);
+    //         CheckVulkanResult(vkCreateFramebuffer(vulkanDevice->logicalDevice,
+    //             &framebufferInfo, nullptr, &currentFrameBuffer->frameBuffer));
+    //     }
+    // }
+
+    void VulkanRenderPass::CreateDescriptorSet()
+    {
+        if (vulkanFrameBuffer != nullptr)
+            vulkanFrameBuffer->CrateDescriptorSet();
+    }
+
+    int VulkanRenderPass::AttachmentCount() { return attachmentCount; }
+
+    int VulkanRenderPass::ColorAttachmentCount() { return colorAttachmentCount; }
+
+    void VulkanRenderPass::AddAttachment(
+        const vks::AttachmentCreateInfo& createInfo)
+    {
+        vulkanFrameBuffer->AddAttachment(createInfo);
+        // count attachment
+        attachmentCount++;
+        if (!utils::IsDepthStencil(createInfo.format))
+            colorAttachmentCount++;
+    }
+
+    void VulkanRenderPass::AddAttachments(
+        std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
+    {
+        if (existedFrameBufferAttachments.empty())
+            return;
+
+        vulkanFrameBuffer->AddAttachment(existedFrameBufferAttachments);
+
+        vks::FramebufferAttachment& existedAttachment =
+            existedFrameBufferAttachments[0];
+        attachmentCount++;
+        if (!utils::IsDepthStencil(existedAttachment.format))
+            colorAttachmentCount++;
+    }
+
+    void VulkanRenderPass::AddSampler(VkFilter magFilter, VkFilter minFilter,
+                                      VkSamplerAddressMode addressMode)
+    {
+        // create sampler
+        vulkanFrameBuffer->CreateSampler(magFilter, minFilter, addressMode);
+    }
+} // namespace vks

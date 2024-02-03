@@ -29,24 +29,35 @@ namespace vks
 
 	FrameBuffer::~FrameBuffer()
 	{
-		assert(vulkanDevice);
-
-		if(attachmentDescriptorSetLayout != VK_NULL_HANDLE)
-			vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice,attachmentDescriptorSetLayout,nullptr);
-		if (attachmentDescriptorPool != VK_NULL_HANDLE)
-			vkDestroyDescriptorPool(vulkanDevice->logicalDevice, attachmentDescriptorPool, nullptr);
-	
-		for (auto attachment : attachments)
-		{
-			vkDestroyImage(vulkanDevice->logicalDevice, attachment.image, nullptr);
-			vkDestroyImageView(vulkanDevice->logicalDevice, attachment.view, nullptr);
-			vkFreeMemory(vulkanDevice->logicalDevice, attachment.memory, nullptr);
-		}
-
-		vkDestroyFramebuffer(vulkanDevice->logicalDevice, frameBuffer, nullptr);
+        Destory();
 	}
 
-	uint32_t FrameBuffer::AddAttachment(vks::AttachmentCreateInfo createInfo)
+    void FrameBuffer::Destory() {
+        assert(vulkanDevice);
+
+        if(attachmentDescriptorSetLayout != VK_NULL_HANDLE)
+            vkDestroyDescriptorSetLayout(vulkanDevice->logicalDevice,attachmentDescriptorSetLayout,nullptr);
+
+        if (attachmentDescriptorPool != VK_NULL_HANDLE)
+            vkDestroyDescriptorPool(vulkanDevice->logicalDevice, attachmentDescriptorPool, nullptr);
+
+        for (auto attachment : attachments)
+        {
+            if(attachment.image != VK_NULL_HANDLE)
+                vkDestroyImage(vulkanDevice->logicalDevice, attachment.image, nullptr);
+
+            if(attachment.view != VK_NULL_HANDLE)
+                vkDestroyImageView(vulkanDevice->logicalDevice, attachment.view, nullptr);
+
+            if(attachment.memory != VK_NULL_HANDLE)
+                vkFreeMemory(vulkanDevice->logicalDevice, attachment.memory, nullptr);
+        }
+
+        if(frameBuffer != VK_NULL_HANDLE)
+            vkDestroyFramebuffer(vulkanDevice->logicalDevice, frameBuffer, nullptr);
+    }
+
+	uint32_t FrameBuffer::AddAttachment(const vks::AttachmentCreateInfo& createInfo)
 	{
 		vks::FramebufferAttachment attachment;
 		
@@ -130,6 +141,21 @@ namespace vks
 
 		return static_cast<uint32_t>(attachments.size() - 1);
 	}
+
+    uint32_t FrameBuffer::AddAttachment(const vks::FramebufferAttachment& existedAttachment)
+    {
+        attachments.push_back(existedAttachment);
+        return static_cast<uint32_t>(attachments.size() - 1);
+    }
+
+    FramebufferAttachment FrameBuffer::CopyAttachment(const std::string &attachmentName)
+    {
+        auto res = std::find_if(attachments.begin(), attachments.end(),[&](const FramebufferAttachment& framebufferAttachment)
+        {
+           return framebufferAttachment.name == attachmentName;
+        });
+        return *res;
+    }
 
 	void FrameBuffer::CreateAttachmentDescriptorSet(VkSampler sampler)
 	{
@@ -247,11 +273,31 @@ namespace vks
 		return frameBuffers[frameBufferIndex];
 	}
 
-	void VulkanFrameBuffer::AddAttachment(vks::AttachmentCreateInfo createInfo)
+    std::vector<vks::FramebufferAttachment> VulkanFrameBuffer::CopySpecifiedFrameBufferAttachment(const std::string& attachmentName)
+    {
+        std::vector<vks::FramebufferAttachment> res;
+        res.resize(frameBufferCount);
+
+        for(int i = 0; i < frameBufferCount; i++)
+            res[i] = frameBuffers[i]->CopyAttachment(attachmentName);
+
+        return res;
+    }
+
+	void VulkanFrameBuffer::AddAttachment(const vks::AttachmentCreateInfo& createInfo)
 	{
-		for(uint32_t i=0; i < frameBufferCount; i++)
+		for(uint32_t i = 0; i < frameBufferCount; i++)
 			frameBuffers[i]->AddAttachment(createInfo);
 	}
+
+    void VulkanFrameBuffer::AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
+    {
+        for(uint32_t i = 0; i < existedFrameBufferAttachments.size(); i++) {
+            // assign new binding index
+            existedFrameBufferAttachments[i].binding = frameBuffers[i]->attachments.size();
+            frameBuffers[i]->AddAttachment(existedFrameBufferAttachments[i]);
+        }
+    }
 	
 	VkResult VulkanFrameBuffer::CreateSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
     {

@@ -26,15 +26,17 @@ namespace vks
     {
         std::string name;
         uint32_t binding;
-        VkImage image;
-        VkDeviceMemory memory;
-        VkImageView view;
+        VkImage image = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        VkImageView view = VK_NULL_HANDLE;
         VkFormat format;
         VkImageSubresourceRange subresourceRange;
         VkAttachmentDescription description;
 
         VkDescriptorImageInfo descriptor;
         VkDescriptorSet descriptorSet;
+
+        uint32_t refCount = 0;
 
         /**
         * @brief Returns true if the attachment has a depth component
@@ -75,11 +77,11 @@ namespace vks
     {
         VulkanDevice* vulkanDevice;
         uint32_t width, height;
-        VkFramebuffer frameBuffer;
+        VkFramebuffer frameBuffer = VK_NULL_HANDLE;
         std::vector<FramebufferAttachment> attachments;
 
-        VkDescriptorSetLayout attachmentDescriptorSetLayout;
-        VkDescriptorPool attachmentDescriptorPool;
+        VkDescriptorSetLayout attachmentDescriptorSetLayout = VK_NULL_HANDLE;
+        VkDescriptorPool attachmentDescriptorPool = VK_NULL_HANDLE;
 
         /**
        * Default constructor
@@ -100,9 +102,15 @@ namespace vks
        *
        * @return Index of the new attachment
        */
-        uint32_t AddAttachment(vks::AttachmentCreateInfo createInfo);
+        uint32_t AddAttachment(const vks::AttachmentCreateInfo& createInfo);
+
+        uint32_t AddAttachment(const vks::FramebufferAttachment& existedAttachment);
+
+        FramebufferAttachment CopyAttachment(const std::string& attachmentName);
 
         void CreateAttachmentDescriptorSet(VkSampler sampler);
+
+        void Destory();
 
         // void CreateFrameBufferDescriptorSet(VkSampler sampler);
     };
@@ -127,7 +135,11 @@ namespace vks
 
         FrameBuffer* GetFrameBuffer(uint32_t frameBufferIndex) const;
 
-        void AddAttachment(vks::AttachmentCreateInfo createInfo);
+        std::vector<vks::FramebufferAttachment> CopySpecifiedFrameBufferAttachment(const std::string& attachmentName);
+
+        void AddAttachment(const vks::AttachmentCreateInfo& createInfo);
+
+        void AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments);
 
         /**
         * Creates a default sampler for sampling from any of the framebuffer attachments

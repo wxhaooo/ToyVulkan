@@ -13,6 +13,8 @@ namespace math
     glm::vec3 GetEulerAngleFromRotationMatrix(glm::mat3 mat);
 
     glm::vec4 GetTranslateFromTransformMatrix(glm::mat4 mat);
+
+    float Lerp(float a, float b, float f);
 }
 
 

@@ -163,8 +163,8 @@ void LoadGLFT::SetupOffscreenResource()
         memAlloc.allocationSize = memReqs.size;
         memAlloc.memoryTypeIndex = vulkanDevice->GetMemoryType(memReqs.memoryTypeBits,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        CheckVulkanResult(vkAllocateMemory(device, &memAlloc, nullptr, &offscreenPass->color[i].mem));
-        CheckVulkanResult(vkBindImageMemory(device, offscreenPass->color[i].image, offscreenPass->color[i].mem, 0));
+        CheckVulkanResult(vkAllocateMemory(device, &memAlloc, nullptr, &offscreenPass->color[i].memory));
+        CheckVulkanResult(vkBindImageMemory(device, offscreenPass->color[i].image, offscreenPass->color[i].memory, 0));
 
         VkImageViewCreateInfo colorImageView = vks::initializers::ImageViewCreateInfo();
         colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -187,8 +187,8 @@ void LoadGLFT::SetupOffscreenResource()
         memAlloc.allocationSize = memReqs.size;
         memAlloc.memoryTypeIndex = vulkanDevice->GetMemoryType(memReqs.memoryTypeBits,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        CheckVulkanResult(vkAllocateMemory(device, &memAlloc, nullptr, &offscreenPass->depth[i].mem));
-        CheckVulkanResult(vkBindImageMemory(device, offscreenPass->depth[i].image, offscreenPass->depth[i].mem, 0));
+        CheckVulkanResult(vkAllocateMemory(device, &memAlloc, nullptr, &offscreenPass->depth[i].memory));
+        CheckVulkanResult(vkBindImageMemory(device, offscreenPass->depth[i].image, offscreenPass->depth[i].memory, 0));
 
         VkImageViewCreateInfo depthStencilView = vks::initializers::ImageViewCreateInfo();
         depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
