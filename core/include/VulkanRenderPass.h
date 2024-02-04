@@ -5,108 +5,136 @@
 #include <memory>
 
 namespace vks {
-struct AttachmentCreateInfo;
-class VulkanFrameBuffer;
+    class VulkanFrameBuffer;
 } // namespace vks
 
 namespace vks {
 // for loadGLTF.cpp
-struct OffscreenPass {
-  VkDevice device = VK_NULL_HANDLE;
-  int32_t width, height;
-  VkRenderPass renderPass;
-  std::vector<VkFramebuffer> frameBuffer;
-  std::vector<vks::FramebufferAttachment> color, depth;
-  std::vector<VkSampler> sampler;
-  std::vector<VkDescriptorImageInfo> descriptor;
+    struct OffscreenPass {
+        VkDevice device = VK_NULL_HANDLE;
+        int32_t width, height;
+        VkRenderPass renderPass;
+        std::vector<VkFramebuffer> frameBuffer;
+        std::vector<vks::FramebufferAttachment> color, depth;
+        std::vector<VkSampler> sampler;
+        std::vector<VkDescriptorImageInfo> descriptor;
 
-  VkDescriptorSetLayout descriptorSetLayout;
-  VkDescriptorPool descriptorPool;
-  std::vector<VkDescriptorSet> descriptorSet;
+        VkDescriptorSetLayout descriptorSetLayout;
+        VkDescriptorPool descriptorPool;
+        std::vector<VkDescriptorSet> descriptorSet;
 
-  ~OffscreenPass();
-  void DestroyResource();
-};
+        ~OffscreenPass();
+        void DestroyResource();
+    };
+
+/**
+ * @brief Describes the attributes of an attachment to be created
+ */
+    struct AttachmentCreateInfo
+    {
+        std::string name;
+        uint32_t binding;
+        uint32_t width, height;
+        uint32_t layerCount;
+        VkFormat format;
+        VkImageUsageFlags usage;
+        VkSampleCountFlagBits imageSampleCount = VK_SAMPLE_COUNT_1_BIT;
+    };
+
+    class VulkanAttachmentDescription
+    {
+    public:
+        VulkanAttachmentDescription() = delete;
+        VulkanAttachmentDescription(const AttachmentCreateInfo& attachmentCreateInfo);
+
+        std::string name;
+        uint32_t binding;
+        VkFormat format;
+        uint32_t width, height, layerCount;
+        VkSampleCountFlagBits imageSampleCount = VK_SAMPLE_COUNT_1_BIT;
+        VkImageUsageFlags usage;
+        VkAttachmentDescription description;
+    };
 
 /* general render pass and subPass */
-class VulkanSubPass {
-public:
-  VulkanSubPass() = delete;
-  VulkanSubPass(const std::string &subPassName,
-                VkPipelineBindPoint subPassBindPoint, VulkanDevice *device);
+    class VulkanSubPass {
+    public:
+        VulkanSubPass() = delete;
+        VulkanSubPass(const std::string &subPassName,
+                      VkPipelineBindPoint subPassBindPoint, VulkanDevice *device);
 
-  void AddAttachments(FrameBuffer *frameBuffer,
-                      const std::vector<int32_t> &attachmentIndices);
-  void CreateDescription();
-  VkSubpassDescription& GetDescription();
+        void AddAttachments(const std::vector<VulkanAttachmentDescription*>& attachmentDescriptions, const std::vector<int32_t> &attachmentIndices);
+        void CreateDescription();
+        VkSubpassDescription& GetDescription();
 
-private:
-  std::vector<VkAttachmentReference> colorReferences;
-  VkAttachmentReference depthReference = {};
+    private:
+        std::vector<VkAttachmentReference> colorReferences;
+        VkAttachmentReference depthReference = {};
 
-  bool hasDepth = false;
-  bool hasColor = false;
+        bool hasDepth = false;
+        bool hasColor = false;
 
-  VkPipelineBindPoint bindPoint;
-  VkSubpassDescription description;
-  VulkanDevice *vulkanDevice = nullptr;
-  std::string name;
-};
+        VkPipelineBindPoint bindPoint;
+        VkSubpassDescription description;
+        VulkanDevice *vulkanDevice = nullptr;
+        std::string name;
+    };
 
-class VulkanRenderPass {
-public:
-  VulkanRenderPass() = delete;
-  VulkanRenderPass(const std::string &renderPassName, VulkanDevice *device);
-  ~VulkanRenderPass();
+    class VulkanRenderPass {
+    public:
+        VulkanRenderPass() = delete;
+        VulkanRenderPass(const std::string &renderPassName, VulkanDevice *device);
+        ~VulkanRenderPass();
 
-  VkRenderPass renderPass;
+        VkRenderPass renderPass;
 
-  // frame buffer
-  std::unique_ptr<VulkanFrameBuffer> vulkanFrameBuffer = nullptr;
-  FrameBuffer *templateFrameBuffer = nullptr;
+        // frame buffer
+        VulkanFrameBuffer* vulkanFrameBuffer = nullptr;
 
-  // subPass info
-  std::vector<VkSubpassDependency> subPassDependencies;
-  std::vector<VulkanSubPass *> subPassArray;
-  std::map<std::string, std::unique_ptr<VulkanSubPass>> subPassName2InstMap;
+        // attachment create info
+        std::map<std::string, std::unique_ptr<VulkanAttachmentDescription>> attachmentName2DescriptionMap;
+        std::vector<VulkanAttachmentDescription*> attachmentDescriptions;
 
-  void Init(uint32_t width, uint32_t height, uint32_t maxFrameInFlight);
+        // subPass info
+        std::vector<VkSubpassDependency> subPassDependencies;
+        std::vector<VulkanSubPass *> subPassArray;
+        std::map<std::string, std::unique_ptr<VulkanSubPass>> subPassName2InstMap;
 
-  void Destroy();
+        void Destroy();
 
-  void AddSampler(VkFilter magFilter, VkFilter minFilter,
-                  VkSamplerAddressMode addressMode);
+        void AddAttachment(const vks::AttachmentCreateInfo &createInfo);
 
-  void AddAttachment(const vks::AttachmentCreateInfo &createInfo);
+        // void AddAttachments(
+        //     std::vector<vks::FramebufferAttachment> &existedFrameBufferAttachments);
 
-  void AddAttachments(
-      std::vector<vks::FramebufferAttachment> &existedFrameBufferAttachments);
+        void AddSubPass(const std::string &subPassName,
+                        VkPipelineBindPoint subPassBindPoint,
+                        const std::vector<std::string> &attachmentNames);
 
-  void AddSubPass(const std::string &subPassName,
-                  VkPipelineBindPoint subPassBindPoint,
-                  const std::vector<std::string> &attachmentNames);
+        void AddSubPass(const std::string &subPassName,
+                        VkPipelineBindPoint subPassBindPoint,
+                        const std::vector<int32_t> &attachmentIndices);
 
-  void AddSubPass(const std::string &subPassName,
-                  VkPipelineBindPoint subPassBindPoint,
-                  const std::vector<int32_t> &attachmentIndices);
+        void AddSubPassDependency(std::vector<VkSubpassDependency> subPassDependency);
 
-  void AddSubPassDependency(std::vector<VkSubpassDependency> subPassDependency);
+        void Init(bool isDefault = false);
 
-  void CreateRenderPass();
+        void CreateDescriptorSet();
 
-  // all attachment and single subPass
-  void CreateDefaultRenderPass();
+        int AttachmentCount();
 
-  void CreateDescriptorSet();
+        int ColorAttachmentCount();
 
-  int AttachmentCount();
+    private:
 
-  int ColorAttachmentCount();
+        // all attachment and single subPass
+        void CreateDefaultRenderPass();
 
-private:
-  std::string name;
-  int attachmentCount = 0;
-  int colorAttachmentCount = 0;
-  VulkanDevice *vulkanDevice = nullptr;
-};
+        void CreateCustomRenderPass();
+
+        std::string name;
+        int attachmentCount = 0;
+        int colorAttachmentCount = 0;
+        VulkanDevice *vulkanDevice = nullptr;
+    };
 } // namespace vks

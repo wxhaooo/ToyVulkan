@@ -98,6 +98,12 @@ private:
     std::unique_ptr<vks::VulkanRenderPass> skyboxRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;
 
+    std::unique_ptr<vks::VulkanFrameBuffer> mrtFrameBuffer = nullptr;
+    std::unique_ptr<vks::VulkanFrameBuffer> ssaoFrameBuffer = nullptr;
+    std::unique_ptr<vks::VulkanFrameBuffer> lightingFrameBuffer = nullptr;
+    std::unique_ptr<vks::VulkanFrameBuffer> skyboxFrameBuffer = nullptr;
+    std::unique_ptr<vks::VulkanFrameBuffer> postprocessFrameBuffer = nullptr;
+
     VkDescriptorSetLayout mrtDescriptorSetLayout_Vertex = VK_NULL_HANDLE;
     VkDescriptorSetLayout mrtDescriptorSetLayout_Fragment = VK_NULL_HANDLE;
     VkPipelineLayout mrtPipelineLayout = VK_NULL_HANDLE;

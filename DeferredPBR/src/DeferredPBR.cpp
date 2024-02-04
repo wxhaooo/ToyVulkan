@@ -1,5 +1,5 @@
-#include<iostream>
-#include<DeferredPBR.h>
+#include <iostream>
+#include <DeferredPBR.h>
 #include <VulkanHelper.h>
 #include <VulkanGLTFModel.h>
 #include <VulkanInitializers.h>
@@ -117,7 +117,6 @@ void DeferredPBR::SetupMrtRenderPass()
     mrtRenderPass = std::make_unique<vks::VulkanRenderPass>("mrtRenderPass", vulkanDevice.get());
     const uint32_t imageWidth = swapChain->imageExtent.width;
     const uint32_t imageHeight = swapChain->imageExtent.height;
-    mrtRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
 
     // Four attachments (3 color, 1 depth)
     vks::AttachmentCreateInfo attachmentInfo = {};
@@ -175,18 +174,19 @@ void DeferredPBR::SetupMrtRenderPass()
     attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     mrtRenderPass->AddAttachment(attachmentInfo);
 
-    // VkFilter magFiler = VK_FILTER_NEAREST;
-    // VkFilter minFiler = VK_FILTER_NEAREST;
-    // VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    // create render pass
+    mrtRenderPass->Init(true);
 
+    // frame buffer
+    mrtFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
+    mrtFrameBuffer->Init(mrtRenderPass.get());
+    
+    // description
     VkFilter magFiler = VK_FILTER_LINEAR;
     VkFilter minFiler = VK_FILTER_LINEAR;
     VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    mrtRenderPass->AddSampler(magFiler, minFiler, addressMode);
-
-    // render pass
-    mrtRenderPass->CreateDefaultRenderPass();
-    mrtRenderPass->CreateDescriptorSet();
+    mrtFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
+    mrtFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupSSAORenderPass()
@@ -194,7 +194,6 @@ void DeferredPBR::SetupSSAORenderPass()
     ssaoRenderPass = std::make_unique<vks::VulkanRenderPass>("ssaoRenderPass", vulkanDevice.get());
     const uint32_t imageWidth = swapChain->imageExtent.width;
     const uint32_t imageHeight = swapChain->imageExtent.height;
-    ssaoRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
 
     vks::AttachmentCreateInfo attachmentInfo = {};
     attachmentInfo.width = imageWidth;
@@ -210,12 +209,6 @@ void DeferredPBR::SetupSSAORenderPass()
     //    vks::VulkanFrameBuffer* mrtFrameBuffer = mrtRenderPass->vulkanFrameBuffer.get();
     //    std::vector<vks::FramebufferAttachment> copyAOAttachment = mrtFrameBuffer->CopySpecifiedFrameBufferAttachment("G_Occlusion");
     //    ssaoRenderPass->AddAttachments(copyAOAttachment);
-
-    // sampler
-    VkFilter magFiler = VK_FILTER_NEAREST;
-    VkFilter minFiler = VK_FILTER_NEAREST;
-    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    ssaoRenderPass->AddSampler(magFiler, minFiler, addressMode);
 
     // subpass
     std::vector<int32_t> subPassAttachmentIndices = {0};
@@ -240,8 +233,18 @@ void DeferredPBR::SetupSSAORenderPass()
             }
         });
 
-    ssaoRenderPass->CreateRenderPass();
-    //    ssaoRenderPass->CreateDescriptorSet();
+    ssaoRenderPass->Init();
+
+    // frame buffer
+    ssaoFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
+    ssaoFrameBuffer->Init(ssaoRenderPass.get());
+    
+    // // description
+    // VkFilter magFiler = VK_FILTER_NEAREST;
+    // VkFilter minFiler = VK_FILTER_NEAREST;
+    // VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    // ssaoFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
+    // ssaoFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupLightingRenderPass()
@@ -249,7 +252,6 @@ void DeferredPBR::SetupLightingRenderPass()
     lightingRenderPass = std::make_unique<vks::VulkanRenderPass>("lightingRenderPass", vulkanDevice.get());
     const uint32_t imageWidth = swapChain->imageExtent.width;
     const uint32_t imageHeight = swapChain->imageExtent.height;
-    lightingRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
 
     // Four attachments (1 color)
     vks::AttachmentCreateInfo attachmentInfo = {};
@@ -263,13 +265,18 @@ void DeferredPBR::SetupLightingRenderPass()
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     lightingRenderPass->AddAttachment(attachmentInfo);
 
+    lightingRenderPass->Init(true);
+
+    // frame buffer
+    lightingFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
+    lightingFrameBuffer->Init(lightingRenderPass.get());
+
+    // sampler
     VkFilter magFiler = VK_FILTER_NEAREST;
     VkFilter minFiler = VK_FILTER_NEAREST;
     VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    lightingRenderPass->AddSampler(magFiler, minFiler, addressMode);
-
-    lightingRenderPass->CreateDefaultRenderPass();
-    lightingRenderPass->CreateDescriptorSet();
+    lightingFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
+    lightingFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupSkyboxRenderPass()
@@ -277,7 +284,6 @@ void DeferredPBR::SetupSkyboxRenderPass()
     skyboxRenderPass = std::make_unique<vks::VulkanRenderPass>("skyboxRenderPass", vulkanDevice.get());
     const uint32_t imageWidth = swapChain->imageExtent.width;
     const uint32_t imageHeight = swapChain->imageExtent.height;
-    skyboxRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
 
     vks::AttachmentCreateInfo attachmentInfo = {};
     attachmentInfo.width = imageWidth;
@@ -290,13 +296,18 @@ void DeferredPBR::SetupSkyboxRenderPass()
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     skyboxRenderPass->AddAttachment(attachmentInfo);
 
+    skyboxRenderPass->Init(true);
+
+    // frame buffer
+    skyboxFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
+    skyboxFrameBuffer->Init(skyboxRenderPass.get());
+
+    // sampler
     VkFilter magFiler = VK_FILTER_NEAREST;
     VkFilter minFiler = VK_FILTER_NEAREST;
     VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    skyboxRenderPass->AddSampler(magFiler, minFiler, addressMode);
-
-    skyboxRenderPass->CreateDefaultRenderPass();
-    skyboxRenderPass->CreateDescriptorSet();
+    skyboxFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
+    skyboxFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupPostprocessRenderPass()
@@ -304,7 +315,6 @@ void DeferredPBR::SetupPostprocessRenderPass()
     postprocessRenderPass = std::make_unique<vks::VulkanRenderPass>("PostprocessRenderPass", vulkanDevice.get());
     const uint32_t imageWidth = swapChain->imageExtent.width;
     const uint32_t imageHeight = swapChain->imageExtent.height;
-    postprocessRenderPass->Init(imageWidth, imageHeight, swapChain->imageCount);
 
     vks::AttachmentCreateInfo attachmentInfo = {};
     attachmentInfo.width = imageWidth;
@@ -317,13 +327,18 @@ void DeferredPBR::SetupPostprocessRenderPass()
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     postprocessRenderPass->AddAttachment(attachmentInfo);
 
+    postprocessRenderPass->Init(true);
+
+    // frame buffer
+    postprocessFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
+    postprocessFrameBuffer->Init(postprocessRenderPass.get());
+
+    // sampler
     VkFilter magFiler = VK_FILTER_NEAREST;
     VkFilter minFiler = VK_FILTER_NEAREST;
     VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    postprocessRenderPass->AddSampler(magFiler, minFiler, addressMode);
-
-    postprocessRenderPass->CreateDefaultRenderPass();
-    postprocessRenderPass->CreateDescriptorSet();
+    postprocessFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
+    postprocessFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::BakingIrradianceCubeMap()
@@ -918,7 +933,7 @@ void DeferredPBR::BakingPreFilteringCubeMap()
         fbufCreateInfo.width = dim;
         fbufCreateInfo.height = dim;
         fbufCreateInfo.layers = 1;
-        CheckVulkanResult(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &offscreen.framebuffer));
+        CheckVulkanResult(vkCreateFramebuffer(device,&fbufCreateInfo,nullptr,&offscreen.framebuffer));
 
         VkCommandBuffer layoutCmd = vulkanDevice->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
         vks::utils::SetImageLayout(

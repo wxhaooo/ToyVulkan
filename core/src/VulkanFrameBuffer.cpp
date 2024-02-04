@@ -1,4 +1,5 @@
 ﻿#include <VulkanFrameBuffer.h>
+#include <VulkanRenderPass.h>
 
 namespace vks
 {
@@ -57,24 +58,24 @@ namespace vks
             vkDestroyFramebuffer(vulkanDevice->logicalDevice, frameBuffer, nullptr);
     }
 
-	uint32_t FrameBuffer::AddAttachment(const vks::AttachmentCreateInfo& createInfo)
+	uint32_t FrameBuffer::CreateAttachment(const VulkanAttachmentDescription* const attachmentDescription)
 	{
 		vks::FramebufferAttachment attachment;
 		
-		attachment.name = createInfo.name;
-		attachment.binding = createInfo.binding;
-		attachment.format = createInfo.format;
+		attachment.name = attachmentDescription->name;
+		attachment.binding = attachmentDescription->binding;
+		attachment.format = attachmentDescription->format;
 
 		VkImageAspectFlags aspectMask = VK_FLAGS_NONE;
 
 		// Select aspect mask and layout depending on usage
 
 		// Color attachment
-		if (createInfo.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+		if (attachmentDescription->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
 			aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
 		// Depth (and/or stencil) attachment
-		if (createInfo.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		if (attachmentDescription->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
 		{
 			if (attachment.HasDepth())
 				aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -86,15 +87,15 @@ namespace vks
 
 		VkImageCreateInfo image = vks::initializers::ImageCreateInfo();
 		image.imageType = VK_IMAGE_TYPE_2D;
-		image.format = createInfo.format;
-		image.extent.width = createInfo.width;
-		image.extent.height = createInfo.height;
+		image.format = attachmentDescription->format;
+		image.extent.width = attachmentDescription->width;
+		image.extent.height = attachmentDescription->height;
 		image.extent.depth = 1;
 		image.mipLevels = 1;
-		image.arrayLayers = createInfo.layerCount;
-		image.samples = createInfo.imageSampleCount;
+		image.arrayLayers = attachmentDescription->layerCount;
+		image.samples = attachmentDescription->imageSampleCount;
 		image.tiling = VK_IMAGE_TILING_OPTIMAL;
-		image.usage = createInfo.usage;
+		image.usage = attachmentDescription->usage;
 
 		VkMemoryAllocateInfo memAlloc = vks::initializers::MemoryAllocateInfo();
 		VkMemoryRequirements memReqs;
@@ -110,11 +111,11 @@ namespace vks
 		attachment.subresourceRange = {};
 		attachment.subresourceRange.aspectMask = aspectMask;
 		attachment.subresourceRange.levelCount = 1;
-		attachment.subresourceRange.layerCount = createInfo.layerCount;
+		attachment.subresourceRange.layerCount = attachmentDescription->layerCount;
 
 		VkImageViewCreateInfo imageView = vks::initializers::ImageViewCreateInfo();
-		imageView.viewType = (createInfo.layerCount == 1) ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-		imageView.format = createInfo.format;
+		imageView.viewType = (attachmentDescription->layerCount == 1) ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		imageView.format = attachmentDescription->format;
 		imageView.subresourceRange = attachment.subresourceRange;
 		//todo: workaround for depth+stencil attachments
 		imageView.subresourceRange.aspectMask = (attachment.HasDepth()) ? VK_IMAGE_ASPECT_DEPTH_BIT : aspectMask;
@@ -122,31 +123,17 @@ namespace vks
 		CheckVulkanResult(vkCreateImageView(vulkanDevice->logicalDevice, &imageView, nullptr, &attachment.view));
 
 		// Fill attachment description
-		attachment.description = {};
-		attachment.description.samples = createInfo.imageSampleCount;
-		attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment.description.storeOp = (createInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment.description.format = createInfo.format;
-		attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		// Final layout
-		// If not, final layout depends on attachment type
-		if (attachment.HasDepth() || attachment.HasStencil())
-			attachment.description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		else
-			attachment.description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		
+		attachment.description = attachmentDescription->description;
 		attachments.push_back(attachment);
 
 		return static_cast<uint32_t>(attachments.size() - 1);
 	}
 
-    uint32_t FrameBuffer::AddAttachment(const vks::FramebufferAttachment& existedAttachment)
-    {
-        attachments.push_back(existedAttachment);
-        return static_cast<uint32_t>(attachments.size() - 1);
-    }
+    // uint32_t FrameBuffer::AddAttachment(const vks::FramebufferAttachment& existedAttachment)
+    // {
+    //     attachments.push_back(existedAttachment);
+    //     return static_cast<uint32_t>(attachments.size() - 1);
+    // }
 
     FramebufferAttachment FrameBuffer::CopyAttachment(const std::string &attachmentName)
     {
@@ -196,50 +183,6 @@ namespace vks
 			vkUpdateDescriptorSets(vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
 		}
 	}
-
-	// void FrameBuffer::CreateFrameBufferDescriptorSet(VkSampler sampler)
-	// {
-	// 	uint32_t attachmentSize = static_cast<uint32_t>(attachments.size());
-	// 	
-	// 	std::vector<VkDescriptorPoolSize> poolSizes = {
-	// 		vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, attachmentSize),
-	// 	};
-	// 	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(
-	// 		poolSizes, 1);
-	// 	CheckVulkanResult(vkCreateDescriptorPool(vulkanDevice->logicalDevice, &descriptorPoolInfo, nullptr, &frameBufferDescriptorPool));
-	// 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBinding;
-	// 	for(uint32_t i = 0; i < attachmentSize; i++)
-	// 	{
-	// 		if(attachments[i].IsDepthStencil()) continue;
-	// 		setLayoutBinding.push_back(vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, i));
-	// 	}
-	// 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
-	// 		setLayoutBinding.data(), setLayoutBinding.size());
-	// 	CheckVulkanResult(
-	// 		vkCreateDescriptorSetLayout(vulkanDevice->logicalDevice, &descriptorSetLayoutCI, nullptr, &frameBufferDescriptorSetLayout));
-	//
-	// 	// Descriptor set for scene matrices
-	// 	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(
-	// 		frameBufferDescriptorPool, &frameBufferDescriptorSetLayout, 1);
-	//
-	// 	CheckVulkanResult(vkAllocateDescriptorSets(vulkanDevice->logicalDevice, &allocInfo, &frameBufferDescriptorSet));
-	// 	
-	// 	for(uint32_t i = 0; i < attachments.size(); i++)
-	// 	{
-	// 		// create descriptor
-	// 		FramebufferAttachment& attachment = attachments[i];
-	//
-	// 		if(attachments[i].IsDepthStencil()) continue;
-	//
-	// 		attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	// 		attachment.descriptor.imageView = attachment.view;
-	// 		attachment.descriptor.sampler = sampler;
-	//
-	// 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(frameBufferDescriptorSet,
-	// 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, i, &attachment.descriptor);
-	// 		vkUpdateDescriptorSets(vulkanDevice->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
-	// 	}
-	// }
 	
     VulkanFrameBuffer::VulkanFrameBuffer(vks::VulkanDevice* vulkanDevice, uint32_t width, uint32_t height, uint32_t frameBufferCount)
     {
@@ -267,6 +210,50 @@ namespace vks
 		frameBuffers.clear();
     }
 
+	void VulkanFrameBuffer::Init(VulkanRenderPass* vulkanRenderPass)
+	{
+		// binding renderPass and frameBuffer
+		this->renderPass = vulkanRenderPass;
+		renderPass->vulkanFrameBuffer = this;
+
+		std::vector<VulkanAttachmentDescription*>& attachmentDescriptions = renderPass->attachmentDescriptions;
+		
+		// create frame buffer
+		for (uint32_t i = 0; i < frameBufferCount; i++)
+		{
+			FrameBuffer* frameBuffer = GetFrameBuffer(i);
+
+			// create instanced attachment
+			for(auto& attachmentDescription:attachmentDescriptions)
+				frameBuffer->CreateAttachment(attachmentDescription);
+			
+			std::vector<VkImageView> attachmentViews;
+			for (auto attachment : frameBuffer->attachments)
+				attachmentViews.push_back(attachment.view);
+
+			// Find max number of layers across attachments
+			uint32_t maxLayers = 0;
+			for (auto attachment : frameBuffer->attachments)
+			{
+				if (attachment.subresourceRange.layerCount > maxLayers)
+					maxLayers = attachment.subresourceRange.layerCount;
+			}
+
+			VkFramebufferCreateInfo framebufferInfo = {};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = renderPass->renderPass;
+			framebufferInfo.pAttachments = attachmentViews.data();
+			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
+			framebufferInfo.width = width;
+			framebufferInfo.height = height;
+			framebufferInfo.layers = maxLayers;
+
+			FrameBuffer* currentFrameBuffer = GetFrameBuffer(i);
+			CheckVulkanResult(vkCreateFramebuffer(vulkanDevice->logicalDevice,
+				&framebufferInfo, nullptr, &currentFrameBuffer->frameBuffer));
+		}
+	}
+
 	FrameBuffer* VulkanFrameBuffer::GetFrameBuffer(uint32_t frameBufferIndex) const
 	{
 		if(frameBufferIndex < 0 || frameBufferIndex >= frameBufferCount) return nullptr;	
@@ -284,22 +271,22 @@ namespace vks
         return res;
     }
 
-	void VulkanFrameBuffer::AddAttachment(const vks::AttachmentCreateInfo& createInfo)
+	void VulkanFrameBuffer::CreateAttachment(const VulkanAttachmentDescription* attachmentDescription)
 	{
 		for(uint32_t i = 0; i < frameBufferCount; i++)
-			frameBuffers[i]->AddAttachment(createInfo);
+			frameBuffers[i]->CreateAttachment(attachmentDescription);
 	}
 
-    void VulkanFrameBuffer::AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
-    {
-        for(uint32_t i = 0; i < existedFrameBufferAttachments.size(); i++) {
-            // assign new binding index
-            existedFrameBufferAttachments[i].binding = frameBuffers[i]->attachments.size();
-            frameBuffers[i]->AddAttachment(existedFrameBufferAttachments[i]);
-        }
-    }
+    // void VulkanFrameBuffer::AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
+    // {
+    //     for(uint32_t i = 0; i < existedFrameBufferAttachments.size(); i++) {
+    //         // assign new binding index
+    //         existedFrameBufferAttachments[i].binding = frameBuffers[i]->attachments.size();
+    //         frameBuffers[i]->AddAttachment(existedFrameBufferAttachments[i]);
+    //     }
+    // }
 	
-	VkResult VulkanFrameBuffer::CreateSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
+	VkResult VulkanFrameBuffer::AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
     {
     	VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
     	samplerInfo.magFilter = magFilter;

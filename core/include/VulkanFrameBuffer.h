@@ -19,6 +19,16 @@
 
 namespace vks
 {
+    class VulkanAttachmentDescription;
+}
+
+namespace vks
+{
+    class VulkanRenderPass;
+}
+
+namespace vks
+{
     /**
     * @brief Encapsulates a single frame buffer attachment 
     */
@@ -57,20 +67,6 @@ namespace vks
     };
 
     /**
-    * @brief Describes the attributes of an attachment to be created
-    */
-    struct AttachmentCreateInfo
-    {
-        std::string name;
-        uint32_t binding;
-        uint32_t width, height;
-        uint32_t layerCount;
-        VkFormat format;
-        VkImageUsageFlags usage;
-        VkSampleCountFlagBits imageSampleCount = VK_SAMPLE_COUNT_1_BIT;
-    };
-
-    /**
    * @brief Encapsulates a complete Vulkan framebuffer with an arbitrary number and combination of attachments
    */
     struct FrameBuffer
@@ -102,9 +98,9 @@ namespace vks
        *
        * @return Index of the new attachment
        */
-        uint32_t AddAttachment(const vks::AttachmentCreateInfo& createInfo);
+        uint32_t CreateAttachment(const VulkanAttachmentDescription* const attachmentDescription);
 
-        uint32_t AddAttachment(const vks::FramebufferAttachment& existedAttachment);
+        // uint32_t AddAttachment(const vks::FramebufferAttachment& existedAttachment);
 
         FramebufferAttachment CopyAttachment(const std::string& attachmentName);
 
@@ -121,13 +117,16 @@ namespace vks
     private:
         vks::VulkanDevice* vulkanDevice;
         uint32_t width, height;
+        VulkanRenderPass* renderPass;
+
+        void CreateAttachment(const VulkanAttachmentDescription* attachmentDescription);
 
     public:
         std::vector<FrameBuffer*> frameBuffers;
         VkSampler sampler = VK_NULL_HANDLE;
         uint32_t frameBufferCount = 0;
         
-        VulkanFrameBuffer(vks::VulkanDevice* vulkanDevice,uint32_t width, uint32_t height, uint32_t frameBufferCount);
+        VulkanFrameBuffer(vks::VulkanDevice* vulkanDevice, uint32_t width, uint32_t height, uint32_t frameBufferCount);
         ~VulkanFrameBuffer();
 
         uint32_t Width() const {return width;}
@@ -135,10 +134,10 @@ namespace vks
 
         FrameBuffer* GetFrameBuffer(uint32_t frameBufferIndex) const;
 
+        void Init(VulkanRenderPass* renderPass);
+
         std::vector<vks::FramebufferAttachment> CopySpecifiedFrameBufferAttachment(const std::string& attachmentName);
-
-        void AddAttachment(const vks::AttachmentCreateInfo& createInfo);
-
+        
         void AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments);
 
         /**
@@ -151,7 +150,7 @@ namespace vks
         *
         * @return VkResult for the sampler creation
         */
-        VkResult CreateSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
+        VkResult AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
 
         void CrateDescriptorSet();
     };
