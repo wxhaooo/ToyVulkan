@@ -15,7 +15,7 @@
 #include <Camera.h>
 #include <Singleton.hpp>
 #include <VulkanImGUI.h>
-#include <GraphicSettings.hpp>
+#include <..\include\Settings.hpp>
 #include <backends/imgui_impl_glfw.h>
 
 #include <InputManager.h>
@@ -76,14 +76,14 @@ VulkanApplicationBase::~VulkanApplicationBase()
 void VulkanApplicationBase::InitFondation()
 {
     Singleton<InputManager>::Init();
-    graphicSettings = Singleton<GraphicSettings>::Instance();
+    graphicSettings = Singleton<Settings>::Instance()->graphicSettings;
+    guiSettings = Singleton<Settings>::Instance()->guiSettings;
+    animationSettings = Singleton<Settings>::Instance()->animationSettings;
 }
 
 bool VulkanApplicationBase::InitVulkan()
 {
     SetupWindows();
-
-    auto graphicSettings = Singleton<GraphicSettings>::Instance();
 
     CheckVulkanResult(CreateInstance(graphicSettings->validation));
 
@@ -203,8 +203,6 @@ void VulkanApplicationBase::DestroyWindows()
 
 VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
 {
-    auto graphicSettings = Singleton<GraphicSettings>::Instance();
-
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = name.c_str();
@@ -329,8 +327,7 @@ void VulkanApplicationBase::Prepare()
     
     CreateDefaultPipelineCache();
 
-    auto graphicSettings = Singleton<GraphicSettings>::Instance();
-    auto guiSettings = Singleton<GuiSettings>::Instance();
+    auto guiSettings = Singleton<Settings>::Instance()->guiSettings;
     
     if (guiSettings->enableGUI)
     {
@@ -361,8 +358,6 @@ void VulkanApplicationBase::CreateCommandPool()
 
 void VulkanApplicationBase::SetupSwapChain()
 {
-    auto graphicSettings = Singleton<GraphicSettings>::Instance();
-
     swapChain->Create(&viewportWidth, &viewportHeight, graphicSettings->vsync, graphicSettings->fullscreen);
     maxFrameInFlight = swapChain->imageCount;
 }
@@ -623,8 +618,7 @@ void VulkanApplicationBase::RenderLoop()
         glfwPollEvents();
     }
 
-    auto graphicSettings = Singleton<GraphicSettings>::Instance();
-    auto guiSettings = Singleton<GuiSettings>::Instance();
+    auto guiSettings = Singleton<Settings>::Instance()->guiSettings;
 
     if (guiSettings->enableGUI)
         Singleton<VulkanGUI>::Reset();

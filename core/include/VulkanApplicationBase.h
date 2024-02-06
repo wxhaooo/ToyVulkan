@@ -11,6 +11,10 @@
 
 #include <VulkanFrameBuffer.h>
 
+struct AnimationSettings;
+struct GuiSettings;
+struct GraphicSettings;
+
 namespace vks
 {
     class VulkanRenderPass;
@@ -18,7 +22,6 @@ namespace vks
 
 class VulkanGUI;
 class Camera;
-class GraphicSettings;
 
 class VulkanApplicationBase
 {
@@ -142,6 +145,8 @@ protected:
 
     VulkanGUI* gui;
     GraphicSettings* graphicSettings;
+    GuiSettings* guiSettings;
+    AnimationSettings* animationSettings;
 
     // add different front end here,glfw,SDL.etc
     bool SetupWindows();

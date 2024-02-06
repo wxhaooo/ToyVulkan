@@ -93,7 +93,10 @@ namespace vks
 		VkGraphicsPipelineCreateInfo PipelineCreateInfo();
     	VkPipelineCacheCreateInfo PipelineCacheCreateInfo();
     	VkComputePipelineCreateInfo ComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags = 0);
-
+    	VkSpecializationMapEntry SpecializationMapEntry(uint32_t constantID, uint32_t offset, size_t size);
+    	VkSpecializationInfo SpecializationInfo(uint32_t mapEntryCount, const VkSpecializationMapEntry* mapEntries, size_t dataSize, const void* data);
+    	VkSpecializationInfo SpecializationInfo(const std::vector<VkSpecializationMapEntry> &mapEntries, size_t dataSize, const void* data);
+    	
     	VkViewport Viewport(float width, float height, float minDepth, float maxDepth);
     	VkRect2D Rect2D(uint32_t width, uint32_t height, int32_t offsetX, int32_t offsetY);
     	

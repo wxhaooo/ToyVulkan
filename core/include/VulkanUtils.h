@@ -13,6 +13,13 @@ namespace vks
 {
     namespace utils
     {
+    	struct VulkanSamplerCreateInfo
+    	{
+    		VkFilter magFiler;
+    		VkFilter minFiler;
+    		VkSamplerAddressMode addressMode;
+    	};
+    	
         VkBool32 GetSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat *depthFormat);
         VkBool32 GetSupportedDepthStencilFormat(VkPhysicalDevice physicalDevice, VkFormat* depthStencilFormat);
 
@@ -36,5 +43,7 @@ namespace vks
     	bool IsDepthStencil(VkFormat format);
 
         Texture2D* CreateDefaultTexture2D(VulkanDevice* vulkanDevice, VkQueue transferQueue, uint32_t width, uint32_t height, glm::vec4 clearColor = glm::vec4(1.0f));
+
+    	VkSampler CreateSampler(const VulkanDevice* device, const VulkanSamplerCreateInfo& samplerCreateInfo);
     }    
 }

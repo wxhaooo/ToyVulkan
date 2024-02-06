@@ -58,9 +58,9 @@ namespace vks
             vkDestroyFramebuffer(vulkanDevice->logicalDevice, frameBuffer, nullptr);
     }
 
-	uint32_t FrameBuffer::CreateAttachment(const VulkanAttachmentDescription* const attachmentDescription)
+	uint32_t FrameBuffer::CreateAttachment(const VulkanAttachmentDescription* attachmentDescription)
 	{
-		vks::FramebufferAttachment attachment;
+		FramebufferAttachment attachment;
 		
 		attachment.name = attachmentDescription->name;
 		attachment.binding = attachmentDescription->binding;
@@ -129,13 +129,7 @@ namespace vks
 		return static_cast<uint32_t>(attachments.size() - 1);
 	}
 
-    // uint32_t FrameBuffer::AddAttachment(const vks::FramebufferAttachment& existedAttachment)
-    // {
-    //     attachments.push_back(existedAttachment);
-    //     return static_cast<uint32_t>(attachments.size() - 1);
-    // }
-
-    FramebufferAttachment FrameBuffer::CopyAttachment(const std::string &attachmentName)
+    const FramebufferAttachment& FrameBuffer::GetAttachment(const std::string &attachmentName)
     {
         auto res = std::find_if(attachments.begin(), attachments.end(),[&](const FramebufferAttachment& framebufferAttachment)
         {
@@ -260,51 +254,15 @@ namespace vks
 		return frameBuffers[frameBufferIndex];
 	}
 
-    std::vector<vks::FramebufferAttachment> VulkanFrameBuffer::CopySpecifiedFrameBufferAttachment(const std::string& attachmentName)
-    {
-        std::vector<vks::FramebufferAttachment> res;
-        res.resize(frameBufferCount);
-
-        for(int i = 0; i < frameBufferCount; i++)
-            res[i] = frameBuffers[i]->CopyAttachment(attachmentName);
-
-        return res;
-    }
-
 	void VulkanFrameBuffer::CreateAttachment(const VulkanAttachmentDescription* attachmentDescription)
 	{
 		for(uint32_t i = 0; i < frameBufferCount; i++)
 			frameBuffers[i]->CreateAttachment(attachmentDescription);
 	}
 
-    // void VulkanFrameBuffer::AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
-    // {
-    //     for(uint32_t i = 0; i < existedFrameBufferAttachments.size(); i++) {
-    //         // assign new binding index
-    //         existedFrameBufferAttachments[i].binding = frameBuffers[i]->attachments.size();
-    //         frameBuffers[i]->AddAttachment(existedFrameBufferAttachments[i]);
-    //     }
-    // }
-	
-	VkResult VulkanFrameBuffer::AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
-    {
-    	VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
-    	samplerInfo.magFilter = magFilter;
-    	samplerInfo.minFilter = minFilter;
-    	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    	samplerInfo.addressModeU = addressMode;
-    	samplerInfo.addressModeV = addressMode;
-    	samplerInfo.addressModeW = addressMode;
-    	samplerInfo.mipLodBias = 0.0f;
-    	samplerInfo.maxAnisotropy = 1.0f;
-    	samplerInfo.minLod = 0.0f;
-    	samplerInfo.maxLod = 1.0f;
-    	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    	return vkCreateSampler(vulkanDevice->logicalDevice, &samplerInfo, nullptr, &sampler);
-    }
-
-	void VulkanFrameBuffer::CrateDescriptorSet()
+	void VulkanFrameBuffer::CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo)
 	{
+		sampler = CreateSampler(vulkanDevice, samplerCreateInfo);
 		for(uint32_t i =0; i<frameBufferCount;i++)
 			frameBuffers[i]->CreateAttachmentDescriptorSet(sampler);
 	}

@@ -104,9 +104,6 @@ namespace vks {
 
         void AddAttachment(const vks::AttachmentCreateInfo &createInfo);
 
-        // void AddAttachments(
-        //     std::vector<vks::FramebufferAttachment> &existedFrameBufferAttachments);
-
         void AddSubPass(const std::string &subPassName,
                         VkPipelineBindPoint subPassBindPoint,
                         const std::vector<std::string> &attachmentNames);
@@ -118,8 +115,6 @@ namespace vks {
         void AddSubPassDependency(std::vector<VkSubpassDependency> subPassDependency);
 
         void Init(bool isDefault = false);
-
-        void CreateDescriptorSet();
 
         int AttachmentCount();
 

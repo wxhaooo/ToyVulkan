@@ -71,8 +71,8 @@ namespace vks
    */
     struct FrameBuffer
     {
-        VulkanDevice* vulkanDevice;
-        uint32_t width, height;
+        VulkanDevice* vulkanDevice = nullptr;
+        uint32_t width = 0, height = 0;
         VkFramebuffer frameBuffer = VK_NULL_HANDLE;
         std::vector<FramebufferAttachment> attachments;
 
@@ -91,67 +91,41 @@ namespace vks
        */
         ~FrameBuffer();
 
-        /**
-       * Add a new attachment described by createinfo to the framebuffer's attachment list
-       *
-       * @param createInfo Structure that specifies the framebuffer to be constructed
-       *
-       * @return Index of the new attachment
-       */
-        uint32_t CreateAttachment(const VulkanAttachmentDescription* const attachmentDescription);
+        uint32_t CreateAttachment(const VulkanAttachmentDescription* attachmentDescription);
 
-        // uint32_t AddAttachment(const vks::FramebufferAttachment& existedAttachment);
-
-        FramebufferAttachment CopyAttachment(const std::string& attachmentName);
+        const FramebufferAttachment& GetAttachment(const std::string& attachmentName);
 
         void CreateAttachmentDescriptorSet(VkSampler sampler);
 
         void Destory();
-
-        // void CreateFrameBufferDescriptorSet(VkSampler sampler);
     };
-
    
     class VulkanFrameBuffer
     {
-    private:
-        vks::VulkanDevice* vulkanDevice;
-        uint32_t width, height;
-        VulkanRenderPass* renderPass;
-
-        void CreateAttachment(const VulkanAttachmentDescription* attachmentDescription);
-
     public:
         std::vector<FrameBuffer*> frameBuffers;
-        VkSampler sampler = VK_NULL_HANDLE;
         uint32_t frameBufferCount = 0;
         
         VulkanFrameBuffer(vks::VulkanDevice* vulkanDevice, uint32_t width, uint32_t height, uint32_t frameBufferCount);
         ~VulkanFrameBuffer();
 
+        void Init(VulkanRenderPass* renderPass);
+
         uint32_t Width() const {return width;}
         uint32_t Height() const {return height;}
 
         FrameBuffer* GetFrameBuffer(uint32_t frameBufferIndex) const;
-
-        void Init(VulkanRenderPass* renderPass);
-
-        std::vector<vks::FramebufferAttachment> CopySpecifiedFrameBufferAttachment(const std::string& attachmentName);
         
-        void AddAttachment(std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments);
+        void CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo);
 
-        /**
-        * Creates a default sampler for sampling from any of the framebuffer attachments
-        * Applications are free to create their own samplers for different use cases 
-        *
-        * @param magFilter Magnification filter for lookups
-        * @param minFilter Minification filter for lookups
-        * @param addressMode Addressing mode for the U,V and W coordinates
-        *
-        * @return VkResult for the sampler creation
-        */
-        VkResult AddSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
+    private:
+        vks::VulkanDevice* vulkanDevice = nullptr;
+        uint32_t width = 0, height = 0;
+        VulkanRenderPass* renderPass = nullptr;
 
-        void CrateDescriptorSet();
+        // extra info
+        VkSampler sampler = VK_NULL_HANDLE;
+
+        void CreateAttachment(const VulkanAttachmentDescription* attachmentDescription);
     };
 }

@@ -7,10 +7,12 @@
 #include <Camera.h>
 #include <imgui.h>
 #include <Singleton.hpp>
-#include <GraphicSettings.hpp>
+#include <Settings.hpp>
 
 #include <MathUtils.h>
 #include <random>
+
+#include <GloalVars.h>
 
 #ifdef min
 #undef min
@@ -27,22 +29,39 @@ DeferredPBR::~DeferredPBR()
     gltfModel.reset();
     skybox.reset();
 
-    // mrt pass resource
+    // render pass
     mrtRenderPass.reset();
-
-    // ssao pass resource
     ssaoRenderPass.reset();
+    lightingRenderPass.reset();
+    skyboxRenderPass.reset();
+    postprocessRenderPass.reset();
+
+    // frame buffer
+    mrtFrameBuffer.reset();
+    ssaoFrameBuffer.reset();
+    lightingFrameBuffer.reset();
+    skyboxFrameBuffer.reset();
+    postprocessFrameBuffer.reset();
 
     if (pipelines.offscreen != VK_NULL_HANDLE)
         vkDestroyPipeline(device, pipelines.offscreen, nullptr);
     if (pipelines.offscreenWireframe != VK_NULL_HANDLE)
         vkDestroyPipeline(device, pipelines.offscreenWireframe, nullptr);
 
+    // mrt
     if (mrtPipelineLayout != VK_NULL_HANDLE)
         vkDestroyPipelineLayout(device, mrtPipelineLayout, nullptr);
     if (mrtDescriptorSetLayout_Vertex != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
+    // ssao
+    if(pipelines.ssao != VK_NULL_HANDLE)
+        vkDestroyPipeline(device, pipelines.ssao, nullptr);
+    if(ssaoPipelineLayout != VK_NULL_HANDLE)
+        vkDestroyPipelineLayout(device, ssaoPipelineLayout, nullptr);
+    if(ssaoDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, ssaoDescriptorSetLayout, nullptr);
+    
     // lighting
     if (pipelines.lighting != VK_NULL_HANDLE)
         vkDestroyPipeline(device, pipelines.lighting, nullptr);
@@ -67,7 +86,8 @@ DeferredPBR::~DeferredPBR()
     if (postprocessDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, postprocessDescriptorSetLayout, nullptr);
 
-    shaderData.buffer.Destroy();
+    mrtUBO.buffer.Destroy();
+    ssaoCreateUbo.buffer.Destroy();
     lightingUbo.buffer.Destroy();
     skyboxUbo.buffer.Destroy();
 
@@ -159,8 +179,11 @@ void DeferredPBR::SetupMrtRenderPass()
     attachmentInfo.binding = mrtRenderPass->AttachmentCount();
     attachmentInfo.name = "G_Occlusion";
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     mrtRenderPass->AddAttachment(attachmentInfo);
 
+    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    
     // Attachment 6: G_Depth
     attachmentInfo.binding = mrtRenderPass->AttachmentCount();
     attachmentInfo.name = "G_Depth";
@@ -182,11 +205,11 @@ void DeferredPBR::SetupMrtRenderPass()
     mrtFrameBuffer->Init(mrtRenderPass.get());
     
     // description
-    VkFilter magFiler = VK_FILTER_LINEAR;
-    VkFilter minFiler = VK_FILTER_LINEAR;
-    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    mrtFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
-    mrtFrameBuffer->CrateDescriptorSet();
+    vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
+    samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    mrtFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
 }
 
 void DeferredPBR::SetupSSAORenderPass()
@@ -199,7 +222,7 @@ void DeferredPBR::SetupSSAORenderPass()
     attachmentInfo.width = imageWidth;
     attachmentInfo.height = imageHeight;
     attachmentInfo.layerCount = 1;
-    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     attachmentInfo.binding = 0;
     attachmentInfo.name = "G_Occlusion";
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -238,13 +261,12 @@ void DeferredPBR::SetupSSAORenderPass()
     // frame buffer
     ssaoFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
     ssaoFrameBuffer->Init(ssaoRenderPass.get());
-    
-    // // description
-    // VkFilter magFiler = VK_FILTER_NEAREST;
-    // VkFilter minFiler = VK_FILTER_NEAREST;
-    // VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    // ssaoFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
-    // ssaoFrameBuffer->CrateDescriptorSet();
+    // descriptor set
+    vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
+    samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    ssaoFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
 }
 
 void DeferredPBR::SetupLightingRenderPass()
@@ -272,11 +294,11 @@ void DeferredPBR::SetupLightingRenderPass()
     lightingFrameBuffer->Init(lightingRenderPass.get());
 
     // sampler
-    VkFilter magFiler = VK_FILTER_NEAREST;
-    VkFilter minFiler = VK_FILTER_NEAREST;
-    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    lightingFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
-    lightingFrameBuffer->CrateDescriptorSet();
+    vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    lightingFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
 }
 
 void DeferredPBR::SetupSkyboxRenderPass()
@@ -303,11 +325,11 @@ void DeferredPBR::SetupSkyboxRenderPass()
     skyboxFrameBuffer->Init(skyboxRenderPass.get());
 
     // sampler
-    VkFilter magFiler = VK_FILTER_NEAREST;
-    VkFilter minFiler = VK_FILTER_NEAREST;
-    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    skyboxFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
-    skyboxFrameBuffer->CrateDescriptorSet();
+    vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    skyboxFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
 }
 
 void DeferredPBR::SetupPostprocessRenderPass()
@@ -334,11 +356,11 @@ void DeferredPBR::SetupPostprocessRenderPass()
     postprocessFrameBuffer->Init(postprocessRenderPass.get());
 
     // sampler
-    VkFilter magFiler = VK_FILTER_NEAREST;
-    VkFilter minFiler = VK_FILTER_NEAREST;
-    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    postprocessFrameBuffer->AddSampler(magFiler, minFiler, addressMode);
-    postprocessFrameBuffer->CrateDescriptorSet();
+    vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    postprocessFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
 }
 
 void DeferredPBR::BakingIrradianceCubeMap()
@@ -587,16 +609,16 @@ void DeferredPBR::BakingIrradianceCubeMap()
                                                          VK_VERTEX_INPUT_RATE_VERTEX),
     };
     const std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
+        // Location 0: Position
         vks::initializers::VertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT,
                                                            offsetof(vks::geometry::VulkanGLTFModel::Vertex, pos)),
-        // Location 0: Position
+        // Location 1: Normal
         vks::initializers::VertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT,
                                                            offsetof(vks::geometry::VulkanGLTFModel::Vertex,
                                                                     normal)),
-        // Location 1: Normal
+        // Location 2: Texture coordinates
         vks::initializers::VertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32_SFLOAT,
                                                            offsetof(vks::geometry::VulkanGLTFModel::Vertex, uv)),
-        // Location 2: Texture coordinates
     };
     VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
     vertexInputStateCI.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size());
@@ -1201,8 +1223,7 @@ void DeferredPBR::BakingPreFilteringCubeMap()
 
     auto tEnd = std::chrono::high_resolution_clock::now();
     auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-    std::cout << "Generating pre-filtered enivornment cube with " << numMips << " mip levels took " << tDiff << " ms" <<
-        std::endl;
+    std::cout << "Generating pre-filtered environment cube with " << numMips << " mip levels took " << tDiff << " ms\n";
 }
 
 void DeferredPBR::BakingSpecularBRDFCubeMap()
@@ -1430,9 +1451,10 @@ void DeferredPBR::PrepareSSAOGenData()
     std::random_device r;
     std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
     std::default_random_engine generator(r());
-    uint32_t ssaoKernelSize = graphicSettings->ssaoKernelSize;
-    for (unsigned int i = 0; i < ssaoKernelSize; ++i)
+    uint32_t ssaoKernelSize = GlobalVars::SSAO_KERNEL_SIZE;
+    for (uint32_t i = 0; i < ssaoKernelSize; ++i)
     {
+        // x:[-1,1], y:[-1,1], z:[0,1]
         glm::vec3 sample(
             randomFloats(generator) * 2.0 - 1.0,
             randomFloats(generator) * 2.0 - 1.0,
@@ -1440,16 +1462,15 @@ void DeferredPBR::PrepareSSAOGenData()
         );
         sample = glm::normalize(sample);
         sample *= randomFloats(generator);
-        float scale = static_cast<float>(i) / ssaoKernelSize;
+        float scale = static_cast<float>(i) / static_cast<float>(ssaoKernelSize);
         scale = math::Lerp(0.1f, 1.0f, scale * scale);
-        sample *= scale;
-        ssaoKernel.push_back(sample);
+        ssaoCreateUbo.values.kernel[i] = glm::vec4(sample * scale, 0.0f);
     }
 
     // SSAO noise texture
     std::vector<glm::vec4> ssaoNoise;
-    uint32_t ssaoNoiseDim = graphicSettings->ssaoNoiseDim;
-    for (unsigned int i = 0; i < ssaoNoiseDim * ssaoNoiseDim; i++)
+    uint32_t ssaoNoiseDim = GlobalVars::SSAO_NOISE_DIM;
+    for (uint32_t i = 0; i < ssaoNoiseDim * ssaoNoiseDim; i++)
     {
         glm::vec4 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f, 0.0f);
         // rotate around z-axis (in tangent space)
@@ -1487,6 +1508,7 @@ void DeferredPBR::Prepare()
 
     // prepare pipelines
     PrepareMrtPipeline();
+    PrepareSSAOPipeline();
     PrepareLightingPipeline();
     PrepareSkyboxPipeline();
     PreparePostprocessPipeline();
@@ -1527,15 +1549,15 @@ void DeferredPBR::PrepareUniformBuffers()
     CheckVulkanResult(vulkanDevice->CreateBuffer(
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &shaderData.buffer,
-        sizeof(shaderData.values)));
-    CheckVulkanResult(shaderData.buffer.Map());
+        &mrtUBO.buffer,
+        sizeof(mrtUBO.values)));
+    CheckVulkanResult(mrtUBO.buffer.Map());
 
-    //    // ssao uniform buffer
-    //    CheckVulkanResult(vulkanDevice->CreateBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    //                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    //                               &ssaoCreateUbo.buffer,sizeof(glm::vec4)*ssaoKernel.size(),ssaoKernel.data()));
-    //    CheckVulkanResult(ssaoCreateUbo.buffer.Map());
+    // ssao uniform buffer
+    CheckVulkanResult(vulkanDevice->CreateBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               &ssaoCreateUbo.buffer, sizeof(ssaoCreateUbo.values)));
+    CheckVulkanResult(ssaoCreateUbo.buffer.Map());
 
     // lighting uniform buffer
     CheckVulkanResult(vulkanDevice->CreateBuffer(
@@ -1559,9 +1581,21 @@ void DeferredPBR::PrepareUniformBuffers()
 void DeferredPBR::UpdateUniformBuffers()
 {
     Camera* camera = Singleton<Camera>::Instance();
-    shaderData.values.projection = camera->matrices.perspective;
-    shaderData.values.view = camera->matrices.view;
-    memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
+    mrtUBO.values.nearPlane = camera->GetNearClip();
+    mrtUBO.values.farPlane = camera->GetFarClip();
+    mrtUBO.values.projection = camera->matrices.perspective;
+    mrtUBO.values.view = camera->matrices.view;
+    memcpy(mrtUBO.buffer.mapped, &mrtUBO.values, sizeof(mrtUBO.values));
+
+    // ssao uniform buffer
+    // fill values.kernel in PrepareSSAOGenData() function
+    glm::mat4 viewMat  = camera->matrices.view;
+    ssaoCreateUbo.values.view = viewMat;
+    ssaoCreateUbo.values.invViewT = glm::inverseTranspose(glm::mat3(viewMat));
+    ssaoCreateUbo.values.projection = camera->matrices.perspective;
+    ssaoCreateUbo.values.ssaoRadius = graphicSettings->ssaoRadius;
+    ssaoCreateUbo.values.ssaoBias = graphicSettings->ssaoBias;
+    memcpy(ssaoCreateUbo.buffer.mapped, &ssaoCreateUbo.values, sizeof(ssaoCreateUbo.values)); 
 
     for (uint32_t i = 0; i < gltfModel->lights.size(); i++)
     {
@@ -1602,6 +1636,9 @@ void DeferredPBR::SetupDescriptorSets()
     if (mrtDescriptorSetLayout_Vertex != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, mrtDescriptorSetLayout_Vertex, nullptr);
 
+    if(ssaoDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, ssaoDescriptorSetLayout, nullptr);
+
     if (lightingDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, lightingDescriptorSetLayout, nullptr);
 
@@ -1621,15 +1658,16 @@ void DeferredPBR::SetupDescriptorSets()
         vks::initializers::DescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100),
 
     };
+    
+    VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(
+            poolSizes, 100 * maxFrameInFlight);
+    CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
+    
     // for mrt pass
     {
-        VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::DescriptorPoolCreateInfo(
-            poolSizes, 100 * maxFrameInFlight);
-        CheckVulkanResult(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-
         // Descriptor set layout for passing matrices
         VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::DescriptorSetLayoutBinding(
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
         VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
             &setLayoutBinding, 1);
         CheckVulkanResult(
@@ -1643,10 +1681,92 @@ void DeferredPBR::SetupDescriptorSets()
         {
             CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &mrtDescriptorSets_Vertex[i]));
             VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
-                mrtDescriptorSets_Vertex[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &shaderData.buffer.descriptor);
+                mrtDescriptorSets_Vertex[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &mrtUBO.buffer.descriptor);
             vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
         }
     }
+
+    // for ssao pass
+    {
+         std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+        {
+             // position
+            vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+             // normal
+             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+             // depth
+             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+             // noise
+             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+             // ubo
+             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                            VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+        };
+
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
+            setLayoutBindings.data(), setLayoutBindings.size());
+        CheckVulkanResult(
+            vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &ssaoDescriptorSetLayout));
+        VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool,
+            &ssaoDescriptorSetLayout,
+            1);
+        ssaoDescriptorSets.resize(maxFrameInFlight);
+
+        for (uint32_t i = 0; i < maxFrameInFlight; i++)
+        {
+            CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &ssaoDescriptorSets[i]));
+            vks::FrameBuffer* frameBuffer = mrtFrameBuffer->GetFrameBuffer(i);
+            int binding = 0;
+            // position
+            {
+                const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("G_WorldPosition");
+                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                        ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+                        &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
+                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+                binding++;
+            }
+            // normal
+            {
+                const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("G_WorldNormal");
+                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                        ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+                        &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
+                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+                binding++;
+            }
+            // depth
+            {
+                const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("G_Depth");
+                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                        ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+                        &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
+                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+                binding++;
+            }
+            // noise texture 
+            {
+                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                       ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+                       &ssaoNoiseTexture->descriptor);
+                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+                binding++;
+            }
+            // ubo
+            {
+                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                       ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding,
+                       &ssaoCreateUbo.buffer.descriptor);
+                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+                binding++;
+            }
+        }
+    }
+    
     // for lighting pass
     {
         std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
@@ -1934,6 +2054,71 @@ void DeferredPBR::PrepareMrtPipeline()
     }
 }
 
+void DeferredPBR::PrepareSSAOPipeline()
+{
+    // create pipeline layout
+    std::vector<VkDescriptorSetLayout> setLayouts = {ssaoDescriptorSetLayout};
+    VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::PipelineLayoutCreateInfo(
+        setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+    pipelineLayoutCI.pushConstantRangeCount = 0;
+    CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &ssaoPipelineLayout));
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI =
+        vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCI =
+        vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
+                                                                VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+    rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
+    std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates =
+    {
+        vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+    };
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(
+        blendAttachmentStates.size(), blendAttachmentStates.data());
+    VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(
+        VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+    VkPipelineViewportStateCreateInfo viewportStateCI = vks::initializers::PipelineViewportStateCreateInfo(1, 1, 0);
+    VkPipelineMultisampleStateCreateInfo multisampleStateCI = vks::initializers::PipelineMultisampleStateCreateInfo(
+        VK_SAMPLE_COUNT_1_BIT, 0);
+    const std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::PipelineDynamicStateCreateInfo(
+        dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
+
+    // SSAO Kernel size and radius are constant for this pipeline, so we set them using specialization constants
+    struct SpecializationData {
+        uint32_t kernelSize = GlobalVars::SSAO_KERNEL_SIZE;
+        // float radius = GlobalVars::SSAO_RADIUS;
+    } specializationData;
+    std::vector<VkSpecializationMapEntry> specializationMapEntries = {
+        vks::initializers::SpecializationMapEntry(0, offsetof(SpecializationData, kernelSize), sizeof(SpecializationData::kernelSize)),
+        // vks::initializers::SpecializationMapEntry(1, offsetof(SpecializationData, radius), sizeof(SpecializationData::radius))
+    };
+    VkSpecializationInfo specializationInfo = vks::initializers::SpecializationInfo(specializationMapEntries.size(), specializationMapEntries.data(), sizeof(specializationData), &specializationData);
+    
+    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+        LoadShader(vks::helper::GetShaderBasePath() + "deferred/fullscreen.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+        LoadShader(vks::helper::GetShaderBasePath() + "deferred/ssao.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT)
+    };
+    shaderStages[1].pSpecializationInfo = &specializationInfo;
+
+    VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
+    pipelineCI.layout = ssaoPipelineLayout;
+    pipelineCI.renderPass = ssaoRenderPass->renderPass;
+    pipelineCI.pVertexInputState = &vertexInputStateCI;
+    pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
+    pipelineCI.pRasterizationState = &rasterizationStateCI;
+    pipelineCI.pColorBlendState = &colorBlendStateCI;
+    pipelineCI.pMultisampleState = &multisampleStateCI;
+    pipelineCI.pViewportState = &viewportStateCI;
+    pipelineCI.pDepthStencilState = &depthStencilStateCI;
+    pipelineCI.pDynamicState = &dynamicStateCI;
+    pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+    pipelineCI.pStages = shaderStages.data();
+    pipelineCI.flags = 0;
+    CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.ssao));
+}
+
 void DeferredPBR::PrepareLightingPipeline()
 {
     // create pipeline layout
@@ -2179,34 +2364,97 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
         vkCmdEndRenderPass(commandBuffer);
     }
 
-    //    // ssao render pass
-    //    {
-    //        vks::FrameBuffer *ssaoFrameBuffer = ssaoRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
-    //        VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
-    //        renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
-    //        renderPassBeginInfo.framebuffer = ssaoFrameBuffer->frameBuffer;
-    //        renderPassBeginInfo.renderArea.offset = {0, 0};
-    //        renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
-    //        std::vector<VkClearValue> clearValues
-    //        {
-    //            {0.0f, 0.0f, 0.0f, 1.0f},
-    //        };
-    //        renderPassBeginInfo.clearValueCount = clearValues.size();
-    //        renderPassBeginInfo.pClearValues = clearValues.data();
-    //        vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    //        const VkViewport viewport =
-    //                vks::initializers::Viewport((float) viewportWidth, (float) viewportHeight, 0.0f, 1.0f);
-    //        const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
-    //
-    //        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-    //        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    ////        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, , 0, 1,
-    ////                                &, 0, nullptr);
-    ////        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, );
-    //        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-    //        vkCmdEndRenderPass(commandBuffer);
-    //    }
+    // ssao render pass
+    if(graphicSettings->useSSAO)
+    {
+        vks::FrameBuffer *currentSsaoFrameBuffer = ssaoFrameBuffer->GetFrameBuffer(currentFrame);
+        VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
+        renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+        renderPassBeginInfo.framebuffer = currentSsaoFrameBuffer->frameBuffer;
+        renderPassBeginInfo.renderArea.offset = {0, 0};
+        renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
+        std::vector<VkClearValue> clearValues
+        {
+            {0.0f, 0.0f, 0.0f, 1.0f},
+        };
+        renderPassBeginInfo.clearValueCount = clearValues.size();
+        renderPassBeginInfo.pClearValues = clearValues.data();
+        vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        const VkViewport viewport =
+                vks::initializers::Viewport((float) viewportWidth, (float) viewportHeight, 0.0f, 1.0f);
+        const VkRect2D scissor = vks::initializers::Rect2D(viewportWidth, viewportHeight, 0, 0);
 
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ssaoPipelineLayout, 0, 1,
+        &ssaoDescriptorSets[currentFrame], 0, nullptr);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,pipelines.ssao);
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(commandBuffer);
+
+        // copy realtime AO to target AO
+        vks::FrameBuffer *targetMrtFrameBuffer = mrtFrameBuffer->GetFrameBuffer(currentFrame);
+        
+        const vks::FramebufferAttachment& sourceAttachment = currentSsaoFrameBuffer->GetAttachment("G_Occlusion");
+        const vks::FramebufferAttachment& targetAttachment = targetMrtFrameBuffer->GetAttachment("G_Occlusion");
+        VkImage sourceImage = sourceAttachment.image;
+        VkImage targetImage = targetAttachment.image;
+
+        vks::utils::SetImageLayout(
+               commandBuffer,sourceImage,
+               VK_IMAGE_ASPECT_COLOR_BIT,
+               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        
+        vks::utils::SetImageLayout(
+               commandBuffer,targetImage,
+               VK_IMAGE_ASPECT_COLOR_BIT,
+               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        
+        // Copy region for transfer from framebuffer to cube face
+        VkImageCopy copyRegion = {};
+        
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.baseArrayLayer = 0;
+        copyRegion.srcSubresource.mipLevel = 0;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.srcOffset = {0, 0, 0};
+        
+        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.dstSubresource.baseArrayLayer = 0;
+        copyRegion.dstSubresource.mipLevel = 0;
+        copyRegion.dstSubresource.layerCount = 1;
+        copyRegion.dstOffset = {0, 0, 0};
+        
+        copyRegion.extent.width = static_cast<uint32_t>(viewport.width);
+        copyRegion.extent.height = static_cast<uint32_t>(viewport.height);
+        copyRegion.extent.depth = 1;
+        
+        vkCmdCopyImage(
+            commandBuffer,
+            sourceImage,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            targetImage,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &copyRegion);
+        
+        vks::utils::SetImageLayout(
+            commandBuffer,
+            sourceImage,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        
+        vks::utils::SetImageLayout(
+            commandBuffer,
+            targetImage,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    
     // lighting renderPass
     {
         vks::FrameBuffer* lightingFrameBuffer = lightingRenderPass->vulkanFrameBuffer->GetFrameBuffer(currentFrame);
@@ -2265,7 +2513,6 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipelineLayout, 0, 1,
                                 &skyboxDescriptorSets[currentFrame], 0, nullptr);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
-        //        vkCmdDraw(commandBuffer,3,1,0,0);
         skybox->Draw(commandBuffer, 0, false, skyboxPipelineLayout, 0);
         vkCmdEndRenderPass(commandBuffer);
     }
@@ -2306,6 +2553,9 @@ void DeferredPBR::ReCreateVulkanResource_Child()
 {
     mrtRenderPass.reset();
     SetupMrtRenderPass();
+
+    ssaoRenderPass.reset();
+    SetupSSAORenderPass();
 
     lightingRenderPass.reset();
     SetupLightingRenderPass();
@@ -2353,13 +2603,44 @@ void DeferredPBR::NewGUIFrame()
 
     if (ImGui::Begin("UI_Status"))
     {
-        if (ImGui::CollapsingHeader("Camera"))
+        if (ImGui::CollapsingHeader("State", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::Checkbox("pause", &paused);
+            ImGui::Checkbox("enable animation", &animationSettings->useAnimation);
+            
+            ImGui::SeparatorText("Camera");
             Camera* camera = Singleton<Camera>::Instance();
-            ImGui::Text("Camera Position: (%g, %g, %g)",
+            ImGui::Text("Position: (%g, %g, %g)",
                         camera->position.x, camera->position.y, camera->position.z);
-            ImGui::Text("Camera Rotation: (%g, %g, %g)",
+            ImGui::Text("Rotation: (%g, %g, %g)",
                         camera->rotation.x, camera->rotation.y, camera->rotation.z);
+        }
+        
+        if(ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if(ImGui::TreeNode("Graphic Settings"))
+            {
+                ImGui::SeparatorText("SSAO");
+                ImGui::Checkbox("enable", &graphicSettings->useSSAO);
+                ImGui::SliderFloat("radius", &graphicSettings->ssaoRadius,0.0f,1.0f);
+                ImGui::SliderFloat("bias", & graphicSettings->ssaoBias,0.0f,1.0f);
+                ImGui::TreePop();
+                ImGui::Spacing();
+            }
+            if(ImGui::TreeNode("Animation Settings"))
+            {
+                ImGui::TreePop();
+                ImGui::Spacing();
+            }
+
+            // if(ImGui::TreeNode("GUI Settings"))
+            // {
+            //     ImGui::SliderFloat("alpha", &guiSettings->alpha,0.0f,1.0f);
+            //     ImGui::Checkbox("dark style", &guiSettings->isStyleDark);
+            //     
+            //     ImGui::TreePop();
+            //     ImGui::Spacing();
+            // }
         }
 
         if (ImGui::CollapsingHeader("Performance"))
@@ -2369,7 +2650,7 @@ void DeferredPBR::NewGUIFrame()
         ImGui::End();
     }
 
-    // ImGui::ShowDemoWindow();
+    ImGui::ShowDemoWindow();
 }
 
 void DeferredPBR::ViewChanged()
@@ -2382,9 +2663,9 @@ void DeferredPBR::Render()
     RenderFrame();
     Camera* camera = Singleton<Camera>::Instance();
 
-    if (camera->updated)
-        UpdateUniformBuffers();
+    // if (camera->updated)
+    UpdateUniformBuffers();
 
-    if (!gltfModel->animations.empty() && !paused)
+    if (!gltfModel->animations.empty() && !paused && animationSettings->useAnimation)
         gltfModel->UpdateAnimation(0, timer);
 }

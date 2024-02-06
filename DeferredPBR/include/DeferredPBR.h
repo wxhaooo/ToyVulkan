@@ -4,6 +4,8 @@
 #include <VulkanGLTFModel.h>
 #include <VulkanRenderPass.h>
 
+#include <GloalVars.h>
+
 class DeferredPBR :public VulkanApplicationBase
 {
 public:
@@ -35,6 +37,7 @@ private:
     void PrepareSSAOGenData();
 
     void PrepareMrtPipeline();
+    void PrepareSSAOPipeline();
     void PrepareLightingPipeline();
     void PrepareSkyboxPipeline();
     void PreparePostprocessPipeline();
@@ -51,14 +54,24 @@ private:
     struct ShaderData {
         vks::Buffer buffer;
         struct Values {
+            float nearPlane;
+            float farPlane;
             glm::mat4 projection;
             glm::mat4 view;
         } values;
-    } shaderData;
+    } mrtUBO;
 
     struct SsaoCreateUBO
     {
         vks::Buffer buffer;
+        struct Values{
+            glm::mat4 view;
+            glm::mat3 invViewT;
+            glm::mat4 projection;
+            std::array<glm::vec4, GlobalVars::SSAO_KERNEL_SIZE> kernel;
+            float ssaoRadius;
+            float ssaoBias;
+        }values;
     } ssaoCreateUbo;
 
     struct SsaoBlurUBO
@@ -76,7 +89,7 @@ private:
         vks::Buffer buffer;
         struct Values
         {
-            alignas(16)vks::geometry::Light lights[LightCount];
+            alignas(16) vks::geometry::Light lights[GlobalVars::LIGHT_COUNT];
             alignas(16) glm::vec4 viewPos;
             alignas(16) glm::mat4 viewMat;
         } values;
@@ -109,6 +122,10 @@ private:
     VkPipelineLayout mrtPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> mrtDescriptorSets_Vertex;
 
+    VkDescriptorSetLayout ssaoDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout ssaoPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> ssaoDescriptorSets;
+
     VkDescriptorSetLayout lightingDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> lightingDescriptorSets;
@@ -130,11 +147,11 @@ private:
     std::unique_ptr<vks::TextureCubeMap> environmentCubeMap = nullptr;
     // ssao texture
     std::unique_ptr<vks::Texture2D> ssaoNoiseTexture = nullptr;
-    std::vector<glm::vec3> ssaoKernel;
 
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
+        VkPipeline ssao = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
         VkPipeline skybox = VK_NULL_HANDLE;
         VkPipeline postprocess = VK_NULL_HANDLE;

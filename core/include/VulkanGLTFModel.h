@@ -18,7 +18,7 @@
 #undef max
 #endif
 
-#include <GraphicSettings.hpp>
+#include <Settings.hpp>
 
 namespace tinygltf
 {

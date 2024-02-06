@@ -1,6 +1,6 @@
 ﻿#include<LoadGLTF.h>
 #include <Singleton.hpp>
-#include <GraphicSettings.hpp>
+#include <..\..\core\include\Settings.hpp>
 
 #if _DEBUG
 bool enableValidation = true;
@@ -11,7 +11,7 @@ bool enableValidation = false;
 
 int main()
 {
-    Singleton<GraphicSettings>::Instance()->validation = enableValidation;
+    Singleton<Settings>::Instance()->graphicSettings->validation = enableValidation;
     std::unique_ptr<LoadGLFT> loadGLTFApp = std::make_unique<LoadGLFT>();
     loadGLTFApp->InitFondation();
     loadGLTFApp->InitVulkan();

@@ -7,6 +7,8 @@
 #include <VulkanInitializers.h>
 #include <VulkanHelper.h>
 
+#include "VulkanFrameBuffer.h"
+
 namespace vks {
     namespace utils {
         VkBool32 GetSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat *depthFormat) {
@@ -364,5 +366,23 @@ namespace vks {
             return texture2D;
         }
 
+        VkSampler CreateSampler(const VulkanDevice* device, const VulkanSamplerCreateInfo& samplerCreateInfo)
+        {
+            VkSampler sampler;
+            VkSamplerCreateInfo samplerInfo = vks::initializers::SamplerCreateInfo();
+            samplerInfo.magFilter = samplerCreateInfo.magFiler;
+            samplerInfo.minFilter = samplerCreateInfo.minFiler;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.addressModeU = samplerCreateInfo.addressMode;
+            samplerInfo.addressModeV = samplerCreateInfo.addressMode;
+            samplerInfo.addressModeW = samplerCreateInfo.addressMode;
+            samplerInfo.mipLodBias = 0.0f;
+            samplerInfo.maxAnisotropy = 1.0f;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = 1.0f;
+            samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            CheckVulkanResult(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
+            return sampler;
+        }
     }
 }

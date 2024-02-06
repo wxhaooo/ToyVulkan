@@ -7,7 +7,7 @@
 #include <Camera.h>
 #include <imgui.h>
 #include <Singleton.hpp>
-#include <GraphicSettings.hpp>
+#include <..\..\core\include\Settings.hpp>
 #include <VulkanRenderPass.h>
 
 LoadGLFT::~LoadGLFT()
@@ -395,7 +395,7 @@ void LoadGLFT::PreparePipelines()
 		LoadShader(vks::helper::GetShaderBasePath() + "gltfloading/mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT)
 	};
 
-	GraphicSettings* graphicSettings = Singleton<GraphicSettings>::Instance();
+	GraphicSettings* graphicSettings = Singleton<Settings>::Instance()->graphicSettings;
 	VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
 	pipelineCI.layout = pipelineLayout;
 	pipelineCI.renderPass = renderPass;

@@ -455,6 +455,35 @@ namespace vks
         	return computePipelineCreateInfo;
         }
 
+    	VkSpecializationInfo SpecializationInfo(uint32_t mapEntryCount, const VkSpecializationMapEntry* mapEntries, size_t dataSize, const void* data)
+    	{
+    		VkSpecializationInfo specializationInfo{};
+    		specializationInfo.mapEntryCount = mapEntryCount;
+    		specializationInfo.pMapEntries = mapEntries;
+    		specializationInfo.dataSize = dataSize;
+    		specializationInfo.pData = data;
+    		return specializationInfo;
+    	}
+
+    	VkSpecializationMapEntry SpecializationMapEntry(uint32_t constantID, uint32_t offset, size_t size)
+    	{
+    		VkSpecializationMapEntry specializationMapEntry{};
+    		specializationMapEntry.constantID = constantID;
+    		specializationMapEntry.offset = offset;
+    		specializationMapEntry.size = size;
+    		return specializationMapEntry;
+    	}
+
+    	VkSpecializationInfo SpecializationInfo(const std::vector<VkSpecializationMapEntry> &mapEntries, size_t dataSize, const void* data)
+    	{
+    		VkSpecializationInfo specializationInfo{};
+    		specializationInfo.mapEntryCount = static_cast<uint32_t>(mapEntries.size());
+    		specializationInfo.pMapEntries = mapEntries.data();
+    		specializationInfo.dataSize = dataSize;
+    		specializationInfo.pData = data;
+    		return specializationInfo;
+    	}
+
     	VkViewport Viewport(float width, float height, float minDepth, float maxDepth)
     	{
     		VkViewport viewport {};

@@ -48,6 +48,10 @@ private:
 
 	void CleanUpVulkanResource();
 	void InitImGUIResource();
+
+	// style
+	void SwitchToUnrealEngineStyle();
+	void SwitchToLightStyle();
 	
 	int32_t vertexCount = 0;
 	vks::Buffer vertexBuffer;
@@ -86,7 +90,4 @@ private:
 	VkQueue copyQueue;
 	
 	GLFWwindow* glfwWindow;
-
-	// event
-	
 };

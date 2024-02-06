@@ -257,12 +257,6 @@ namespace vks
         CreateCustomRenderPass();
     }
 
-    void VulkanRenderPass::CreateDescriptorSet()
-    {
-        if (vulkanFrameBuffer != nullptr)
-            vulkanFrameBuffer->CrateDescriptorSet();
-    }
-
     int VulkanRenderPass::AttachmentCount() { return attachmentCount; }
 
     int VulkanRenderPass::ColorAttachmentCount() { return colorAttachmentCount; }
@@ -278,19 +272,4 @@ namespace vks
         if (!utils::IsDepthStencil(createInfo.format))
             colorAttachmentCount++;
     }
-
-    // void VulkanRenderPass::AddAttachments(
-    //     std::vector<vks::FramebufferAttachment>& existedFrameBufferAttachments)
-    // {
-    //     if (existedFrameBufferAttachments.empty())
-    //         return;
-    //
-    //     vulkanFrameBuffer->AddAttachment(existedFrameBufferAttachments);
-    //
-    //     vks::FramebufferAttachment& existedAttachment =
-    //         existedFrameBufferAttachments[0];
-    //     attachmentCount++;
-    //     if (!utils::IsDepthStencil(existedAttachment.format))
-    //         colorAttachmentCount++;
-    // }
 } // namespace vks
