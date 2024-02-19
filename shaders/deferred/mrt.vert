@@ -8,6 +8,8 @@ layout (location = 4) in vec4 inTangent;
 
 layout (set = 0, binding = 0) uniform UBO 
 {
+	float nearPlane;
+	float farPlane;
 	mat4 projection;
 	mat4 view;
 } ubo;

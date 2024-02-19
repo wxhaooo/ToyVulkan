@@ -36,6 +36,14 @@ layout (location = 4) out vec4 outEmissive;
 layout (location = 5) out vec4 outOcclusion;
 layout (location = 6) out vec4 outDepth;
 
+layout (set = 0, binding = 0) uniform UBO 
+{
+	float nearPlane;
+	float farPlane;
+	mat4 projection;
+	mat4 view;
+} ubo;
+
 // ----------------------------------------------------------------------------
 // Easy trick to get tangent-normals to world-space to keep PBR code simplified.
 // Don't worry if you don't get what's going on; you generally want to do normal
@@ -58,6 +66,17 @@ vec3 getNormalFromMap()
     return normalize(TBN * tangentNormal);
 }
 
+float linearDepth(float depth)
+{
+	float z = depth;
+	return (ubo.nearPlane * ubo.farPlane) / (z * (ubo.farPlane - ubo.nearPlane) - ubo.farPlane);
+}
+
+// float linearDepth(float depth)
+// {
+// 	float z = depth;
+// 	return (ubo.nearPlane * ubo.farPlane) / (ubo.farPlane + z * (ubo.farPlane - ubo.nearPlane));
+// }
 
 void main()
 {
@@ -66,10 +85,10 @@ void main()
     outAlbedo = texture(samplerBaseColor, inUV);
 
     // Calculate normal in tangent space
-    vec3 N = normalize(inNormal);
-    vec3 T = normalize(inTangent);
-    vec3 B = cross(N, T);
-    mat3 TBN = mat3(T, B, N);
+    // vec3 N = normalize(inNormal);
+    // vec3 T = normalize(inTangent);
+    // vec3 B = cross(N, T);
+    // mat3 TBN = mat3(T, B, N);
     // outNormal = vec4(N, 1.0);
     outNormal = vec4(getNormalFromMap(), 1.0);
     // outNormal = vec4(texture(samplerNormal,inUV).xyz,1.0);
@@ -85,6 +104,7 @@ void main()
     else
         outOcclusion = vec4(texture(samplerOcclusionRoughnessMetallic, inUV).rrr, 1);
 
-    float depth = 1.0 - gl_FragCoord.z / gl_FragCoord.w;
+    float depth = linearDepth(gl_FragCoord.z);
+    // float depth = 1.0 - gl_FragCoord.z / gl_FragCoord.w;
     outDepth = vec4(depth, depth, depth, 1.0);
 }
