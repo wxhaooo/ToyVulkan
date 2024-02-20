@@ -2,13 +2,13 @@
 
 layout (binding = 0) uniform sampler2D samplerPosition;
 layout (binding = 1) uniform sampler2D samplerNormal;
-layout (binding = 2) uniform sampler2D samplerDepth;
-layout (binding = 3) uniform sampler2D ssaoNoise;
+//layout (binding = 2) uniform sampler2D samplerDepth;
+layout (binding = 2) uniform sampler2D ssaoNoise;
 
 layout (constant_id = 0) const int SSAO_KERNEL_SIZE = 64;
 // layout (constant_id = 1) const float SSAO_RADIUS = 0.3;
 
-layout (binding = 4) uniform UBO
+layout (binding = 3) uniform UBO
 {
 	mat4 view;
 	mat3 invViewT;
@@ -56,9 +56,11 @@ void main()
 		vec4 offset = vec4(samplePos, 1.0f);
 		offset = ubo.projection * offset; 
 		offset.xyz /= offset.w; 
-		offset.xyz = offset.xyz * 0.5f + 0.5f; 
-		
-		float sampleDepthValue = texture(samplerDepth, offset.xy).x; 
+		offset.xyz = offset.xyz * 0.5f + 0.5f;
+
+		vec4 offsetWorldPos = texture(samplerPosition, offset.xy);
+		float sampleDepthValue = (ubo.view * offsetWorldPos).z;
+//		float sampleDepthValue = texture(samplerDepth, offset.xy).x;
 
 		float rangeCheck = smoothstep(0.0f, 1.0f, ubo.ssaoRadius / abs(fragPos.z - sampleDepthValue));
 		occlusion += (sampleDepthValue >= samplePos.z + ubo.ssaoBias ? 1.0f : 0.0f) * rangeCheck;

@@ -104,7 +104,8 @@ void main()
     else
         outOcclusion = vec4(texture(samplerOcclusionRoughnessMetallic, inUV).rrr, 1);
 
-    float depth = linearDepth(gl_FragCoord.z);
+    float depth = gl_FragCoord.z;
+//    float depth = linearDepth(gl_FragCoord.z);
     // float depth = 1.0 - gl_FragCoord.z / gl_FragCoord.w;
     outDepth = vec4(depth, depth, depth, 1.0);
 }

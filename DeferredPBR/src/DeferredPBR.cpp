@@ -1696,15 +1696,15 @@ void DeferredPBR::SetupDescriptorSets()
              // normal
              vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                                           VK_SHADER_STAGE_FRAGMENT_BIT, 1),
-             // depth
-             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+//             // depth
+//             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+//                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 2),
              // noise
              vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 2),
              // ubo
              vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                                            VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+                                                            VK_SHADER_STAGE_FRAGMENT_BIT, 3),
         };
 
         VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
@@ -1739,15 +1739,15 @@ void DeferredPBR::SetupDescriptorSets()
                 vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
                 binding++;
             }
-            // depth
-            {
-                const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("G_Depth");
-                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
-                        ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
-                        &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
-                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-                binding++;
-            }
+//            // depth
+//            {
+//                const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("G_Depth");
+//                VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+//                        ssaoDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+//                        &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
+//                vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+//                binding++;
+//            }
             // noise texture 
             {
                 VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
