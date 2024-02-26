@@ -61,6 +61,14 @@ DeferredPBR::~DeferredPBR()
         vkDestroyPipelineLayout(device, ssaoPipelineLayout, nullptr);
     if(ssaoDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, ssaoDescriptorSetLayout, nullptr);
+
+    // ssao blur
+    if(pipelines.ssaoBlur != VK_NULL_HANDLE)
+        vkDestroyPipeline(device, pipelines.ssaoBlur, nullptr);
+    if(ssaoBlurPipelineLayout != VK_NULL_HANDLE)
+        vkDestroyPipelineLayout(device, ssaoBlurPipelineLayout, nullptr);
+    if(ssaoBlurDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, ssaoBlurDescriptorSetLayout, nullptr);
     
     // lighting
     if (pipelines.lighting != VK_NULL_HANDLE)
@@ -219,11 +227,23 @@ void DeferredPBR::SetupSSAORenderPass()
     const uint32_t imageHeight = swapChain->imageExtent.height;
 
     vks::AttachmentCreateInfo attachmentInfo = {};
+
+    // first subpass attachment
+    attachmentInfo.width = imageWidth;
+    attachmentInfo.height = imageHeight;
+    attachmentInfo.layerCount = 1;
+    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    attachmentInfo.binding = 0;
+    attachmentInfo.name = "O_SSAO";
+    attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    ssaoRenderPass->AddAttachment(attachmentInfo);
+
+    // second subpass attachment
     attachmentInfo.width = imageWidth;
     attachmentInfo.height = imageHeight;
     attachmentInfo.layerCount = 1;
     attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    attachmentInfo.binding = 0;
+    attachmentInfo.binding = 1;
     attachmentInfo.name = "G_Occlusion";
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     ssaoRenderPass->AddAttachment(attachmentInfo);
@@ -234,8 +254,12 @@ void DeferredPBR::SetupSSAORenderPass()
     //    ssaoRenderPass->AddAttachments(copyAOAttachment);
 
     // subpass
+    // ssao subpass
     std::vector<int32_t> subPassAttachmentIndices = {0};
-    ssaoRenderPass->AddSubPass("default", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices);
+    ssaoRenderPass->AddSubPass("SSAO", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices);
+    // blur subpass
+    subPassAttachmentIndices = {1};
+    ssaoRenderPass->AddSubPass("Blur",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassAttachmentIndices);
     ssaoRenderPass->AddSubPassDependency(
         {
             {
@@ -246,13 +270,29 @@ void DeferredPBR::SetupSSAORenderPass()
                 VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_DEPENDENCY_BY_REGION_BIT,
             },
+//            {
+//                0,VK_SUBPASS_EXTERNAL,
+//                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+//                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+//                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+//                VK_ACCESS_MEMORY_READ_BIT,
+//                VK_DEPENDENCY_BY_REGION_BIT,
+//            },
             {
-                0,VK_SUBPASS_EXTERNAL,
+                0,1,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                VK_ACCESS_MEMORY_READ_BIT,
-                VK_DEPENDENCY_BY_REGION_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
+                    VK_DEPENDENCY_BY_REGION_BIT
+            },
+            {
+                1,VK_SUBPASS_EXTERNAL,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                    VK_ACCESS_MEMORY_READ_BIT,
+                    VK_DEPENDENCY_BY_REGION_BIT
             }
         });
 
@@ -1509,6 +1549,7 @@ void DeferredPBR::Prepare()
     // prepare pipelines
     PrepareMrtPipeline();
     PrepareSSAOPipeline();
+    PrepareSSAOBlurPipeline();
     PrepareLightingPipeline();
     PrepareSkyboxPipeline();
     PreparePostprocessPipeline();
@@ -1639,6 +1680,9 @@ void DeferredPBR::SetupDescriptorSets()
     if(ssaoDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, ssaoDescriptorSetLayout, nullptr);
 
+    if(ssaoBlurDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, ssaoBlurDescriptorSetLayout, nullptr);
+
     if (lightingDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, lightingDescriptorSetLayout, nullptr);
 
@@ -1686,7 +1730,7 @@ void DeferredPBR::SetupDescriptorSets()
         }
     }
 
-    // for ssao pass
+    // for ssao subpass
     {
          std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
         {
@@ -1764,6 +1808,38 @@ void DeferredPBR::SetupDescriptorSets()
                 vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
                 binding++;
             }
+        }
+    }
+
+    // for ssao blur subpass
+    {
+        std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+        {
+                // ssao
+                vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                              VK_SHADER_STAGE_FRAGMENT_BIT, 0)
+        };
+
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
+                setLayoutBindings.data(), setLayoutBindings.size());
+        CheckVulkanResult(
+                vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &ssaoBlurDescriptorSetLayout));
+        VkDescriptorSetAllocateInfo allocInfo = vks::initializers::DescriptorSetAllocateInfo(descriptorPool,
+                                                                                             &ssaoBlurDescriptorSetLayout,
+                                                                                             1);
+        ssaoBlurDescriptorSets.resize(maxFrameInFlight);
+
+        for (uint32_t i = 0; i < maxFrameInFlight; i++)
+        {
+            CheckVulkanResult(vkAllocateDescriptorSets(device, &allocInfo, &ssaoBlurDescriptorSets[i]));
+            vks::FrameBuffer* frameBuffer = ssaoFrameBuffer->GetFrameBuffer(i);
+            int binding = 0;
+            const vks::FramebufferAttachment& attachmentInfo = frameBuffer->GetAttachment("O_SSAO");
+            VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(
+                    ssaoBlurDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding,
+                    &const_cast<VkDescriptorImageInfo&>(attachmentInfo.descriptor));
+            vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+            binding++;
         }
     }
     
@@ -2119,6 +2195,60 @@ void DeferredPBR::PrepareSSAOPipeline()
     CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.ssao));
 }
 
+void DeferredPBR::PrepareSSAOBlurPipeline()
+{
+    // create pipeline layout
+    std::vector<VkDescriptorSetLayout> setLayouts = {ssaoBlurDescriptorSetLayout};
+    VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::PipelineLayoutCreateInfo(
+            setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+    pipelineLayoutCI.pushConstantRangeCount = 0;
+    CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &ssaoBlurPipelineLayout));
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI =
+            vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCI =
+            vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
+                                                                    VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+    rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
+    std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates =
+            {
+                    vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+            };
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(
+            blendAttachmentStates.size(), blendAttachmentStates.data());
+    VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(
+            VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+    VkPipelineViewportStateCreateInfo viewportStateCI = vks::initializers::PipelineViewportStateCreateInfo(1, 1, 0);
+    VkPipelineMultisampleStateCreateInfo multisampleStateCI = vks::initializers::PipelineMultisampleStateCreateInfo(
+            VK_SAMPLE_COUNT_1_BIT, 0);
+    const std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::PipelineDynamicStateCreateInfo(
+            dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCI = vks::initializers::PipelineVertexInputStateCreateInfo();
+
+    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+            LoadShader(vks::helper::GetShaderBasePath() + "deferred/fullscreen.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+            LoadShader(vks::helper::GetShaderBasePath() + "deferred/ssaoBlur.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT)
+    };
+
+    VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::PipelineCreateInfo();
+    pipelineCI.layout = ssaoBlurPipelineLayout;
+    pipelineCI.renderPass = ssaoRenderPass->renderPass;
+    pipelineCI.pVertexInputState = &vertexInputStateCI;
+    pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
+    pipelineCI.pRasterizationState = &rasterizationStateCI;
+    pipelineCI.pColorBlendState = &colorBlendStateCI;
+    pipelineCI.pMultisampleState = &multisampleStateCI;
+    pipelineCI.pViewportState = &viewportStateCI;
+    pipelineCI.pDepthStencilState = &depthStencilStateCI;
+    pipelineCI.pDynamicState = &dynamicStateCI;
+    pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+    pipelineCI.pStages = shaderStages.data();
+    pipelineCI.flags = 0;
+    pipelineCI.subpass = 1;
+    CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.ssaoBlur));
+}
+
 void DeferredPBR::PrepareLightingPipeline()
 {
     // create pipeline layout
@@ -2369,12 +2499,13 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
     {
         vks::FrameBuffer *currentSsaoFrameBuffer = ssaoFrameBuffer->GetFrameBuffer(currentFrame);
         VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::RenderPassBeginInfo();
-        renderPassBeginInfo.renderPass = lightingRenderPass->renderPass;
+        renderPassBeginInfo.renderPass = ssaoRenderPass->renderPass;
         renderPassBeginInfo.framebuffer = currentSsaoFrameBuffer->frameBuffer;
         renderPassBeginInfo.renderArea.offset = {0, 0};
         renderPassBeginInfo.renderArea.extent = {viewportWidth, viewportHeight};
         std::vector<VkClearValue> clearValues
         {
+            {0.0f, 0.0f, 0.0f, 1.0f},
             {0.0f, 0.0f, 0.0f, 1.0f},
         };
         renderPassBeginInfo.clearValueCount = clearValues.size();
@@ -2386,10 +2517,23 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
 
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ssaoPipelineLayout, 0, 1,
-        &ssaoDescriptorSets[currentFrame], 0, nullptr);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,pipelines.ssao);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        // ssao subpass
+        {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.ssao);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ssaoPipelineLayout, 0, 1,
+                                    &ssaoDescriptorSets[currentFrame], 0, nullptr);
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
+
+        // ssao blur subpass
+        {
+            vkCmdNextSubpass(commandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.ssaoBlur);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ssaoBlurPipelineLayout, 0, 1,
+                                    &ssaoBlurDescriptorSets[currentFrame], 0, nullptr);
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
         vkCmdEndRenderPass(commandBuffer);
 
         // copy realtime AO to target AO
@@ -2479,9 +2623,9 @@ vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ssaoPipel
 
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, lightingPipelineLayout, 0, 1,
                                 &lightingDescriptorSets[currentFrame], 0, nullptr);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lighting);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
     }
@@ -2510,9 +2654,9 @@ vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ssaoPipel
 
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipelineLayout, 0, 1,
                                 &skyboxDescriptorSets[currentFrame], 0, nullptr);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
         skybox->Draw(commandBuffer, 0, false, skyboxPipelineLayout, 0);
         vkCmdEndRenderPass(commandBuffer);
     }
@@ -2541,9 +2685,9 @@ vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ssaoPipel
 
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.postprocess);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, postprocessPipelineLayout, 0, 1,
                                 &postprocessDescriptorSets[currentFrame], 0, nullptr);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.postprocess);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
     }

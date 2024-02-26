@@ -38,6 +38,7 @@ private:
 
     void PrepareMrtPipeline();
     void PrepareSSAOPipeline();
+    void PrepareSSAOBlurPipeline();
     void PrepareLightingPipeline();
     void PrepareSkyboxPipeline();
     void PreparePostprocessPipeline();
@@ -126,6 +127,10 @@ private:
     VkPipelineLayout ssaoPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> ssaoDescriptorSets;
 
+    VkDescriptorSetLayout ssaoBlurDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout ssaoBlurPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> ssaoBlurDescriptorSets;
+
     VkDescriptorSetLayout lightingDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> lightingDescriptorSets;
@@ -152,6 +157,7 @@ private:
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
         VkPipeline ssao = VK_NULL_HANDLE;
+        VkPipeline ssaoBlur = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
         VkPipeline skybox = VK_NULL_HANDLE;
         VkPipeline postprocess = VK_NULL_HANDLE;
