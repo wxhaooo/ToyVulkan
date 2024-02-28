@@ -39,6 +39,7 @@ namespace vks {
         VkFormat format;
         VkImageUsageFlags usage;
         VkSampleCountFlagBits imageSampleCount = VK_SAMPLE_COUNT_1_BIT;
+//        VkImageLayout finalLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     };
 
     class VulkanAttachmentDescription
@@ -63,16 +64,20 @@ namespace vks {
         VulkanSubPass(const std::string &subPassName,
                       VkPipelineBindPoint subPassBindPoint, VulkanDevice *device);
 
-        void AddAttachments(const std::vector<VulkanAttachmentDescription*>& attachmentDescriptions, const std::vector<int32_t> &attachmentIndices);
+        void AddAttachments(const std::vector<VulkanAttachmentDescription*>& attachmentDescriptions,
+                            const std::vector<uint32_t>& colorAttachmentIndices,
+                            const std::vector<uint32_t>& inputAttachmentIndices);
         void CreateDescription();
         VkSubpassDescription& GetDescription();
 
     private:
+        std::vector<VkAttachmentReference> inputReferences;
         std::vector<VkAttachmentReference> colorReferences;
         VkAttachmentReference depthReference = {};
 
         bool hasDepth = false;
         bool hasColor = false;
+        bool hasInput = false;
 
         VkPipelineBindPoint bindPoint;
         VkSubpassDescription description;
@@ -106,11 +111,13 @@ namespace vks {
 
         void AddSubPass(const std::string &subPassName,
                         VkPipelineBindPoint subPassBindPoint,
-                        const std::vector<std::string> &attachmentNames);
+                        const std::vector<std::string> & colorAttachmentNames,
+                        const std::vector<std::string> & inputAttachmentNames = {});
 
         void AddSubPass(const std::string &subPassName,
                         VkPipelineBindPoint subPassBindPoint,
-                        const std::vector<int32_t> &attachmentIndices);
+                        const std::vector<uint32_t> &colorAttachmentIndices,
+                        const std::vector<uint32_t> &inputAttachmentIndices = {});
 
         void AddSubPassDependency(std::vector<VkSubpassDependency> subPassDependency);
 

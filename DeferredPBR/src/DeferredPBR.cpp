@@ -232,7 +232,8 @@ void DeferredPBR::SetupSSAORenderPass()
     attachmentInfo.width = imageWidth;
     attachmentInfo.height = imageHeight;
     attachmentInfo.layerCount = 1;
-    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    // this attachment is input and ouput, specify usage input and color attachment bit
+    attachmentInfo.usage = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     attachmentInfo.binding = 0;
     attachmentInfo.name = "O_SSAO";
     attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -255,11 +256,11 @@ void DeferredPBR::SetupSSAORenderPass()
 
     // subpass
     // ssao subpass
-    std::vector<int32_t> subPassAttachmentIndices = {0};
-    ssaoRenderPass->AddSubPass("SSAO", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices);
+    std::vector<uint32_t> subPassColorAttachmentIndices = {0};
+    ssaoRenderPass->AddSubPass("SSAO", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassColorAttachmentIndices, {});
     // blur subpass
-    subPassAttachmentIndices = {1};
-    ssaoRenderPass->AddSubPass("Blur",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassAttachmentIndices);
+    subPassColorAttachmentIndices = {1};
+    ssaoRenderPass->AddSubPass("Blur",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices, {0});
     ssaoRenderPass->AddSubPassDependency(
         {
             {

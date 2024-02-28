@@ -63,10 +63,15 @@ namespace vks
         description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         // Final layout
         // If not, final layout depends on attachment type
-        if (utils::HasDepth(format) || utils::HasStencil(format))
-            description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-        else
-            description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+//        if(attachmentCreateInfo.finalLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+        {
+            if (utils::HasDepth(format) || utils::HasStencil(format))
+                description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            else
+                description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        }
+//        else
+//            description.finalLayout = attachmentCreateInfo.finalLayout;
     }
     
     VulkanSubPass::VulkanSubPass(const std::string& subPassName,
@@ -76,12 +81,14 @@ namespace vks
     {
     }
 
-    void VulkanSubPass::AddAttachments(const std::vector<VulkanAttachmentDescription*>& attachmentDescriptions, const std::vector<int32_t>& attachmentIndices)
+    void VulkanSubPass::AddAttachments(const std::vector<VulkanAttachmentDescription*>& attachmentDescriptions,
+                                       const std::vector<uint32_t>& colorAttachmentIndices,
+                                       const std::vector<uint32_t>& inputAttachmentIndices)
     {
         // Collect attachment references
-        for (uint32_t i = 0; i < attachmentIndices.size(); i++)
+        for (uint32_t i = 0; i < colorAttachmentIndices.size(); i++)
         {
-            uint32_t attachmentIndex = attachmentIndices[i];
+            uint32_t attachmentIndex = colorAttachmentIndices[i];
             if (attachmentIndex >= attachmentDescriptions.size())
                 continue;
             VulkanAttachmentDescription* attachment = attachmentDescriptions[attachmentIndex];
@@ -100,6 +107,19 @@ namespace vks
                 hasColor = true;
             }
         }
+
+        for (uint32_t i = 0; i < inputAttachmentIndices.size(); i++)
+        {
+            uint32_t attachmentIndex = inputAttachmentIndices[i];
+            if (attachmentIndex >= attachmentDescriptions.size())
+                continue;
+            VulkanAttachmentDescription* attachment = attachmentDescriptions[attachmentIndex];
+            if (vks::utils::IsDepthStencil(attachment->format)) continue;
+
+            inputReferences.push_back(
+                    {attachmentIndex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+            hasInput = true;
+        }
     }
 
     void VulkanSubPass::CreateDescription()
@@ -113,6 +133,14 @@ namespace vks
             description.colorAttachmentCount =
                 static_cast<uint32_t>(colorReferences.size());
         }
+
+        if (hasInput)
+        {
+            description.pInputAttachments = inputReferences.data();
+            description.inputAttachmentCount =
+                    static_cast<uint32_t>(inputReferences.size());
+        }
+
         if (hasDepth)
             description.pDepthStencilAttachment = &depthReference;
     }
@@ -144,18 +172,22 @@ namespace vks
     void VulkanRenderPass::AddSubPass(
         const std::string &subPassName,
         VkPipelineBindPoint subPassBindPoint,
-        const std::vector<std::string>& attachmentNames)
+        const std::vector<std::string>& colorAttachmentNames,
+        const std::vector<std::string>& inputAttachmentNames)
     {
-        std::vector<int32_t> attachmentIndices;
-        attachmentIndices.resize(attachmentNames.size());
+        std::vector<uint32_t> colorAttachmentIndices;
+        std::vector<uint32_t> inputAttachmentIndices;
 
-        for (int i = 0; i < attachmentNames.size(); i++)
+        colorAttachmentIndices.resize(colorAttachmentNames.size());
+        inputAttachmentIndices.resize(inputAttachmentNames.size());
+
+        for (int i = 0; i < colorAttachmentNames.size(); i++)
         {
-            std::string attachmentName = attachmentNames[i];
+            std::string colorAttachmentName = colorAttachmentNames[i];
             auto attachment = std::find_if(attachmentDescriptions.begin(), attachmentDescriptions.end(),
                                            [&](const VulkanAttachmentDescription* const attachmentDescription)
                                            {
-                                               return attachmentName == attachmentDescription->name;
+                                               return colorAttachmentName == attachmentDescription->name;
                                            });
 
             if (attachment == attachmentDescriptions.end())
@@ -164,22 +196,41 @@ namespace vks
                 return;
             }
 
-            attachmentIndices[i] = (*attachment)->binding;
+            colorAttachmentIndices[i] = (*attachment)->binding;
         }
 
-        AddSubPass(subPassName, subPassBindPoint, attachmentIndices);
+        for (int i = 0; i < inputAttachmentNames.size(); i++)
+        {
+            std::string inputAttachmentName = inputAttachmentNames[i];
+            auto attachment = std::find_if(attachmentDescriptions.begin(), attachmentDescriptions.end(),
+                                           [&](const VulkanAttachmentDescription* const attachmentDescription)
+                                           {
+                                               return inputAttachmentName == attachmentDescription->name;
+                                           });
+
+            if (attachment == attachmentDescriptions.end())
+            {
+                vks::helper::ExitFatal("do not find target attachment name in framebuffer", -1);
+                return;
+            }
+
+            inputAttachmentIndices[i] = (*attachment)->binding;
+        }
+
+        AddSubPass(subPassName, subPassBindPoint, colorAttachmentIndices, inputAttachmentIndices);
     }
 
     void VulkanRenderPass::AddSubPass(
         const std::string& subPassName, VkPipelineBindPoint subPassBindPoint,
-        const std::vector<int32_t>& attachmentIndices)
+        const std::vector<uint32_t> &colorAttachmentIndices,
+        const std::vector<uint32_t> &inputAttachmentIndices)
     {
         if (subPassName2InstMap.count(subPassName))
             return;
 
         VulkanSubPass* newSubPassInst =
             new VulkanSubPass(subPassName, subPassBindPoint, vulkanDevice);
-        newSubPassInst->AddAttachments(attachmentDescriptions, attachmentIndices);
+        newSubPassInst->AddAttachments(attachmentDescriptions, colorAttachmentIndices, inputAttachmentIndices);
         newSubPassInst->CreateDescription();
 
         // add subPass
@@ -231,9 +282,9 @@ namespace vks
     {
         // subpass
         int attachmentCount = attachmentDescriptions.size();
-        std::vector<int32_t> subPassAttachmentIndices(attachmentCount);
+        std::vector<uint32_t> subPassAttachmentIndices(attachmentCount);
         std::iota(subPassAttachmentIndices.begin(),subPassAttachmentIndices.end(),0);
-        AddSubPass("default", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices);
+        AddSubPass("default", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices,{});
         AddSubPassDependency(
             {
                 {
