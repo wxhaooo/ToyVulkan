@@ -23,7 +23,7 @@ struct GuiSettings
 
 struct AnimationSettings
 {
-    bool useAnimation = false;
+    bool useAnimation = true;
 };
 
 struct Settings
