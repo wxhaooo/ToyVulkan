@@ -24,30 +24,34 @@ layout (location = 0) out vec4 outFragColor;
 
 void main() 
 {
+	//噪声和normal的范围都是在[-1,1]，所以不需要再 * 2.0 - 1
+
 	// frag and normal shoule be in view space
 	// Get G-Buffer values
 	vec4 worldPos = texture(samplerPosition, inUV);
 	vec3 viewPos = (ubo.view * worldPos).rgb;
 	vec3 worldNormal = texture(samplerNormal, inUV).rgb;
 	vec3 normal = ubo.invViewT * worldNormal;
-	normal = normalize(normal * 2.0 - 1.0);
+	normal = normalize(normal);
+	// normal = normalize(normal * 2.0 - 1.0);
 
 	// Get a random vector using a noise lookup
 	ivec2 texDim = textureSize(samplerPosition, 0); 
 	ivec2 noiseDim = textureSize(ssaoNoise, 0);
 	const vec2 noiseUV = vec2(float(texDim.x) / float(noiseDim.x), float(texDim.y) / (noiseDim.y)) * inUV;  
 	vec3 randomVec = texture(ssaoNoise, noiseUV).xyz;
-	randomVec =  normalize(randomVec * 2.0 - 1.0);
+	randomVec = normalize(randomVec);
+	// randomVec =  normalize(randomVec * 2.0 - 1.0);
 	// vec3 randomVec = texture(ssaoNoise, noiseUV).xyz * 2.0 - 1.0;
 	
 	// Create TBN matrix
 	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-	vec3 bitangent = cross(tangent, normal);
+	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
 
 	// Calculate occlusion value
 	float occlusion = 0.0;
-	float debug = 0.0;
+	// float debug = 0.0;
 	// remove banding
 	for(int i = 0; i < SSAO_KERNEL_SIZE; i++)
 	{		
@@ -62,16 +66,17 @@ void main()
 
 		vec4 offsetWorldPos = texture(samplerPosition, offset.xy);
 		float sampleDepthValue = (ubo.view * offsetWorldPos).z;
+		// vec4 tmp = ubo.projection * ubo.view * offsetWorldPos;
+		// float debugDepthValue = tmp.z / tmp.w;
 		// float debugDepthValue = (ubo.projection * ubo.view * offsetWorldPos).z;
 		// debug += debugDepthValue;
-//		float sampleDepthValue = texture(samplerDepth, offset.xy).x;
 		float rangeCheck = smoothstep(0.0, 1.0, ubo.ssaoRadius / abs(viewPos.z - sampleDepthValue));
 		occlusion += (sampleDepthValue >= samplePos.z + ubo.ssaoBias ? 1.0 : 0.0) * rangeCheck;
 	}
-	// occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
+	occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
 	// occlusion = debug / float(SSAO_KERNEL_SIZE);
-	debug = (ubo.projection * ubo.view * worldPos).z;
-	occlusion = debug;
+	// debug = tmp.z / tmp.w;
+	// occlusion = debug / float(SSAO_KERNEL_SIZE);
 	outFragColor = vec4(occlusion, occlusion, occlusion, 1.0);
 }
 
