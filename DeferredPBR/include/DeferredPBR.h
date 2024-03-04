@@ -26,6 +26,7 @@ protected:
     void ViewChanged() override;
 
 private:
+
     void UpdateUniformBuffers();
     void SetupDescriptorSets();
 

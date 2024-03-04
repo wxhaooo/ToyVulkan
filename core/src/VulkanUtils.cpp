@@ -253,7 +253,7 @@ namespace vks {
             texture2D->mipLevels = 1;
 
             size_t bufferSize = texture2D->width * texture2D->height * 4;
-            unsigned char *buffer = new unsigned char[bufferSize];
+            char *buffer = new char[bufferSize];
             for (int i = 0; i < bufferSize; i += 4) {
                 buffer[i] = static_cast<char>(clearColor[0]);
                 buffer[i + 1] = static_cast<char>(clearColor[1]);

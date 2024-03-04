@@ -34,6 +34,11 @@ VulkanApplicationBase::~VulkanApplicationBase()
 {
     CheckVulkanResult(vkDeviceWaitIdle(device));
 
+    // clean default resource
+    if(whiteTexture != nullptr)
+        whiteTexture->Destroy();
+
+    // clean vulkan resource
     swapChain.reset();
 
     if (descriptorPool != VK_NULL_HANDLE)
@@ -312,6 +317,13 @@ VkResult VulkanApplicationBase::CreateInstance(bool enableValidation)
     return result;
 }
 
+void VulkanApplicationBase::CreateDefaultResources()
+{
+    vks::Texture2D* tmp = vks::utils::CreateDefaultTexture2D(vulkanDevice.get(), queue, 1, 1);
+    whiteTexture = std::make_unique<vks::Texture2D>();
+    whiteTexture.reset(tmp);
+}
+
 void VulkanApplicationBase::Prepare()
 {
     InitSwapchain();
@@ -327,6 +339,8 @@ void VulkanApplicationBase::Prepare()
     
     CreateDefaultPipelineCache();
 
+    CreateDefaultResources();
+
     auto guiSettings = Singleton<Settings>::Instance()->guiSettings;
     
     if (guiSettings->enableGUI)
@@ -340,6 +354,7 @@ void VulkanApplicationBase::Prepare()
 
         gui = Singleton<VulkanGUI>::Instance(imGUICreateInfo);
     }
+
 }
 
 void VulkanApplicationBase::InitSwapchain()

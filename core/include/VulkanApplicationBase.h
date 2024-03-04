@@ -148,11 +148,17 @@ protected:
     GuiSettings* guiSettings;
     AnimationSettings* animationSettings;
 
+    // default resources
+    // white texture
+    std::unique_ptr<vks::Texture2D> whiteTexture = nullptr;
+
     // add different front end here,glfw,SDL.etc
     bool SetupWindows();
     // create surface from surface
     void CreateWindowsSurface();
     void DestroyWindows();
+
+    virtual void CreateDefaultResources();
     
     void RenderFrame();
     void PrepareFrame();

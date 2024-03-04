@@ -1868,9 +1868,11 @@ void DeferredPBR::SetupDescriptorSets()
                                                           VK_SHADER_STAGE_FRAGMENT_BIT, 8),
             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                                           VK_SHADER_STAGE_FRAGMENT_BIT, 9),
+            vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                          VK_SHADER_STAGE_FRAGMENT_BIT, 10),
             vks::initializers::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                                           VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                          10),
+                                                          11),
         };
 
         VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::DescriptorSetLayoutCreateInfo(
@@ -1915,6 +1917,13 @@ void DeferredPBR::SetupDescriptorSets()
             writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i],
                                                                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                                                        binding, &specularBRDFLut->descriptor);
+            vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+            binding++;
+
+            // shadow result
+            writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i],
+                                                                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                                       binding, &whiteTexture->descriptor);
             vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
             binding++;
 
