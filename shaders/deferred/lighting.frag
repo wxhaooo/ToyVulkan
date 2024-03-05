@@ -12,7 +12,7 @@ layout (binding = 6) uniform sampler2D samplerDepth;
 layout (binding = 7) uniform samplerCube samplerIrradianceCube;
 layout (binding = 8) uniform samplerCube samplerPreFilteringCube;
 layout (binding = 9) uniform sampler2D samplerSpecularBRDFLut;
-layout (binding = 10) uniform sampler2D samplerShadowRes;
+layout (binding = 10) uniform sampler2D samplerShadowLut;
 
 #define LIGHT_COUNT 2
 
@@ -105,7 +105,7 @@ void main()
 	float roughness = texture(samplerMetallicRoughness, inUV).g;
 	vec3 emissive = texture(samplerEmissive, inUV).rgb;
 	float ao = texture(samplerOcclusion, inUV).r;
-	float shadow = texture(samplerShadowRes, inUV).r;
+	float shadow = texture(samplerShadowLut, inUV).r;
 
 	vec3 N = normalize(normal);
 	// in view space, viewPos is origin point
@@ -176,7 +176,7 @@ void main()
 	// 这个实现存疑，但是原来的实现没有考虑到反射的颜色和物体本身颜色的关系以及是否是金属，所以改成这样了
 	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
 	// vec3 specular = vec3(0.0);
-	diffuse *= shadow;
+	diffuse *= 1.0;
 	vec3 ambient = (kd * diffuse + specular) * ao.rrr;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下

@@ -40,6 +40,7 @@ private:
     void PrepareMrtPipeline();
     void PrepareSSAOPipeline();
     void PrepareSSAOBlurPipeline();
+    void PrepareShadowMapPipeline();
     void PrepareDirectionalShadowPipeline();
     void PrepareLightingPipeline();
     void PrepareSkyboxPipeline();
@@ -145,13 +146,17 @@ private:
     VkPipelineLayout ssaoPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> ssaoDescriptorSets;
 
-    VkDescriptorSetLayout directionalShadowDescriptorSetLayout = VK_NULL_HANDLE;
-    VkPipelineLayout directionalShadowPipelineLayout = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSet> directionalShadowDescriptorSets;
-
     VkDescriptorSetLayout ssaoBlurDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout ssaoBlurPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> ssaoBlurDescriptorSets;
+
+    VkDescriptorSetLayout shadowMapDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout shadowMapPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> shadowMapDescriptorSets;
+
+    VkDescriptorSetLayout directionalShadowDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout directionalShadowPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> directionalShadowDescriptorSets;
 
     VkDescriptorSetLayout lightingDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout lightingPipelineLayout = VK_NULL_HANDLE;
@@ -178,6 +183,7 @@ private:
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
+        VkPipeline shadowMap = VK_NULL_HANDLE;
         VkPipeline directionalShadow = VK_NULL_HANDLE;
         VkPipeline ssao = VK_NULL_HANDLE;
         VkPipeline ssaoBlur = VK_NULL_HANDLE;

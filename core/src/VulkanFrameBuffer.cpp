@@ -138,7 +138,7 @@ namespace vks
         return *res;
     }
 
-	void FrameBuffer::CreateAttachmentDescriptorSet(VkSampler sampler)
+	void FrameBuffer::CreateAttachmentDescriptorSet(VkSampler sampler, bool skipDepthStencil)
 	{
 		uint32_t attachmentSize = static_cast<uint32_t>(attachments.size());
 		std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -165,7 +165,8 @@ namespace vks
 			// create descriptor
 			FramebufferAttachment& attachment = attachments[i];
 
-			if(attachment.HasDepth() || attachment.HasStencil()) continue;
+			bool isDepthStencil = attachment.HasDepth() || attachment.HasStencil();
+			if(skipDepthStencil && isDepthStencil) continue;
 
 			attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			attachment.descriptor.imageView = attachment.view;
@@ -260,11 +261,11 @@ namespace vks
 			frameBuffers[i]->CreateAttachment(attachmentDescription);
 	}
 
-	void VulkanFrameBuffer::CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo)
+	void VulkanFrameBuffer::CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo, bool skipDepthStencil)
 	{
 		sampler = CreateSampler(vulkanDevice, samplerCreateInfo);
 		for(uint32_t i =0; i<frameBufferCount;i++)
-			frameBuffers[i]->CreateAttachmentDescriptorSet(sampler);
+			frameBuffers[i]->CreateAttachmentDescriptorSet(sampler, skipDepthStencil);
 	}
 
 }

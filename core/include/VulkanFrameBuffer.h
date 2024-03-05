@@ -95,7 +95,7 @@ namespace vks
 
         const FramebufferAttachment& GetAttachment(const std::string& attachmentName);
 
-        void CreateAttachmentDescriptorSet(VkSampler sampler);
+        void CreateAttachmentDescriptorSet(VkSampler sampler, bool skipDepthStencil = true);
 
         void Destory();
     };
@@ -116,7 +116,7 @@ namespace vks
 
         FrameBuffer* GetFrameBuffer(uint32_t frameBufferIndex) const;
         
-        void CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo);
+        void CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo, bool skipDepthStencil = true);
 
     private:
         vks::VulkanDevice* vulkanDevice = nullptr;
