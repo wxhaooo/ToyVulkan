@@ -245,6 +245,7 @@ namespace vks {
         Texture2D* CreateDefaultTexture2D(VulkanDevice *vulkanDevice, VkQueue transferQueue, uint32_t width, uint32_t height,
                                               glm::vec4 clearColor) {
 
+            // 现在不管颜色怎么设置都只能是0，还有问题
             Texture2D* texture2D = new Texture2D();
             texture2D->device = vulkanDevice;
             texture2D->width = width;

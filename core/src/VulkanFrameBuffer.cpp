@@ -166,7 +166,7 @@ namespace vks
 			FramebufferAttachment& attachment = attachments[i];
 
 			if(attachment.HasDepth() || attachment.HasStencil()) continue;
-					
+
 			attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			attachment.descriptor.imageView = attachment.view;
 			attachment.descriptor.sampler = sampler;

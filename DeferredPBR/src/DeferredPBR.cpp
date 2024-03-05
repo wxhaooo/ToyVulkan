@@ -31,6 +31,7 @@ DeferredPBR::~DeferredPBR()
 
     // render pass
     mrtRenderPass.reset();
+    shadowRenderPass.reset();
     ssaoRenderPass.reset();
     lightingRenderPass.reset();
     skyboxRenderPass.reset();
@@ -38,6 +39,7 @@ DeferredPBR::~DeferredPBR()
 
     // frame buffer
     mrtFrameBuffer.reset();
+    shadowRenderPass.reset();
     ssaoFrameBuffer.reset();
     lightingFrameBuffer.reset();
     skyboxFrameBuffer.reset();
@@ -61,6 +63,14 @@ DeferredPBR::~DeferredPBR()
         vkDestroyPipelineLayout(device, ssaoPipelineLayout, nullptr);
     if(ssaoDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, ssaoDescriptorSetLayout, nullptr);
+
+    // shadow
+    if(pipelines.directionalShadow != VK_NULL_HANDLE)
+        vkDestroyPipeline(device, pipelines.directionalShadow, nullptr);
+    if(directionalShadowPipelineLayout != VK_NULL_HANDLE)
+        vkDestroyPipelineLayout(device, directionalShadowPipelineLayout, nullptr);
+    if(directionalShadowDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, directionalShadowDescriptorSetLayout, nullptr);
 
     // ssao blur
     if(pipelines.ssaoBlur != VK_NULL_HANDLE)
@@ -96,6 +106,7 @@ DeferredPBR::~DeferredPBR()
 
     mrtUBO.buffer.Destroy();
     ssaoCreateUbo.buffer.Destroy();
+    shadowUbo.buffer.Destroy();
     lightingUbo.buffer.Destroy();
     skyboxUbo.buffer.Destroy();
 
@@ -271,14 +282,6 @@ void DeferredPBR::SetupSSAORenderPass()
                 VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 VK_DEPENDENCY_BY_REGION_BIT,
             },
-//            {
-//                0,VK_SUBPASS_EXTERNAL,
-//                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-//                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-//                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-//                VK_ACCESS_MEMORY_READ_BIT,
-//                VK_DEPENDENCY_BY_REGION_BIT,
-//            },
             {
                 0,1,
                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -308,6 +311,70 @@ void DeferredPBR::SetupSSAORenderPass()
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
     ssaoFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+}
+
+void DeferredPBR::SetupShadowRenderPass()
+{
+    shadowRenderPass = std::make_unique<vks::VulkanRenderPass>("shadowRenderPass", vulkanDevice.get());
+    const uint32_t imageWidth = swapChain->imageExtent.width;
+    const uint32_t imageHeight = swapChain->imageExtent.height;
+
+    vks::AttachmentCreateInfo attachmentInfo = {};
+    attachmentInfo.width = imageWidth;
+    attachmentInfo.height = imageHeight;
+    attachmentInfo.layerCount = 1;
+
+    // shadow result attachment
+    attachmentInfo.name = "G_Shadow";
+    attachmentInfo.binding = shadowRenderPass->AttachmentCount();
+    attachmentInfo.format = VK_FORMAT_R8_UNORM;
+    attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    shadowRenderPass->AddAttachment(attachmentInfo);
+
+    // depth attachment
+    attachmentInfo.name = "Depth";
+    attachmentInfo.binding = shadowRenderPass->AttachmentCount();
+    attachmentInfo.format = depthFormat;
+    attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    shadowRenderPass->AddAttachment(attachmentInfo);
+
+    std::vector<uint32_t> subPassColorAttachmentIndices = {};
+    shadowRenderPass->AddSubPass("shadowMap",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices,{});
+    subPassColorAttachmentIndices = {0};
+    shadowRenderPass->AddSubPass("directionalShadowResult",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices,{1});
+    shadowRenderPass->AddSubPassDependency(
+            {
+                    {
+                            VK_SUBPASS_EXTERNAL, 0,
+                            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                            VK_ACCESS_MEMORY_READ_BIT,
+                            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                            VK_DEPENDENCY_BY_REGION_BIT,
+                    },
+                    {
+                            0,1,
+                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                            VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
+                            VK_DEPENDENCY_BY_REGION_BIT
+                    },
+                    {
+                            1,VK_SUBPASS_EXTERNAL,
+                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                            VK_ACCESS_MEMORY_READ_BIT,
+                            VK_DEPENDENCY_BY_REGION_BIT
+                    }
+            });
+
+    shadowRenderPass->Init();
+
+    // frame buffer
+    shadowFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(),imageWidth, imageHeight, maxFrameInFlight);
+    shadowFrameBuffer->Init(shadowRenderPass.get());
 }
 
 void DeferredPBR::SetupLightingRenderPass()
@@ -1540,6 +1607,7 @@ void DeferredPBR::Prepare()
     // render pass
     SetupMrtRenderPass();
     SetupSSAORenderPass();
+//    SetupShadowRenderPass();
     SetupLightingRenderPass();
     SetupSkyboxRenderPass();
     SetupPostprocessRenderPass();
@@ -1551,6 +1619,7 @@ void DeferredPBR::Prepare()
     PrepareMrtPipeline();
     PrepareSSAOPipeline();
     PrepareSSAOBlurPipeline();
+//    PrepareDirectionalShadowPipeline();
     PrepareLightingPipeline();
     PrepareSkyboxPipeline();
     PreparePostprocessPipeline();
@@ -1683,6 +1752,9 @@ void DeferredPBR::SetupDescriptorSets()
 
     if(ssaoBlurDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, ssaoBlurDescriptorSetLayout, nullptr);
+
+    if(directionalShadowDescriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, directionalShadowDescriptorSetLayout, nullptr);
 
     if (lightingDescriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, lightingDescriptorSetLayout, nullptr);
@@ -2257,6 +2329,11 @@ void DeferredPBR::PrepareSSAOBlurPipeline()
     pipelineCI.flags = 0;
     pipelineCI.subpass = 1;
     CheckVulkanResult(vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCI, nullptr, &pipelines.ssaoBlur));
+}
+
+void DeferredPBR::PrepareDirectionalShadowPipeline()
+{
+
 }
 
 void DeferredPBR::PrepareLightingPipeline()

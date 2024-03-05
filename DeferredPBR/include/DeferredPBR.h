@@ -40,12 +40,14 @@ private:
     void PrepareMrtPipeline();
     void PrepareSSAOPipeline();
     void PrepareSSAOBlurPipeline();
+    void PrepareDirectionalShadowPipeline();
     void PrepareLightingPipeline();
     void PrepareSkyboxPipeline();
     void PreparePostprocessPipeline();
 
     void SetupMrtRenderPass();
     void SetupSSAORenderPass();
+    void SetupShadowRenderPass();
     void SetupLightingRenderPass();
     void SetupSkyboxRenderPass();
     void SetupPostprocessRenderPass();
@@ -86,6 +88,19 @@ private:
         }values;
     } ssaoUbo;
 
+    struct ShadowUBO
+    {
+        vks::Buffer buffer;
+        struct Values
+        {
+            float nearPlane;
+            float farPlane;
+            glm::mat4 projection;
+            glm::mat4 view;
+            glm::mat4 lightSpace;
+        }values;
+    } shadowUbo;
+
     struct LightingUBO
     {
         vks::Buffer buffer;
@@ -108,12 +123,14 @@ private:
     } skyboxUbo;
 
     std::unique_ptr<vks::VulkanRenderPass> mrtRenderPass = nullptr;
+    std::unique_ptr<vks::VulkanRenderPass> shadowRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> ssaoRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> lightingRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> skyboxRenderPass = nullptr;
     std::unique_ptr<vks::VulkanRenderPass> postprocessRenderPass = nullptr;
 
     std::unique_ptr<vks::VulkanFrameBuffer> mrtFrameBuffer = nullptr;
+    std::unique_ptr<vks::VulkanFrameBuffer> shadowFrameBuffer = nullptr;
     std::unique_ptr<vks::VulkanFrameBuffer> ssaoFrameBuffer = nullptr;
     std::unique_ptr<vks::VulkanFrameBuffer> lightingFrameBuffer = nullptr;
     std::unique_ptr<vks::VulkanFrameBuffer> skyboxFrameBuffer = nullptr;
@@ -127,6 +144,10 @@ private:
     VkDescriptorSetLayout ssaoDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout ssaoPipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> ssaoDescriptorSets;
+
+    VkDescriptorSetLayout directionalShadowDescriptorSetLayout = VK_NULL_HANDLE;
+    VkPipelineLayout directionalShadowPipelineLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> directionalShadowDescriptorSets;
 
     VkDescriptorSetLayout ssaoBlurDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout ssaoBlurPipelineLayout = VK_NULL_HANDLE;
@@ -157,6 +178,7 @@ private:
     struct Pipelines {
         VkPipeline offscreen = VK_NULL_HANDLE;
         VkPipeline offscreenWireframe = VK_NULL_HANDLE;
+        VkPipeline directionalShadow = VK_NULL_HANDLE;
         VkPipeline ssao = VK_NULL_HANDLE;
         VkPipeline ssaoBlur = VK_NULL_HANDLE;
         VkPipeline lighting = VK_NULL_HANDLE;
