@@ -62,16 +62,10 @@ namespace vks
         description.format = format;
         description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         // Final layout
-        // If not, final layout depends on attachment type
-//        if(attachmentCreateInfo.finalLayout == VK_IMAGE_LAYOUT_UNDEFINED)
-        {
-            if (utils::HasDepth(format) || utils::HasStencil(format))
-                description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-            else
-                description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
-//        else
-//            description.finalLayout = attachmentCreateInfo.finalLayout;
+        if (utils::HasDepth(format) || utils::HasStencil(format))
+            description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        else
+            description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     
     VulkanSubPass::VulkanSubPass(const std::string& subPassName,
@@ -114,10 +108,10 @@ namespace vks
             if (attachmentIndex >= attachmentDescriptions.size())
                 continue;
             VulkanAttachmentDescription* attachment = attachmentDescriptions[attachmentIndex];
-            if (vks::utils::IsDepthStencil(attachment->format)) continue;
-
-            inputReferences.push_back(
-                    {attachmentIndex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+            if (vks::utils::IsDepthStencil(attachment->format))
+                inputReferences.push_back({attachmentIndex,VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL});
+            else
+                inputReferences.push_back({attachmentIndex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
             hasInput = true;
         }
     }
@@ -246,7 +240,6 @@ namespace vks
 
     void VulkanRenderPass::CreateCustomRenderPass()
     {
-        uint32_t attachmentCount = AttachmentCount();
         std::vector<VkAttachmentDescription> allAttachmentDescriptions(attachmentCount);
         for (uint32_t i = 0; i < attachmentCount; i++)
             allAttachmentDescriptions[i] = attachmentDescriptions[i]->description;
@@ -263,9 +256,9 @@ namespace vks
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.pAttachments = allAttachmentDescriptions.data();
         renderPassInfo.attachmentCount = static_cast<uint32_t>(allAttachmentDescriptions.size());
-        renderPassInfo.subpassCount = subPasses.size();
+        renderPassInfo.subpassCount = static_cast<uint32_t>(subPasses.size());
         renderPassInfo.pSubpasses = subPasses.data();
-        renderPassInfo.dependencyCount = subPassDependencies.size();
+        renderPassInfo.dependencyCount = static_cast<uint32_t>(subPassDependencies.size());
         renderPassInfo.pDependencies = subPassDependencies.data();
         CheckVulkanResult(vkCreateRenderPass(vulkanDevice->logicalDevice, &renderPassInfo, nullptr, &renderPass));
     }
@@ -281,7 +274,6 @@ namespace vks
     void VulkanRenderPass::CreateDefaultRenderPass()
     {
         // subpass
-        int attachmentCount = attachmentDescriptions.size();
         std::vector<uint32_t> subPassAttachmentIndices(attachmentCount);
         std::iota(subPassAttachmentIndices.begin(),subPassAttachmentIndices.end(),0);
         AddSubPass("default", VK_PIPELINE_BIND_POINT_GRAPHICS, subPassAttachmentIndices,{});

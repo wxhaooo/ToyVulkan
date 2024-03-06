@@ -343,23 +343,32 @@ void DeferredPBR::SetupShadowRenderPass()
     attachmentInfo.name = "Depth";
     attachmentInfo.binding = shadowRenderPass->AttachmentCount();
     attachmentInfo.format = depthFormat;
-    attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     shadowRenderPass->AddAttachment(attachmentInfo);
 
-    std::vector<uint32_t> subPassColorAttachmentIndices = {};
-    shadowRenderPass->AddSubPass("shadowMap",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices,{});
+    std::vector<uint32_t> subPassColorAttachmentIndices = {1};
+    shadowRenderPass->AddSubPass("shadowMap",VK_PIPELINE_BIND_POINT_GRAPHICS, subPassColorAttachmentIndices,{});
     subPassColorAttachmentIndices = {0};
     shadowRenderPass->AddSubPass("directionalShadowResult",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices,{1});
     shadowRenderPass->AddSubPassDependency(
             {
                     {
                             VK_SUBPASS_EXTERNAL, 0,
-                            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                            VK_ACCESS_MEMORY_READ_BIT,
-                            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                            VK_ACCESS_SHADER_READ_BIT,
+                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                             VK_DEPENDENCY_BY_REGION_BIT,
                     },
+                    {
+                        0,1,
+                        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                        VK_ACCESS_SHADER_READ_BIT,
+                        VK_DEPENDENCY_BY_REGION_BIT,
+                      },
                     {
                             0,1,
                             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -370,10 +379,10 @@ void DeferredPBR::SetupShadowRenderPass()
                     },
                     {
                             1,VK_SUBPASS_EXTERNAL,
-                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                            VK_ACCESS_MEMORY_READ_BIT,
+                            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                            VK_ACCESS_SHADER_READ_BIT,
                             VK_DEPENDENCY_BY_REGION_BIT
                     }
             });
