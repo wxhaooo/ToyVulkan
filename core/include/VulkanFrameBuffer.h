@@ -109,14 +109,14 @@ namespace vks
         VulkanFrameBuffer(vks::VulkanDevice* vulkanDevice, uint32_t width, uint32_t height, uint32_t frameBufferCount);
         ~VulkanFrameBuffer();
 
-        void Init(VulkanRenderPass* renderPass);
+        void Init(VulkanRenderPass* renderPass, const utils::VulkanSamplerCreateInfo& samplerCreateInfo);
 
         uint32_t Width() const {return width;}
         uint32_t Height() const {return height;}
 
         FrameBuffer* GetFrameBuffer(uint32_t frameBufferIndex) const;
         
-        void CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo, bool skipDepthStencil = true);
+        void CrateDescriptorSet(bool skipDepthStencil = true);
 
     private:
         vks::VulkanDevice* vulkanDevice = nullptr;

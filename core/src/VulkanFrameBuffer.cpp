@@ -168,10 +168,6 @@ namespace vks
 			bool isDepthStencil = attachment.HasDepth() || attachment.HasStencil();
 			if(skipDepthStencil && isDepthStencil) continue;
 
-			attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			attachment.descriptor.imageView = attachment.view;
-			attachment.descriptor.sampler = sampler;
-
 			CheckVulkanResult(vkAllocateDescriptorSets(vulkanDevice->logicalDevice, &allocInfo, &attachment.descriptorSet));
 			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::WriteDescriptorSet(attachment.descriptorSet,
 				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &attachment.descriptor);
@@ -205,8 +201,11 @@ namespace vks
 		frameBuffers.clear();
     }
 
-	void VulkanFrameBuffer::Init(VulkanRenderPass* vulkanRenderPass)
+	void VulkanFrameBuffer::Init(VulkanRenderPass* vulkanRenderPass, const utils::VulkanSamplerCreateInfo& samplerCreateInfo)
 	{
+		// create sampler
+		sampler = CreateSampler(vulkanDevice, samplerCreateInfo);
+		
 		// binding renderPass and frameBuffer
 		this->renderPass = vulkanRenderPass;
 		renderPass->vulkanFrameBuffer = this;
@@ -221,14 +220,32 @@ namespace vks
 			// create instanced attachment
 			for(auto& attachmentDescription:attachmentDescriptions)
 				frameBuffer->CreateAttachment(attachmentDescription);
-			
-			std::vector<VkImageView> attachmentViews;
-			for (auto attachment : frameBuffer->attachments)
-				attachmentViews.push_back(attachment.view);
+
+			// create attachment view
+			std::vector<VkImageView> attachmentViews(frameBuffer->attachments.size());
+			for (uint32_t t = 0; t < frameBuffer->attachments.size(); t++)
+			{
+				FramebufferAttachment& attachment = frameBuffer->attachments[t];
+				attachmentViews[t] = attachment.view;
+			}
+
+			// create default attachment descriptor
+			for(auto& attachment : frameBuffer->attachments)
+			{
+				attachment.descriptor.imageView = attachment.view;
+				attachment.descriptor.sampler = sampler;
+
+				bool isDepthStencil = utils::IsDepthStencil(attachment.format);
+
+				if(isDepthStencil)
+					attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+				else
+					attachment.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			}
 
 			// Find max number of layers across attachments
 			uint32_t maxLayers = 0;
-			for (auto attachment : frameBuffer->attachments)
+			for (const auto& attachment : frameBuffer->attachments)
 			{
 				if (attachment.subresourceRange.layerCount > maxLayers)
 					maxLayers = attachment.subresourceRange.layerCount;
@@ -261,9 +278,8 @@ namespace vks
 			frameBuffers[i]->CreateAttachment(attachmentDescription);
 	}
 
-	void VulkanFrameBuffer::CrateDescriptorSet(const utils::VulkanSamplerCreateInfo& samplerCreateInfo, bool skipDepthStencil)
+	void VulkanFrameBuffer::CrateDescriptorSet(bool skipDepthStencil)
 	{
-		sampler = CreateSampler(vulkanDevice, samplerCreateInfo);
 		for(uint32_t i =0; i<frameBufferCount;i++)
 			frameBuffers[i]->CreateAttachmentDescriptorSet(sampler, skipDepthStencil);
 	}

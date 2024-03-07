@@ -229,14 +229,14 @@ void DeferredPBR::SetupMrtRenderPass()
 
     // frame buffer
     mrtFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
-    mrtFrameBuffer->Init(mrtRenderPass.get());
-    
-    // description
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    mrtFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+    mrtFrameBuffer->Init(mrtRenderPass.get(), samplerCreateInfo);
+    
+    // show on UI
+    mrtFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupSSAORenderPass()
@@ -312,13 +312,14 @@ void DeferredPBR::SetupSSAORenderPass()
 
     // frame buffer
     ssaoFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
-    ssaoFrameBuffer->Init(ssaoRenderPass.get());
-    // descriptor set
+
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo{};
     samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    ssaoFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+    ssaoFrameBuffer->Init(ssaoRenderPass.get(), samplerCreateInfo);
+    // descriptor set
+    // ssaoFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupShadowRenderPass()
@@ -391,13 +392,13 @@ void DeferredPBR::SetupShadowRenderPass()
 
     // frame buffer
     shadowFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(),imageWidth, imageHeight, maxFrameInFlight);
-    shadowFrameBuffer->Init(shadowRenderPass.get());
-
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo{};
     samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    shadowFrameBuffer->CrateDescriptorSet(samplerCreateInfo, false);
+    shadowFrameBuffer->Init(shadowRenderPass.get(),samplerCreateInfo);
+    
+    // shadowFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupLightingRenderPass()
@@ -422,14 +423,13 @@ void DeferredPBR::SetupLightingRenderPass()
 
     // frame buffer
     lightingFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
-    lightingFrameBuffer->Init(lightingRenderPass.get());
-
-    // sampler
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    lightingFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+    lightingFrameBuffer->Init(lightingRenderPass.get(),samplerCreateInfo);
+
+    lightingFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupSkyboxRenderPass()
@@ -453,14 +453,13 @@ void DeferredPBR::SetupSkyboxRenderPass()
 
     // frame buffer
     skyboxFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
-    skyboxFrameBuffer->Init(skyboxRenderPass.get());
-
-    // sampler
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    skyboxFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+    skyboxFrameBuffer->Init(skyboxRenderPass.get(),samplerCreateInfo);
+
+    // skyboxFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::SetupPostprocessRenderPass()
@@ -484,14 +483,14 @@ void DeferredPBR::SetupPostprocessRenderPass()
 
     // frame buffer
     postprocessFrameBuffer = std::make_unique<vks::VulkanFrameBuffer>(vulkanDevice.get(), imageWidth, imageHeight, maxFrameInFlight);
-    postprocessFrameBuffer->Init(postprocessRenderPass.get());
-
-    // sampler
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.minFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.magFiler = VK_FILTER_NEAREST;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    postprocessFrameBuffer->CrateDescriptorSet(samplerCreateInfo);
+    postprocessFrameBuffer->Init(postprocessRenderPass.get(), samplerCreateInfo);
+
+    // show on UI
+    postprocessFrameBuffer->CrateDescriptorSet();
 }
 
 void DeferredPBR::BakingIrradianceCubeMap()
