@@ -336,7 +336,7 @@ void DeferredPBR::SetupShadowRenderPass()
     // shadow result attachment
     attachmentInfo.name = "G_Shadow";
     attachmentInfo.binding = shadowRenderPass->AttachmentCount();
-    attachmentInfo.format = VK_FORMAT_R8_UNORM;
+    attachmentInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     attachmentInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     shadowRenderPass->AddAttachment(attachmentInfo);
 
@@ -379,12 +379,12 @@ void DeferredPBR::SetupShadowRenderPass()
                             VK_DEPENDENCY_BY_REGION_BIT
                     },
                     {
-                            1,VK_SUBPASS_EXTERNAL,
-                            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                            VK_ACCESS_SHADER_READ_BIT,
-                            VK_DEPENDENCY_BY_REGION_BIT
+                    1,VK_SUBPASS_EXTERNAL,
+                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                        VK_ACCESS_MEMORY_READ_BIT,
+                        VK_DEPENDENCY_BY_REGION_BIT
                     }
             });
 
@@ -1742,6 +1742,8 @@ void DeferredPBR::UpdateUniformBuffers()
     shadowUbo.values.farPlane = camera->GetFarClip();
     shadowUbo.values.projection = camera->matrices.perspective;
     shadowUbo.values.view = camera->matrices.view;
+    shadowUbo.values.lightSpace = camera->matrices.perspective * glm::lookAt(glm::vec3(0.0f, 1.85776f, 0.0f),
+        glm::vec3(0.0f),glm::vec3(0.0f,0.0f,1.0f));
     memcpy(shadowUbo.buffer.mapped, &shadowUbo.values,sizeof(shadowUbo.values));
 
     for (uint32_t i = 0; i < gltfModel->lights.size(); i++)
@@ -2093,9 +2095,10 @@ void DeferredPBR::SetupDescriptorSets()
             binding++;
 
             // shadow result
+            const vks::FramebufferAttachment& shadowAttachment = shadowFrameBuffer->GetFrameBuffer(i)->GetAttachment("G_Shadow");
             writeDescriptorSet = vks::initializers::WriteDescriptorSet(lightingDescriptorSets[i],
                                                                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                                                       binding, &whiteTexture->descriptor);
+                                                                       binding, &const_cast<VkDescriptorImageInfo&>(shadowAttachment.descriptor));
             vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
             binding++;
 
@@ -2437,7 +2440,12 @@ void DeferredPBR::PrepareShadowMapPipeline()
     std::vector<VkDescriptorSetLayout> setLayouts = {shadowMapDescriptorSetLayout};
     VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::PipelineLayoutCreateInfo(
         setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
-    pipelineLayoutCI.pushConstantRangeCount = 0;
+    // We will use push constants to push the local matrices of a primitive to the vertex shader
+    VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(
+        VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
+    // Push constant ranges are part of the pipeline layout
+    pipelineLayoutCI.pushConstantRangeCount = 1;
+    pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
     CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &shadowMapPipelineLayout));
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI =
@@ -2516,7 +2524,12 @@ void DeferredPBR::PrepareDirectionalShadowPipeline()
     std::vector<VkDescriptorSetLayout> setLayouts = {directionalShadowDescriptorSetLayout};
     VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::PipelineLayoutCreateInfo(
         setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
-    pipelineLayoutCI.pushConstantRangeCount = 0;
+    // We will use push constants to push the local matrices of a primitive to the vertex shader
+    VkPushConstantRange pushConstantRange = vks::initializers::PushConstantRange(
+        VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0);
+    // Push constant ranges are part of the pipeline layout
+    pipelineLayoutCI.pushConstantRangeCount = 1;
+    pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
     CheckVulkanResult(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &directionalShadowPipelineLayout));
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI =
@@ -2968,7 +2981,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.shadowMap);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shadowMapPipelineLayout, 0, 1,
                                     &shadowMapDescriptorSets[currentFrame], 0, nullptr);
-            gltfModel->Draw(commandBuffer, 0, false, mrtPipelineLayout, 1);
+            gltfModel->Draw(commandBuffer, 0, true, shadowMapPipelineLayout, NULL);
         }
     
         // shadow subpass
@@ -2977,7 +2990,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.directionalShadow);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, directionalShadowPipelineLayout, 0, 1,
                                     &directionalShadowDescriptorSets[currentFrame], 0, nullptr);
-            gltfModel->Draw(commandBuffer, 0, false, mrtPipelineLayout, 1);
+            gltfModel->Draw(commandBuffer, 0, true, directionalShadowPipelineLayout, NULL);
         }
         vkCmdEndRenderPass(commandBuffer);
     }

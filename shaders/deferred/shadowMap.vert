@@ -11,7 +11,11 @@ layout (set = 0, binding = 0) uniform UBO
     mat4 lightSpace;
 } ubo;
 
+layout(push_constant) uniform PushConsts {
+	mat4 model;
+} primitive;
+
 void main()
 {
-    gl_Position = ubo.lightSpace * vec4(inPos, 1.0);
+    gl_Position = ubo.lightSpace * primitive.model * vec4(inPos, 1.0);
 }

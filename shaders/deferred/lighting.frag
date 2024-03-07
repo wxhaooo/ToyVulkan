@@ -154,6 +154,8 @@ void main()
 		Lo += (kd * albedo / PI + spec) * radiance * NL; 
 	}
 
+	Lo *= shadow;
+
 	// ambient lighting
 	vec3 F = fresnelSchlickRoughness(NV, roughness, F0);
 	vec3 ks = F;
@@ -176,7 +178,6 @@ void main()
 	// 这个实现存疑，但是原来的实现没有考虑到反射的颜色和物体本身颜色的关系以及是否是金属，所以改成这样了
 	// vec3 specular = reflectionColor * (F * envBRDF.x + envBRDF.y) * albedo * metallic;
 	// vec3 specular = vec3(0.0);
-	diffuse *= 1.0;
 	vec3 ambient = (kd * diffuse + specular) * ao.rrr;
     vec3 color = ambient + Lo;
 	// 自发光没有处理好，需要做一下
