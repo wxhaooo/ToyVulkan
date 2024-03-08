@@ -341,16 +341,24 @@ void DeferredPBR::SetupShadowRenderPass()
     shadowRenderPass->AddAttachment(attachmentInfo);
 
     // depth attachment
-    attachmentInfo.name = "Depth";
+    attachmentInfo.name = "_Depth_ShadowMap";
     attachmentInfo.binding = shadowRenderPass->AttachmentCount();
     attachmentInfo.format = depthFormat;
     attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     shadowRenderPass->AddAttachment(attachmentInfo);
 
+    // depth attachment
+    attachmentInfo.name = "_Depth_ShadowResult";
+    attachmentInfo.binding = shadowRenderPass->AttachmentCount();
+    attachmentInfo.format = depthFormat;
+    attachmentInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT;
+    shadowRenderPass->AddAttachment(attachmentInfo);
+
     std::vector<uint32_t> subPassColorAttachmentIndices = {1};
     shadowRenderPass->AddSubPass("shadowMap",VK_PIPELINE_BIND_POINT_GRAPHICS, subPassColorAttachmentIndices,{});
-    subPassColorAttachmentIndices = {0};
+    subPassColorAttachmentIndices = {0, 2};
     shadowRenderPass->AddSubPass("directionalShadowResult",VK_PIPELINE_BIND_POINT_GRAPHICS,subPassColorAttachmentIndices,{1});
     shadowRenderPass->AddSubPassDependency(
             {
@@ -396,7 +404,7 @@ void DeferredPBR::SetupShadowRenderPass()
     samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    shadowFrameBuffer->Init(shadowRenderPass.get(),samplerCreateInfo);
+    shadowFrameBuffer->Init(shadowRenderPass.get(), samplerCreateInfo);
     
     // shadowFrameBuffer->CrateDescriptorSet();
 }
@@ -2009,7 +2017,7 @@ void DeferredPBR::SetupDescriptorSets()
             vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
             binding++;
             vks::FrameBuffer* frameBuffer = shadowFrameBuffer->GetFrameBuffer(i);
-            const vks::FramebufferAttachment& depthAttachment = frameBuffer->GetAttachment("Depth");
+            const vks::FramebufferAttachment& depthAttachment = frameBuffer->GetAttachment("_Depth_ShadowMap");
             writeDescriptorSet = vks::initializers::WriteDescriptorSet(
                     directionalShadowDescriptorSets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     binding, &const_cast<VkDescriptorImageInfo&>(depthAttachment.descriptor));
@@ -2537,8 +2545,10 @@ void DeferredPBR::PrepareDirectionalShadowPipeline()
     VkPipelineRasterizationStateCreateInfo rasterizationStateCI =
         vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
                                                                 VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
-    rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
-    std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates{};
+    std::vector<VkPipelineColorBlendAttachmentState> blendAttachmentStates
+    {
+        vks::initializers::PipelineColorBlendAttachmentState(0xf, VK_FALSE),
+    };
     VkPipelineColorBlendStateCreateInfo colorBlendStateCI = vks::initializers::PipelineColorBlendStateCreateInfo(
         blendAttachmentStates.size(), blendAttachmentStates.data());
     VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = vks::initializers::PipelineDepthStencilStateCreateInfo(
@@ -2965,6 +2975,7 @@ void DeferredPBR::PrepareRenderPass(VkCommandBuffer commandBuffer)
             {0.0f,0.0f,0.0f,0.0f}
         };
         VkClearValue clearValue = {1.0f, 0.0f};
+        clearValues.push_back(clearValue);
         clearValues.push_back(clearValue);
         renderPassBeginInfo.clearValueCount = clearValues.size();
         renderPassBeginInfo.pClearValues = clearValues.data();

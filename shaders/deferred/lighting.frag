@@ -154,7 +154,7 @@ void main()
 		Lo += (kd * albedo / PI + spec) * radiance * NL; 
 	}
 
-	Lo *= shadow;
+	// Lo *= (1.0 - shadow);
 
 	// ambient lighting
 	vec3 F = fresnelSchlickRoughness(NV, roughness, F0);
@@ -180,6 +180,7 @@ void main()
 	// vec3 specular = vec3(0.0);
 	vec3 ambient = (kd * diffuse + specular) * ao.rrr;
     vec3 color = ambient + Lo;
+	color *= (1.0 - shadow * 0.5);
 	// 自发光没有处理好，需要做一下
 	color += emissive;
 
