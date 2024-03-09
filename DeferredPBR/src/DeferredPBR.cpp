@@ -403,7 +403,7 @@ void DeferredPBR::SetupShadowRenderPass()
     vks::utils::VulkanSamplerCreateInfo samplerCreateInfo{};
     samplerCreateInfo.minFiler = VK_FILTER_LINEAR;
     samplerCreateInfo.magFiler = VK_FILTER_LINEAR;
-    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    samplerCreateInfo.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     shadowFrameBuffer->Init(shadowRenderPass.get(), samplerCreateInfo);
     
     // shadowFrameBuffer->CrateDescriptorSet();
@@ -1750,6 +1750,7 @@ void DeferredPBR::UpdateUniformBuffers()
     shadowUbo.values.farPlane = camera->GetFarClip();
     shadowUbo.values.projection = camera->matrices.perspective;
     shadowUbo.values.view = camera->matrices.view;
+    shadowUbo.values.lightPosition = glm::vec3(0.0f, 1.85776f, 0.0f);
     shadowUbo.values.lightSpace = camera->matrices.perspective * glm::lookAt(glm::vec3(0.0f, 1.85776f, 0.0f),
         glm::vec3(0.0f),glm::vec3(0.0f,0.0f,1.0f));
     memcpy(shadowUbo.buffer.mapped, &shadowUbo.values,sizeof(shadowUbo.values));
@@ -2459,7 +2460,7 @@ void DeferredPBR::PrepareShadowMapPipeline()
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI =
         vks::initializers::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
     VkPipelineRasterizationStateCreateInfo rasterizationStateCI =
-        vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
+        vks::initializers::PipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT,
                                                                 VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
     rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
     std::array<VkPipelineColorBlendAttachmentState, 1> blendAttachmentStates{};
