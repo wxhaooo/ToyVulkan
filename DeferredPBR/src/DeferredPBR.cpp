@@ -3205,7 +3205,7 @@ void DeferredPBR::NewGUIFrame()
         ImGui::End();
     }
 
-    ImGui::ShowDemoWindow();
+    // ImGui::ShowDemoWindow();
 }
 
 void DeferredPBR::ViewChanged()
